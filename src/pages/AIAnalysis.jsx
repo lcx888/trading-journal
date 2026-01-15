@@ -1,37 +1,33 @@
 import { useState, useEffect } from 'react';
-import {
-  Card, Button, Spin, Alert, Row, Col, Statistic, Tag, Table, 
-  Select, DatePicker, Space, Progress, Collapse, Empty, Divider,
-  Modal, Form, Input, message, Tooltip, Typography, Badge
+import { 
+  Select, DatePicker, message, Modal, Form, Input, Table, Tag, Alert, 
+  Collapse, Divider, Progress
 } from 'antd';
 import {
-  RobotOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-  TrophyOutlined,
-  BulbOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  ClockCircleOutlined,
-  LineChartOutlined,
-  BarChartOutlined,
-  RiseOutlined,
-  FallOutlined,
-  FieldTimeOutlined,
-  EditOutlined,
-  FileTextOutlined,
-  GlobalOutlined,
-  ArrowRightOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  CalendarOutlined,
-  FireOutlined,
-  SafetyCertificateOutlined,
-  DollarOutlined,
-  ScanOutlined,
-} from '@ant-design/icons';
+  Brain,
+  Zap,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  AlertTriangle,
+  Lightbulb,
+  Clock,
+  BarChart3,
+  Calendar,
+  Flame,
+  LineChart,
+  ChevronRight,
+  Play,
+  Edit3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+  Shield,
+  DollarSign,
+  Timer,
+  Award,
+  MoreHorizontal
+} from 'lucide-react';
 import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
 import StorageService from '../services/storage';
@@ -40,7 +36,51 @@ import { generateAIAnalysis } from '../services/aiAnalysis';
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 const { TextArea } = Input;
-const { Text } = Typography;
+
+// 统计卡片组件
+const StatCard = ({ title, value, change, isPositive, suffix = '', prefix = '' }) => (
+  <div className="group relative p-6 bg-white rounded-2xl transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100/50 hover:border-gray-200/60">
+    <div className="flex justify-between items-start mb-4">
+      <p className="text-sm font-medium text-gray-500">{title}</p>
+      {change !== undefined && (
+        <span className={`flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${
+          isPositive ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
+        }`}>
+          {isPositive ? <ArrowUpRight size={12} className="mr-0.5" /> : <ArrowDownRight size={12} className="mr-0.5" />}
+          {change}
+        </span>
+      )}
+    </div>
+    <h3 className="text-3xl font-bold text-gray-900 tracking-tight">
+      {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
+    </h3>
+    <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-gray-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+  </div>
+);
+
+// 迷你统计卡片
+const MiniStatCard = ({ title, value, icon: Icon, color = 'blue' }) => {
+  const colorClasses = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    red: 'bg-rose-50 text-rose-600',
+    purple: 'bg-purple-50 text-purple-600',
+    orange: 'bg-orange-50 text-orange-600',
+  };
+  return (
+    <div className="bg-white rounded-xl p-4 border border-gray-100 hover:shadow-sm transition-shadow">
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
+          <Icon size={18} />
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">{title}</p>
+          <p className="text-lg font-bold text-gray-900">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(false);
@@ -56,16 +96,13 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [reviewForm] = Form.useForm();
 
   const COLORS = {
-    profit: '#26a69a',
-    loss: '#ef5350',
-    primary: '#2962ff',
-    text: '#131722',
-    textLight: '#787b86',
-    border: '#e0e3eb',
-    grid: '#f0f3fa',
-    gold: '#c29b40',
-    purple: '#7c3aed',
-    cyan: '#06b6d4',
+    profit: '#10b981',
+    loss: '#ef4444',
+    primary: '#18181b',
+    text: '#18181b',
+    textLight: '#6b7280',
+    border: '#e5e7eb',
+    grid: '#f3f4f6',
   };
 
   useEffect(() => {
@@ -131,34 +168,55 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   };
 
   // ========== 图表配置 ==========
+  const getChartBaseOption = () => ({
+    grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+    tooltip: { 
+      trigger: 'axis',
+      backgroundColor: '#18181b',
+      borderColor: '#18181b',
+      textStyle: { color: '#fff', fontSize: 12 },
+      axisPointer: { type: 'shadow' }
+    },
+  });
+
   const getSessionChartOption = () => {
     if (!analysis?.patterns?.sessionPerformance) return {};
     const data = analysis.patterns.sessionPerformance;
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      legend: { bottom: 0, textStyle: { color: COLORS.textLight, fontSize: 10 } },
-      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.session), axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { fontSize: 9, rotate: 20 } },
+      ...getChartBaseOption(),
+      legend: { bottom: 0, textStyle: { color: COLORS.textLight, fontSize: 11 } },
+      xAxis: { 
+        type: 'category', 
+        data: data.map(d => d.session), 
+        axisLine: { show: false }, 
+        axisTick: { show: false },
+        axisLabel: { fontSize: 11, color: COLORS.textLight }
+      },
       yAxis: [
-        { type: 'value', name: '盈亏', position: 'right', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid } } },
-        { type: 'value', name: '胜率', position: 'left', axisLine: { show: false }, axisLabel: { formatter: '{value}%' }, splitLine: { show: false } }
+        { type: 'value', position: 'right', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid, type: 'dashed' } }, axisLabel: { fontSize: 11, color: COLORS.textLight } },
+        { type: 'value', position: 'left', axisLine: { show: false }, axisLabel: { formatter: '{value}%', fontSize: 11, color: COLORS.textLight }, splitLine: { show: false } }
       ],
       series: [
-        { name: '盈亏', type: 'bar', data: data.map(d => ({ value: d.totalPnL, itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [4, 4, 0, 0] } })), barWidth: '40%' },
-        { name: '胜率', type: 'line', yAxisIndex: 1, data: data.map(d => d.winRate), lineStyle: { color: COLORS.gold, width: 2 }, itemStyle: { color: COLORS.gold } }
+        { 
+          name: '盈亏', 
+          type: 'bar', 
+          data: data.map(d => ({ 
+            value: d.totalPnL, 
+            itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [6, 6, 0, 0] } 
+          })), 
+          barWidth: '50%' 
+        },
+        { 
+          name: '胜率', 
+          type: 'line', 
+          yAxisIndex: 1, 
+          data: data.map(d => d.winRate), 
+          lineStyle: { color: '#f59e0b', width: 2 }, 
+          itemStyle: { color: '#f59e0b' },
+          symbol: 'circle',
+          symbolSize: 6
+        }
       ]
-    };
-  };
-
-  const getInstrumentChartOption = () => {
-    if (!analysis?.patterns?.instrumentPerformance) return {};
-    const data = analysis.patterns.instrumentPerformance;
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.instrument), axisLine: { lineStyle: { color: COLORS.border } } },
-      yAxis: { type: 'value', position: 'right', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid } } },
-      series: [{ type: 'bar', data: data.map(d => ({ value: d.totalPnL, itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [4, 4, 0, 0] } })), barWidth: '40%' }]
     };
   };
 
@@ -166,29 +224,23 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     if (!analysis?.holdingAnalysis?.distribution) return {};
     const data = analysis.holdingAnalysis.distribution;
     return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '20%', top: '15%', containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.label), axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { rotate: 30, fontSize: 9 } },
+      ...getChartBaseOption(),
+      grid: { ...getChartBaseOption().grid, bottom: '20%' },
+      xAxis: { 
+        type: 'category', 
+        data: data.map(d => d.label), 
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { rotate: 30, fontSize: 10, color: COLORS.textLight }
+      },
       yAxis: [
-        { type: 'value', name: '笔数', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid } } },
-        { type: 'value', name: '平均盈亏', position: 'right', axisLine: { show: false }, splitLine: { show: false } }
+        { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid, type: 'dashed' } }, axisLabel: { fontSize: 11, color: COLORS.textLight } },
+        { type: 'value', position: 'right', axisLine: { show: false }, splitLine: { show: false }, axisLabel: { fontSize: 11, color: COLORS.textLight } }
       ],
       series: [
-        { name: '笔数', type: 'bar', data: data.map(d => d.count), itemStyle: { color: COLORS.primary, borderRadius: [4, 4, 0, 0] } },
+        { name: '笔数', type: 'bar', data: data.map(d => d.count), itemStyle: { color: COLORS.primary, borderRadius: [6, 6, 0, 0] }, barWidth: '50%' },
         { name: '平均盈亏', type: 'line', yAxisIndex: 1, data: data.map(d => d.avgPnL), lineStyle: { color: COLORS.profit, width: 2 }, itemStyle: { color: COLORS.profit } }
       ]
-    };
-  };
-
-  const getHourlyChartOption = () => {
-    if (!analysis?.hourlyAnalysis?.hourlyData) return {};
-    const data = analysis.hourlyAnalysis.hourlyData;
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.hourLabel), axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { fontSize: 9 } },
-      yAxis: { type: 'value', position: 'right', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid } } },
-      series: [{ type: 'bar', data: data.map(d => ({ value: d.totalPnL, itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [4, 4, 0, 0] } })) }]
     };
   };
 
@@ -196,325 +248,612 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     if (!analysis?.frequencyAnalysis?.weekdayData) return {};
     const data = analysis.frequencyAnalysis.weekdayData;
     return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.dayName), axisLine: { lineStyle: { color: COLORS.border } } },
-      yAxis: { type: 'value', position: 'right', axisLine: { show: false }, splitLine: { lineStyle: { color: COLORS.grid } } },
-      series: [{ type: 'bar', data: data.map(d => ({ value: d.totalPnL, itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [4, 4, 0, 0] } })), barWidth: '50%' }]
+      ...getChartBaseOption(),
+      xAxis: { 
+        type: 'category', 
+        data: data.map(d => d.dayName), 
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 11, color: COLORS.textLight }
+      },
+      yAxis: { 
+        type: 'value', 
+        position: 'right', 
+        axisLine: { show: false }, 
+        splitLine: { lineStyle: { color: COLORS.grid, type: 'dashed' } },
+        axisLabel: { fontSize: 11, color: COLORS.textLight }
+      },
+      series: [{ 
+        type: 'bar', 
+        data: data.map(d => ({ 
+          value: d.totalPnL, 
+          itemStyle: { color: d.totalPnL >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [6, 6, 0, 0] } 
+        })), 
+        barWidth: '60%' 
+      }]
     };
   };
 
+  // ========== 加载状态 ==========
   if (loading) return (
-    <div className="flex flex-col items-center justify-center h-[60vh]">
-      <div className="relative w-24 h-24 mb-6">
-        <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
-        <div className="absolute inset-0 border-t-4 border-blue-500 rounded-full animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center"><RobotOutlined className="text-3xl text-blue-500" /></div>
+    <div className="flex flex-col items-center justify-center h-[70vh] bg-[#FAFAFA]">
+      <div className="relative w-20 h-20 mb-8">
+        <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
+        <div className="absolute inset-0 border-t-4 border-gray-900 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Brain className="text-gray-900" size={28} />
+        </div>
       </div>
-      <div className="text-lg font-bold text-[#131722]">AI 正在分析您的交易数据...</div>
-      <div className="text-sm text-slate-400 mt-2">识别模式、评估风险、生成建议</div>
+      <h2 className="text-xl font-bold text-gray-900 mb-2">AI 正在分析交易数据</h2>
+      <p className="text-gray-500 text-sm">识别模式、评估风险、生成建议...</p>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      {/* 控制栏 */}
-      <div className="modern-card bg-white p-4 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-2 bg-[#f0f3fa] px-3 py-1.5 rounded-lg">
-            <GlobalOutlined className="text-blue-500 text-xs" />
-            <Select value={filters.instrument} onChange={(v) => setFilters({ ...filters, instrument: v })} style={{ width: 120 }} variant="borderless" className="font-bold text-xs" options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} />
+    <div className="min-h-screen bg-[#FAFAFA] p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* ========== 顶部控制栏 ========== */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-lg">
+              <Brain size={20} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">AI 智能复盘</h1>
+              <p className="text-xs text-gray-500">深度分析交易数据，识别问题模式</p>
+            </div>
           </div>
-          <div className="bg-[#f0f3fa] px-2 py-0.5 rounded-lg">
-            <RangePicker value={filters.dateRange} onChange={(v) => setFilters({ ...filters, dateRange: v })} variant="borderless" className="font-medium text-xs" allowClear placeholder={['开始日期', '结束日期']} />
+          
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+              <Select 
+                value={filters.instrument} 
+                onChange={(v) => setFilters({ ...filters, instrument: v })} 
+                style={{ width: 120 }} 
+                variant="borderless"
+                className="font-medium text-sm"
+                options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} 
+              />
+            </div>
+            <div className="bg-gray-50 px-2 py-1 rounded-xl border border-gray-100">
+              <RangePicker 
+                value={filters.dateRange} 
+                onChange={(v) => setFilters({ ...filters, dateRange: v })} 
+                variant="borderless" 
+                className="font-medium text-sm"
+                allowClear 
+                placeholder={['开始日期', '结束日期']} 
+              />
+            </div>
+            <button 
+              onClick={handleAnalyze}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+            >
+              <Play size={16} className="fill-white" />
+              开始分析
+            </button>
           </div>
         </div>
-        <Button type="primary" icon={<RobotOutlined />} onClick={handleAnalyze} size="large" className="font-bold">开始 AI 分析</Button>
-      </div>
 
-      {!analysis && (
-        <div className="modern-card bg-white p-16 text-center">
-          <RobotOutlined className="text-6xl text-slate-200 mb-4" />
-          <h2 className="text-xl font-bold text-[#131722] mb-2">AI 智能交易分析</h2>
-          <p className="text-slate-400 max-w-md mx-auto mb-6">点击上方按钮，AI 将深度分析您的交易数据，识别问题模式并提供个性化优化建议。</p>
-          <Button type="primary" onClick={handleAnalyze} size="large">开始分析</Button>
-        </div>
-      )}
-
-      {analysis && !analysis.success && <Alert message="分析失败" description={analysis.message} type="error" showIcon />}
-
-      {analysis && analysis.success && (
-        <div className="space-y-6">
-          {/* ========== 整体评级 ========== */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="modern-card bg-[#131722] p-6 text-white">
-              <div className="text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2"><SafetyCertificateOutlined /> 综合评分</div>
-              <div className="text-5xl font-black mb-2" style={{ color: analysis.summary.overallRating.color === 'green' ? COLORS.profit : COLORS.loss }}>{analysis.summary.overallRating.score}</div>
-              <Tag className="rounded-full border-none px-4 py-1 text-xs font-bold bg-blue-500/20 text-blue-400">{analysis.summary.overallRating.level}</Tag>
+        {/* ========== 空状态 ========== */}
+        {!analysis && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+            <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Brain size={36} className="text-gray-400" />
             </div>
-            <div className="modern-card bg-white p-6">
-              <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">总盈亏</div>
-              <div className={`text-3xl font-bold ${analysis.summary.totalPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{analysis.summary.totalPnL >= 0 ? '+' : ''}{analysis.summary.totalPnL.toLocaleString()} <span className="text-sm font-normal text-slate-400">美元</span></div>
-            </div>
-            <div className="modern-card bg-white p-6">
-              <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">胜率</div>
-              <div className="text-3xl font-bold text-[#131722]">{analysis.summary.winRate}%</div>
-            </div>
-            <div className="modern-card bg-white p-6">
-              <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">利润系数</div>
-              <div className="text-3xl font-bold text-[#2962ff]">{analysis.summary.profitFactor === Infinity ? '∞' : analysis.summary.profitFactor.toFixed(2)}</div>
-            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">开始智能分析</h2>
+            <p className="text-gray-500 max-w-md mx-auto mb-8">
+              AI 将深度分析您的交易数据，自动识别问题模式、评估风险敞口，并提供个性化优化建议
+            </p>
+            <button 
+              onClick={handleAnalyze}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              <Zap size={18} className="fill-white" />
+              立即分析
+            </button>
           </div>
+        )}
 
-          {/* ========== 问题识别 ========== */}
-          {analysis.problems && analysis.problems.length > 0 && (
-            <div className="modern-card bg-white">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                <div className="flex items-center gap-2"><WarningOutlined className="text-[#ef5350]" /><span className="font-bold text-[#131722]">问题识别与问题订单</span></div>
-                <Tag color="red">{analysis.problems.length} 个问题</Tag>
+        {analysis && !analysis.success && (
+          <Alert message="分析失败" description={analysis.message} type="error" showIcon className="rounded-xl" />
+        )}
+
+        {analysis && analysis.success && (
+          <div className="space-y-6">
+            
+            {/* ========== 核心指标 ========== */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="relative p-6 bg-gray-900 rounded-2xl text-white overflow-hidden">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield size={14} className="text-blue-400" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">综合评分</span>
+                  </div>
+                  <div className="text-5xl font-black mb-2" style={{ color: analysis.summary.overallRating.color === 'green' ? '#10b981' : '#f43f5e' }}>
+                    {analysis.summary.overallRating.score}
+                  </div>
+                  <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-xs font-medium backdrop-blur-sm">
+                    {analysis.summary.overallRating.level}
+                  </span>
+                </div>
+                <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-blue-500/10 to-transparent"></div>
+                <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-blue-500 rounded-full blur-[60px] opacity-20"></div>
               </div>
-              <div className="p-2">
-                <Collapse ghost expandIconPosition="end" defaultActiveKey={analysis.problems.length === 1 ? [0] : []}>
-                  {analysis.problems.map((problem, index) => (
-                    <Panel key={index} header={
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <div className="flex items-center gap-3">
-                          <Tag color={problem.severity === 'high' ? 'red' : problem.severity === 'medium' ? 'orange' : 'blue'}>{problem.severity === 'high' ? '严重' : problem.severity === 'medium' ? '中等' : '轻微'}</Tag>
-                          <span className="font-bold text-sm">{problem.type}</span>
-                          {problem.trades && <Tag color="orange">{problem.trades.length} 笔问题订单</Tag>}
+              
+              <StatCard 
+                title="总盈亏" 
+                value={analysis.summary.totalPnL} 
+                prefix={analysis.summary.totalPnL >= 0 ? '+$' : '$'}
+                isPositive={analysis.summary.totalPnL >= 0}
+              />
+              <StatCard 
+                title="胜率" 
+                value={analysis.summary.winRate} 
+                suffix="%"
+              />
+              <StatCard 
+                title="利润系数" 
+                value={analysis.summary.profitFactor === Infinity ? '∞' : analysis.summary.profitFactor.toFixed(2)}
+              />
+            </div>
+
+            {/* ========== 问题识别 ========== */}
+            {analysis.problems && analysis.problems.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-rose-50 text-rose-600">
+                      <AlertTriangle size={18} />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-900">问题识别</h2>
+                      <p className="text-xs text-gray-500">发现 {analysis.problems.length} 个需要关注的问题</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-xs font-semibold">
+                    {analysis.problems.length} 个问题
+                  </span>
+                </div>
+                <div className="p-3">
+                  <Collapse ghost expandIconPosition="end" className="[&_.ant-collapse-header]:!px-4 [&_.ant-collapse-header]:!py-3 [&_.ant-collapse-content-box]:!p-4">
+                    {analysis.problems.map((problem, index) => (
+                      <Panel key={index} header={
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center gap-3">
+                            <Tag color={problem.severity === 'high' ? 'red' : problem.severity === 'medium' ? 'orange' : 'blue'} className="rounded-full border-none">
+                              {problem.severity === 'high' ? '严重' : problem.severity === 'medium' ? '中等' : '轻微'}
+                            </Tag>
+                            <span className="font-semibold text-gray-900">{problem.type}</span>
+                            {problem.trades && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{problem.trades.length} 笔</span>}
+                          </div>
+                          {problem.totalLoss !== undefined && (
+                            <span className="text-rose-600 font-bold text-sm">
+                              -${Math.abs(problem.totalLoss).toLocaleString()}
+                            </span>
+                          )}
                         </div>
-                        {problem.totalLoss !== undefined && <span className="text-[#ef5350] font-bold">累计亏损: ${Math.abs(problem.totalLoss).toLocaleString()}</span>}
+                      }>
+                        <div className="space-y-4">
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <p className="text-gray-700 text-sm mb-3">{problem.description}</p>
+                            <div className="flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                              <Lightbulb size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                              <p className="text-blue-700 text-sm"><strong>优化建议：</strong>{problem.recommendation}</p>
+                            </div>
+                          </div>
+                          {problem.trades && problem.trades.length > 0 && (
+                            <Table 
+                              dataSource={problem.trades.map((t, i) => ({ ...t, key: t.id || i }))} 
+                              size="small" 
+                              pagination={false}
+                              className="[&_.ant-table]:!rounded-xl [&_.ant-table-thead_.ant-table-cell]:!bg-gray-50"
+                              columns={[
+                                { title: '时间', dataIndex: 'openTime', width: 130, render: t => <span className="text-gray-600 text-xs">{dayjs(t).format('MM-DD HH:mm:ss')}</span> },
+                                { title: '品种', dataIndex: 'instrumentCode', width: 70, render: c => <span className="font-medium">{c}</span> },
+                                { title: '方向', dataIndex: 'direction', width: 60, render: d => <Tag color={d === 'LONG' ? 'green' : 'red'} className="rounded-full text-xs">{d === 'LONG' ? '多' : '空'}</Tag> },
+                                { title: '盈亏', dataIndex: 'pnl', width: 90, align: 'right', render: p => <span className={`font-bold ${p >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{p >= 0 ? '+' : ''}{p?.toFixed(2)}</span> },
+                                { title: '持仓', dataIndex: 'holdingSeconds', width: 80, align: 'right', render: s => { if (!s) return '-'; const m = Math.floor(s / 60); const sec = s % 60; return m > 0 ? `${m}分${sec}秒` : `${sec}秒`; } },
+                                { title: '', key: 'action', width: 40, render: (_, r) => <button onClick={() => openReviewModal(r)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors"><Edit3 size={14} className="text-gray-400" /></button> }
+                              ]} 
+                            />
+                          )}
+                        </div>
+                      </Panel>
+                    ))}
+                  </Collapse>
+                </div>
+              </div>
+            )}
+
+            {/* ========== 优化策略建议 ========== */}
+            {analysis.strategies && analysis.strategies.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                    <Lightbulb size={18} />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900">优化策略建议</h2>
+                    <p className="text-xs text-gray-500">{analysis.strategies.length} 条个性化建议</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {analysis.strategies.map((s, idx) => (
+                    <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Tag color={s.priority === 'high' ? 'red' : s.priority === 'medium' ? 'orange' : 'blue'} className="rounded-full border-none">
+                          {s.priority === 'high' ? '高优先级' : s.priority === 'medium' ? '中优先级' : '低优先级'}
+                        </Tag>
+                        <span className="font-semibold text-gray-900">{s.title}</span>
+                        <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-100">{s.category}</span>
                       </div>
-                    }>
-                      <div className="px-4 pb-4 space-y-4">
-                        <Alert message={problem.description} description={<p className="text-blue-600 mt-2"><BulbOutlined className="mr-1" /><strong>优化建议：</strong>{problem.recommendation}</p>} type={problem.severity === 'high' ? 'error' : 'warning'} showIcon />
-                        {problem.trades && problem.trades.length > 0 && (
-                          <Table dataSource={problem.trades.map((t, i) => ({ ...t, key: t.id || i }))} size="small" pagination={false} rowClassName={(r) => r.pnl < 0 ? 'bg-red-50/50' : 'bg-green-50/50'} columns={[
-                            { title: '开仓时间', dataIndex: 'openTime', width: 140, render: t => dayjs(t).format('MM-DD HH:mm:ss') },
-                            { title: '品种', dataIndex: 'instrumentCode', width: 70, render: c => <Tag color="blue">{c}</Tag> },
-                            { title: '方向', dataIndex: 'direction', width: 60, render: d => <Tag color={d === 'LONG' ? 'green' : 'red'}>{d === 'LONG' ? '多' : '空'}</Tag> },
-                            { title: '盈亏', dataIndex: 'pnl', width: 100, align: 'right', render: p => <span className={`font-bold ${p >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{p >= 0 ? '+' : ''}{p?.toFixed(2)}</span> },
-                            { title: '时段', dataIndex: 'marketSession', width: 90, render: s => <Tag>{s}</Tag> },
-                            { title: '持仓时间', dataIndex: 'holdingSeconds', width: 90, align: 'right', render: s => { if (!s) return '-'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60; if (h > 0) return `${h}时${m}分`; if (m > 0) return `${m}分${sec}秒`; return `${sec}秒`; } },
-                            { title: '操作', key: 'action', width: 60, render: (_, r) => <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openReviewModal(r)} className="text-blue-500" /> }
-                          ]} />
+                      <p className="text-gray-600 text-sm mb-3">{s.description}</p>
+                      <div className="flex gap-3">
+                        <div className="flex-1 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                          <p className="text-blue-700 text-sm"><strong>行动：</strong>{s.action}</p>
+                        </div>
+                        {s.expectedImprovement && (
+                          <div className="flex-1 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                            <p className="text-emerald-700 text-sm"><strong>预期：</strong>{s.expectedImprovement}</p>
+                          </div>
                         )}
                       </div>
-                    </Panel>
+                    </div>
                   ))}
-                </Collapse>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ========== 优化策略建议 ========== */}
-          {analysis.strategies && analysis.strategies.length > 0 && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><BulbOutlined className="text-[#2962ff]" /><span className="font-bold text-[#131722]">优化策略建议</span><Tag color="blue">{analysis.strategies.length} 条建议</Tag></div>
-              <Collapse defaultActiveKey={[0]} ghost>
-                {analysis.strategies.map((s, idx) => (
-                  <Panel key={idx} header={<div className="flex items-center gap-3"><Tag color={s.priority === 'high' ? 'red' : s.priority === 'medium' ? 'orange' : 'blue'}>{s.priority === 'high' ? '高优先级' : s.priority === 'medium' ? '中优先级' : '低优先级'}</Tag><span className="font-bold">{s.title}</span><Tag>{s.category}</Tag></div>}>
-                    <div className="space-y-3 pl-6">
-                      <p className="text-slate-600">{s.description}</p>
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100"><p className="text-blue-700"><strong>行动建议：</strong>{s.action}</p></div>
-                      {s.expectedImprovement && <div className="bg-green-50 p-3 rounded-lg border border-green-100"><p className="text-green-700"><strong>预期效果：</strong>{s.expectedImprovement}</p></div>}
+            {/* ========== 时段表现分析 ========== */}
+            {analysis.patterns && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
+                        <Clock size={18} />
+                      </div>
+                      <h2 className="font-bold text-gray-900">时段表现</h2>
                     </div>
-                  </Panel>
-                ))}
-              </Collapse>
-            </div>
-          )}
-
-          {/* ========== 时段与品种图表 ========== */}
-          {analysis.patterns && (
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={12}><div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4">时段表现分析</div><ReactECharts option={getSessionChartOption()} style={{ height: '320px' }} /></div></Col>
-              <Col xs={24} lg={12}><div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4">品种表现分析</div><ReactECharts option={getInstrumentChartOption()} style={{ height: '320px' }} /></div></Col>
-            </Row>
-          )}
-
-          {/* ========== 时段与品种表格 ========== */}
-          {analysis.patterns && (
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={12}>
-                <div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4">时段表现详情</div>
-                  <Table dataSource={analysis.patterns.sessionPerformance} rowKey="session" pagination={false} size="small" columns={[
-                    { title: '时段', dataIndex: 'session' }, { title: '交易笔数', dataIndex: 'totalTrades', align: 'right' },
-                    { title: '总盈亏', dataIndex: 'totalPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a] font-bold' : 'text-[#ef5350] font-bold'}>{v >= 0 ? '+' : ''}{v}</span> },
-                    { title: '胜率', dataIndex: 'winRate', align: 'right', render: v => `${v}%` }, { title: '平均盈亏', dataIndex: 'avgPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{v >= 0 ? '+' : ''}{v}</span> }
-                  ]} />
+                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                      <MoreHorizontal size={18} />
+                    </button>
+                  </div>
+                  <ReactECharts option={getSessionChartOption()} style={{ height: '280px' }} />
                 </div>
-              </Col>
-              <Col xs={24} lg={12}>
-                <div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4">品种表现详情</div>
-                  <Table dataSource={analysis.patterns.instrumentPerformance} rowKey="instrument" pagination={false} size="small" columns={[
-                    { title: '品种', dataIndex: 'instrument' }, { title: '交易笔数', dataIndex: 'totalTrades', align: 'right' },
-                    { title: '总盈亏', dataIndex: 'totalPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a] font-bold' : 'text-[#ef5350] font-bold'}>{v >= 0 ? '+' : ''}{v}</span> },
-                    { title: '胜率', dataIndex: 'winRate', align: 'right', render: v => `${v}%` }, { title: '平均盈亏', dataIndex: 'avgPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{v >= 0 ? '+' : ''}{v}</span> }
-                  ]} />
-                </div>
-              </Col>
-            </Row>
-          )}
-
-          {/* ========== 多空对比 ========== */}
-          {analysis.patterns?.directionPerformance && (
-            <div className="modern-card bg-white p-6">
-              <div className="text-sm font-bold text-slate-600 mb-6">多空交易对比</div>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12}>
-                  <div className="bg-[#f0fdf4] p-5 rounded-xl border border-[#26a69a]/20">
-                    <div className="flex items-center gap-2 mb-4"><ArrowUpOutlined className="text-[#26a69a]" /><span className="font-bold text-[#26a69a]">多头交易</span></div>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div><div className="text-2xl font-bold">{analysis.patterns.directionPerformance.LONG.totalTrades}</div><div className="text-xs text-slate-400">笔数</div></div>
-                      <div><div className={`text-2xl font-bold ${analysis.patterns.directionPerformance.LONG.totalPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{analysis.patterns.directionPerformance.LONG.totalPnL >= 0 ? '+' : ''}{analysis.patterns.directionPerformance.LONG.totalPnL}</div><div className="text-xs text-slate-400">总盈亏</div></div>
-                      <div><div className="text-2xl font-bold">{analysis.patterns.directionPerformance.LONG.winRate}%</div><div className="text-xs text-slate-400">胜率</div></div>
+                
+                <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-50 text-orange-600">
+                        <Timer size={18} />
+                      </div>
+                      <h2 className="font-bold text-gray-900">持仓时间分布</h2>
                     </div>
                   </div>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <div className="bg-[#fef2f2] p-5 rounded-xl border border-[#ef5350]/20">
-                    <div className="flex items-center gap-2 mb-4"><ArrowDownOutlined className="text-[#ef5350]" /><span className="font-bold text-[#ef5350]">空头交易</span></div>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div><div className="text-2xl font-bold">{analysis.patterns.directionPerformance.SHORT.totalTrades}</div><div className="text-xs text-slate-400">笔数</div></div>
-                      <div><div className={`text-2xl font-bold ${analysis.patterns.directionPerformance.SHORT.totalPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{analysis.patterns.directionPerformance.SHORT.totalPnL >= 0 ? '+' : ''}{analysis.patterns.directionPerformance.SHORT.totalPnL}</div><div className="text-xs text-slate-400">总盈亏</div></div>
-                      <div><div className="text-2xl font-bold">{analysis.patterns.directionPerformance.SHORT.winRate}%</div><div className="text-xs text-slate-400">胜率</div></div>
+                  <ReactECharts option={getHoldingTimeChartOption()} style={{ height: '280px' }} />
+                </div>
+              </div>
+            )}
+
+            {/* ========== 多空对比 ========== */}
+            {analysis.patterns?.directionPerformance && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-shadow">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+                      <TrendingUp size={18} />
+                    </div>
+                    <h3 className="font-bold text-gray-900">多头交易</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className="text-2xl font-bold text-gray-900">{analysis.patterns.directionPerformance.LONG.totalTrades}</div>
+                      <div className="text-xs text-gray-500 mt-1">交易笔数</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className={`text-2xl font-bold ${analysis.patterns.directionPerformance.LONG.totalPnL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {analysis.patterns.directionPerformance.LONG.totalPnL >= 0 ? '+' : ''}{analysis.patterns.directionPerformance.LONG.totalPnL}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">总盈亏</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className="text-2xl font-bold text-gray-900">{analysis.patterns.directionPerformance.LONG.winRate}%</div>
+                      <div className="text-xs text-gray-500 mt-1">胜率</div>
                     </div>
                   </div>
-                </Col>
-              </Row>
-            </div>
-          )}
-
-          {/* ========== 持仓分析报告 ========== */}
-          {analysis.holdingReport && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><ClockCircleOutlined className="text-purple-500" /><span className="font-bold text-[#131722]">持仓分析报告</span></div>
-              {analysis.holdingReport.sections.map((section, idx) => (
-                <div key={idx} className="mb-6">
-                  <h4 className="text-sm font-bold mb-3 text-slate-700 border-b border-slate-100 pb-2">{section.title}</h4>
-                  {section.type === 'summary' && (<Row gutter={[12, 12]}>{Object.entries(section.data).map(([key, value]) => (<Col xs={12} sm={6} key={key}><div className="bg-slate-50 p-3 rounded-lg text-center"><div className="text-slate-500 text-xs">{key}</div><div className="text-lg font-bold text-[#2962ff]">{value}</div></div></Col>))}</Row>)}
-                  {section.type === 'comparison' && (<div className="space-y-3"><Row gutter={[12, 12]}>{Object.entries(section.data).map(([key, value]) => (<Col xs={24} sm={8} key={key}><div className="bg-blue-50 p-3 rounded-lg"><div className="text-slate-600 text-xs">{key}</div><div className="text-sm font-bold text-[#2962ff]">{value}</div></div></Col>))}</Row>{section.insight && <Alert message={section.insight} type="info" showIcon icon={<BulbOutlined />} />}</div>)}
-                  {section.type === 'highlight' && (<div className="space-y-3"><Row gutter={[12, 12]}>{Object.entries(section.data).map(([key, value]) => (<Col xs={12} sm={6} key={key}><div className="bg-green-50 p-3 rounded-lg text-center border border-green-100"><div className="text-slate-600 text-xs">{key}</div><div className="text-lg font-bold text-[#26a69a]">{value}</div></div></Col>))}</Row>{section.recommendation && <Alert message={<><strong>建议：</strong>{section.recommendation}</>} type="success" showIcon />}</div>)}
-                  {section.type === 'distribution' && (<Table dataSource={section.data} rowKey="label" pagination={false} size="small" columns={[{ title: '持仓时间', dataIndex: 'label' }, { title: '笔数', dataIndex: 'count', align: 'right' }, { title: '占比', dataIndex: 'percentage', align: 'right', render: v => `${v}%` }, { title: '总盈亏', dataIndex: 'totalPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>${v}</span> }, { title: '平均盈亏', dataIndex: 'avgPnL', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>${v}</span> }, { title: '胜率', dataIndex: 'winRate', align: 'right', render: v => `${v}%` }]} />)}
                 </div>
-              ))}
-            </div>
-          )}
+                
+                <div className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-shadow">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-rose-50 text-rose-600">
+                      <TrendingDown size={18} />
+                    </div>
+                    <h3 className="font-bold text-gray-900">空头交易</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className="text-2xl font-bold text-gray-900">{analysis.patterns.directionPerformance.SHORT.totalTrades}</div>
+                      <div className="text-xs text-gray-500 mt-1">交易笔数</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className={`text-2xl font-bold ${analysis.patterns.directionPerformance.SHORT.totalPnL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {analysis.patterns.directionPerformance.SHORT.totalPnL >= 0 ? '+' : ''}{analysis.patterns.directionPerformance.SHORT.totalPnL}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">总盈亏</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <div className="text-2xl font-bold text-gray-900">{analysis.patterns.directionPerformance.SHORT.winRate}%</div>
+                      <div className="text-xs text-gray-500 mt-1">胜率</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* ========== 风险收益指标 ========== */}
-          {analysis.riskAnalysis && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><BarChartOutlined className="text-orange-500" /><span className="font-bold text-[#131722]">风险收益指标</span></div>
-              <Row gutter={[16, 16]}>
-                <Col xs={12} sm={8} md={4}><Statistic title="期望值" value={analysis.riskAnalysis.expectancy} prefix="$" valueStyle={{ color: analysis.riskAnalysis.expectancy >= 0 ? COLORS.profit : COLORS.loss }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="盈亏比" value={analysis.riskAnalysis.profitLossRatio} precision={2} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="利润系数" value={analysis.riskAnalysis.profitFactor} precision={2} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="夏普比率" value={analysis.riskAnalysis.sharpeRatio} precision={2} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="波动率" value={analysis.riskAnalysis.standardDeviation} prefix="$" /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="最大单笔盈利" value={analysis.riskAnalysis.maxProfit} prefix="$" valueStyle={{ color: COLORS.profit }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="最大单笔亏损" value={analysis.riskAnalysis.maxLoss} prefix="$" valueStyle={{ color: COLORS.loss }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="平均盈利" value={analysis.riskAnalysis.avgProfit} prefix="$" valueStyle={{ color: COLORS.profit }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="平均亏损" value={analysis.riskAnalysis.avgLoss} prefix="$" valueStyle={{ color: COLORS.loss }} /></Col>
-              </Row>
-              <Divider />
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12}><div className="bg-[#f0fdf4] p-4 rounded-xl border border-[#26a69a]/20"><div className="text-[#26a69a] font-bold mb-2">盈利统计</div><div className="flex justify-between text-sm"><span>盈利笔数:</span><span className="font-bold">{analysis.riskAnalysis.winningTrades} 笔</span></div><div className="flex justify-between text-sm"><span>总盈利:</span><span className="font-bold text-[#26a69a]">${analysis.riskAnalysis.grossProfit}</span></div></div></Col>
-                <Col xs={24} sm={12}><div className="bg-[#fef2f2] p-4 rounded-xl border border-[#ef5350]/20"><div className="text-[#ef5350] font-bold mb-2">亏损统计</div><div className="flex justify-between text-sm"><span>亏损笔数:</span><span className="font-bold">{analysis.riskAnalysis.losingTrades} 笔</span></div><div className="flex justify-between text-sm"><span>总亏损:</span><span className="font-bold text-[#ef5350]">${analysis.riskAnalysis.grossLoss}</span></div></div></Col>
-              </Row>
-            </div>
-          )}
+            {/* ========== 风险收益指标 ========== */}
+            {analysis.riskAnalysis && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+                    <BarChart3 size={18} />
+                  </div>
+                  <h2 className="font-bold text-gray-900">风险收益指标</h2>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                  <MiniStatCard title="期望值" value={`$${analysis.riskAnalysis.expectancy}`} icon={Target} color={analysis.riskAnalysis.expectancy >= 0 ? 'green' : 'red'} />
+                  <MiniStatCard title="盈亏比" value={analysis.riskAnalysis.profitLossRatio.toFixed(2)} icon={Activity} color="blue" />
+                  <MiniStatCard title="利润系数" value={analysis.riskAnalysis.profitFactor.toFixed(2)} icon={Award} color="purple" />
+                  <MiniStatCard title="夏普比率" value={analysis.riskAnalysis.sharpeRatio.toFixed(2)} icon={LineChart} color="orange" />
+                  <MiniStatCard title="波动率" value={`$${analysis.riskAnalysis.standardDeviation}`} icon={Activity} color="blue" />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100">
+                    <div className="flex items-center gap-2 text-emerald-700 font-semibold mb-3">
+                      <TrendingUp size={18} />
+                      盈利统计
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-xl font-bold text-emerald-700">{analysis.riskAnalysis.winningTrades}</div>
+                        <div className="text-xs text-emerald-600">盈利笔数</div>
+                      </div>
+                      <div>
+                        <div className="text-xl font-bold text-emerald-700">${analysis.riskAnalysis.grossProfit}</div>
+                        <div className="text-xs text-emerald-600">总盈利</div>
+                      </div>
+                      <div>
+                        <div className="text-xl font-bold text-emerald-700">${analysis.riskAnalysis.avgProfit}</div>
+                        <div className="text-xs text-emerald-600">平均盈利</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-rose-50 p-5 rounded-xl border border-rose-100">
+                    <div className="flex items-center gap-2 text-rose-700 font-semibold mb-3">
+                      <TrendingDown size={18} />
+                      亏损统计
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-xl font-bold text-rose-700">{analysis.riskAnalysis.losingTrades}</div>
+                        <div className="text-xs text-rose-600">亏损笔数</div>
+                      </div>
+                      <div>
+                        <div className="text-xl font-bold text-rose-700">${analysis.riskAnalysis.grossLoss}</div>
+                        <div className="text-xs text-rose-600">总亏损</div>
+                      </div>
+                      <div>
+                        <div className="text-xl font-bold text-rose-700">${analysis.riskAnalysis.avgLoss}</div>
+                        <div className="text-xs text-rose-600">平均亏损</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* ========== 连续交易分析 ========== */}
-          {analysis.streaksAnalysis && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><FireOutlined className="text-cyan-500" /><span className="font-bold text-[#131722]">连续交易分析</span></div>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} md={6}><div className="bg-[#f0fdf4] p-4 rounded-xl text-center border border-[#26a69a]/20"><RiseOutlined className="text-3xl text-[#26a69a] mb-2" /><div className="text-slate-600 text-xs">最长连续盈利</div><div className="text-2xl font-bold text-[#26a69a]">{analysis.streaksAnalysis.maxWinStreak} 笔</div><div className="text-xs text-[#26a69a]">+${analysis.streaksAnalysis.maxWinStreakPnL}</div></div></Col>
-                <Col xs={24} sm={12} md={6}><div className="bg-[#fef2f2] p-4 rounded-xl text-center border border-[#ef5350]/20"><FallOutlined className="text-3xl text-[#ef5350] mb-2" /><div className="text-slate-600 text-xs">最长连续亏损</div><div className="text-2xl font-bold text-[#ef5350]">{analysis.streaksAnalysis.maxLossStreak} 笔</div><div className="text-xs text-[#ef5350]">${analysis.streaksAnalysis.maxLossStreakPnL}</div></div></Col>
-                <Col xs={24} sm={12} md={6}><div className="bg-blue-50 p-4 rounded-xl text-center border border-blue-100"><div className="text-slate-600 text-xs mb-1">亏损后交易表现</div><div className="text-xl font-bold text-[#2962ff]">{analysis.streaksAnalysis.afterLoss.winRate}%</div><div className="text-xs text-slate-400">{analysis.streaksAnalysis.afterLoss.count} 笔交易</div><div className="text-xs">平均: <span className={analysis.streaksAnalysis.afterLoss.avgPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>${analysis.streaksAnalysis.afterLoss.avgPnL}</span></div></div></Col>
-                <Col xs={24} sm={12} md={6}><div className="bg-purple-50 p-4 rounded-xl text-center border border-purple-100"><div className="text-slate-600 text-xs mb-1">盈利后交易表现</div><div className="text-xl font-bold text-purple-600">{analysis.streaksAnalysis.afterWin.winRate}%</div><div className="text-xs text-slate-400">{analysis.streaksAnalysis.afterWin.count} 笔交易</div><div className="text-xs">平均: <span className={analysis.streaksAnalysis.afterWin.avgPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>${analysis.streaksAnalysis.afterWin.avgPnL}</span></div></div></Col>
-              </Row>
-              {analysis.streaksAnalysis.afterLoss.winRate < analysis.streaksAnalysis.afterWin.winRate - 10 && <Alert className="mt-4" message="心理提示" description="您在亏损后的交易胜率明显低于盈利后，建议在连续亏损后暂停交易，调整心态后再继续。" type="warning" showIcon />}
-            </div>
-          )}
+            {/* ========== 连续交易分析 ========== */}
+            {analysis.streaksAnalysis && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-cyan-50 text-cyan-600">
+                    <Flame size={18} />
+                  </div>
+                  <h2 className="font-bold text-gray-900">连续交易分析</h2>
+                </div>
+                
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 text-center">
+                    <TrendingUp className="mx-auto mb-2 text-emerald-600" size={28} />
+                    <div className="text-xs text-gray-600 mb-1">最长连续盈利</div>
+                    <div className="text-2xl font-bold text-emerald-600">{analysis.streaksAnalysis.maxWinStreak} 笔</div>
+                    <div className="text-xs text-emerald-600">+${analysis.streaksAnalysis.maxWinStreakPnL}</div>
+                  </div>
+                  
+                  <div className="bg-rose-50 p-5 rounded-xl border border-rose-100 text-center">
+                    <TrendingDown className="mx-auto mb-2 text-rose-600" size={28} />
+                    <div className="text-xs text-gray-600 mb-1">最长连续亏损</div>
+                    <div className="text-2xl font-bold text-rose-600">{analysis.streaksAnalysis.maxLossStreak} 笔</div>
+                    <div className="text-xs text-rose-600">${analysis.streaksAnalysis.maxLossStreakPnL}</div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 text-center">
+                    <div className="text-xs text-gray-600 mb-2">亏损后交易表现</div>
+                    <div className="text-2xl font-bold text-blue-600">{analysis.streaksAnalysis.afterLoss.winRate}%</div>
+                    <div className="text-xs text-gray-500">{analysis.streaksAnalysis.afterLoss.count} 笔 | 平均 ${analysis.streaksAnalysis.afterLoss.avgPnL}</div>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-5 rounded-xl border border-purple-100 text-center">
+                    <div className="text-xs text-gray-600 mb-2">盈利后交易表现</div>
+                    <div className="text-2xl font-bold text-purple-600">{analysis.streaksAnalysis.afterWin.winRate}%</div>
+                    <div className="text-xs text-gray-500">{analysis.streaksAnalysis.afterWin.count} 笔 | 平均 ${analysis.streaksAnalysis.afterWin.avgPnL}</div>
+                  </div>
+                </div>
+                
+                {analysis.streaksAnalysis.afterLoss.winRate < analysis.streaksAnalysis.afterWin.winRate - 10 && (
+                  <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
+                    <AlertTriangle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-amber-800">心理提示</p>
+                      <p className="text-sm text-amber-700">您在亏损后的交易胜率明显低于盈利后，建议在连续亏损后暂停交易，调整心态后再继续。</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* ========== 持仓时间分布 & 小时表现 ========== */}
-          {analysis.holdingAnalysis?.hasData && (
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={12}><div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4 flex items-center gap-2"><FieldTimeOutlined /> 持仓时间分布</div><ReactECharts option={getHoldingTimeChartOption()} style={{ height: '320px' }} /></div></Col>
-              <Col xs={24} lg={12}><div className="modern-card bg-white p-6"><div className="text-sm font-bold text-slate-600 mb-4 flex items-center gap-2"><ClockCircleOutlined /> 小时表现分析</div><ReactECharts option={getHourlyChartOption()} style={{ height: '320px' }} /></div></Col>
-            </Row>
-          )}
-
-          {/* ========== 交易频率分析 ========== */}
-          {analysis.frequencyAnalysis && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><CalendarOutlined className="text-indigo-500" /><span className="font-bold text-[#131722]">交易频率分析</span></div>
-              <Row gutter={[16, 16]}>
-                <Col xs={12} sm={6}><Statistic title="交易天数" value={analysis.frequencyAnalysis.totalDays} suffix="天" /></Col>
-                <Col xs={12} sm={6}><Statistic title="日均交易" value={analysis.frequencyAnalysis.avgDailyTrades} precision={1} suffix="笔" /></Col>
-                <Col xs={12} sm={6}><Statistic title="单日最多" value={analysis.frequencyAnalysis.maxDailyTrades} suffix="笔" /></Col>
-                <Col xs={12} sm={6}><Statistic title="单日最少" value={analysis.frequencyAnalysis.minDailyTrades} suffix="笔" /></Col>
-              </Row>
-              <Divider />
-              <Row gutter={[16, 16]}>
-                <Col xs={24} lg={12}><h4 className="font-bold mb-3 text-sm text-slate-500">星期表现</h4><ReactECharts option={getWeekdayChartOption()} style={{ height: '240px' }} /></Col>
-                <Col xs={24} lg={12}>
-                  <h4 className="font-bold mb-3 text-sm text-slate-500">关键日期</h4>
+            {/* ========== 交易频率分析 ========== */}
+            {analysis.frequencyAnalysis && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-violet-50 text-violet-600">
+                    <Calendar size={18} />
+                  </div>
+                  <h2 className="font-bold text-gray-900">交易频率分析</h2>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <MiniStatCard title="交易天数" value={`${analysis.frequencyAnalysis.totalDays} 天`} icon={Calendar} color="purple" />
+                  <MiniStatCard title="日均交易" value={`${analysis.frequencyAnalysis.avgDailyTrades.toFixed(1)} 笔`} icon={Activity} color="blue" />
+                  <MiniStatCard title="单日最多" value={`${analysis.frequencyAnalysis.maxDailyTrades} 笔`} icon={TrendingUp} color="green" />
+                  <MiniStatCard title="单日最少" value={`${analysis.frequencyAnalysis.minDailyTrades} 笔`} icon={TrendingDown} color="orange" />
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">星期表现</h4>
+                    <ReactECharts option={getWeekdayChartOption()} style={{ height: '200px' }} />
+                  </div>
+                  
                   <div className="space-y-3">
-                    {analysis.frequencyAnalysis.bestDay && <div className="bg-[#f0fdf4] p-3 rounded-lg flex justify-between items-center border border-[#26a69a]/20"><div><div className="text-slate-600 text-xs">最佳交易日</div><div className="font-bold">{analysis.frequencyAnalysis.bestDay.date}</div></div><div className="text-right"><div className="text-[#26a69a] font-bold">+${analysis.frequencyAnalysis.bestDay.pnl}</div><div className="text-xs text-slate-400">{analysis.frequencyAnalysis.bestDay.count} 笔交易</div></div></div>}
-                    {analysis.frequencyAnalysis.worstDay && <div className="bg-[#fef2f2] p-3 rounded-lg flex justify-between items-center border border-[#ef5350]/20"><div><div className="text-slate-600 text-xs">最差交易日</div><div className="font-bold">{analysis.frequencyAnalysis.worstDay.date}</div></div><div className="text-right"><div className="text-[#ef5350] font-bold">${analysis.frequencyAnalysis.worstDay.pnl}</div><div className="text-xs text-slate-400">{analysis.frequencyAnalysis.worstDay.count} 笔交易</div></div></div>}
-                    {analysis.frequencyAnalysis.bestWeekday && <div className="bg-blue-50 p-3 rounded-lg flex justify-between items-center border border-blue-100"><div><div className="text-slate-600 text-xs">最佳星期</div><div className="font-bold">{analysis.frequencyAnalysis.bestWeekday.dayName}</div></div><div className="text-right"><div className="text-[#2962ff] font-bold">平均 ${analysis.frequencyAnalysis.bestWeekday.avgPnL}</div><div className="text-xs text-slate-400">胜率 {analysis.frequencyAnalysis.bestWeekday.winRate}%</div></div></div>}
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">关键日期</h4>
+                    {analysis.frequencyAnalysis.bestDay && (
+                      <div className="bg-emerald-50 p-4 rounded-xl flex justify-between items-center border border-emerald-100">
+                        <div>
+                          <div className="text-xs text-gray-500">最佳交易日</div>
+                          <div className="font-bold text-gray-900">{analysis.frequencyAnalysis.bestDay.date}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-emerald-600 font-bold">+${analysis.frequencyAnalysis.bestDay.pnl}</div>
+                          <div className="text-xs text-gray-500">{analysis.frequencyAnalysis.bestDay.count} 笔交易</div>
+                        </div>
+                      </div>
+                    )}
+                    {analysis.frequencyAnalysis.worstDay && (
+                      <div className="bg-rose-50 p-4 rounded-xl flex justify-between items-center border border-rose-100">
+                        <div>
+                          <div className="text-xs text-gray-500">最差交易日</div>
+                          <div className="font-bold text-gray-900">{analysis.frequencyAnalysis.worstDay.date}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-rose-600 font-bold">${analysis.frequencyAnalysis.worstDay.pnl}</div>
+                          <div className="text-xs text-gray-500">{analysis.frequencyAnalysis.worstDay.count} 笔交易</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </Col>
-              </Row>
-            </div>
-          )}
+                </div>
+              </div>
+            )}
 
-          {/* ========== 资金曲线分析 ========== */}
-          {analysis.equityAnalysis && (
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center gap-2 mb-6"><LineChartOutlined className="text-teal-500" /><span className="font-bold text-[#131722]">资金曲线分析</span></div>
-              <Row gutter={[16, 16]}>
-                <Col xs={12} sm={8} md={4}><Statistic title="最终盈亏" value={analysis.equityAnalysis.finalPnL} prefix="$" valueStyle={{ color: analysis.equityAnalysis.finalPnL >= 0 ? COLORS.profit : COLORS.loss }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="历史最高" value={analysis.equityAnalysis.peak} prefix="$" valueStyle={{ color: COLORS.profit }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="最大回撤" value={analysis.equityAnalysis.maxDrawdown} prefix="$" valueStyle={{ color: COLORS.loss }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="回撤比例" value={analysis.equityAnalysis.maxDrawdownPercent} suffix="%" valueStyle={{ color: COLORS.loss }} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="恢复因子" value={analysis.equityAnalysis.recoveryFactor} precision={2} /></Col>
-                <Col xs={12} sm={8} md={4}><Statistic title="回撤持续" value={analysis.equityAnalysis.maxDrawdownDuration} suffix="笔" /></Col>
-              </Row>
-              <Divider />
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={8}><div className="bg-slate-50 p-4 rounded-xl text-center"><div className="text-slate-600 text-xs">交易天数</div><div className="text-2xl font-bold">{analysis.equityAnalysis.tradingDays.total}</div></div></Col>
-                <Col xs={24} sm={8}><div className="bg-[#f0fdf4] p-4 rounded-xl text-center border border-[#26a69a]/20"><div className="text-slate-600 text-xs">盈利天数</div><div className="text-2xl font-bold text-[#26a69a]">{analysis.equityAnalysis.tradingDays.profitable}</div><div className="text-xs text-slate-400">{analysis.equityAnalysis.tradingDays.profitRatio}%</div></div></Col>
-                <Col xs={24} sm={8}><div className="bg-[#fef2f2] p-4 rounded-xl text-center border border-[#ef5350]/20"><div className="text-slate-600 text-xs">亏损天数</div><div className="text-2xl font-bold text-[#ef5350]">{analysis.equityAnalysis.tradingDays.losing}</div></div></Col>
-              </Row>
-            </div>
-          )}
+            {/* ========== 资金曲线分析 ========== */}
+            {analysis.equityAnalysis && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-teal-50 text-teal-600">
+                    <LineChart size={18} />
+                  </div>
+                  <h2 className="font-bold text-gray-900">资金曲线分析</h2>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                  <MiniStatCard title="最终盈亏" value={`$${analysis.equityAnalysis.finalPnL}`} icon={DollarSign} color={analysis.equityAnalysis.finalPnL >= 0 ? 'green' : 'red'} />
+                  <MiniStatCard title="历史最高" value={`$${analysis.equityAnalysis.peak}`} icon={TrendingUp} color="green" />
+                  <MiniStatCard title="最大回撤" value={`$${analysis.equityAnalysis.maxDrawdown}`} icon={TrendingDown} color="red" />
+                  <MiniStatCard title="回撤比例" value={`${analysis.equityAnalysis.maxDrawdownPercent}%`} icon={Activity} color="red" />
+                  <MiniStatCard title="恢复因子" value={analysis.equityAnalysis.recoveryFactor.toFixed(2)} icon={Shield} color="blue" />
+                  <MiniStatCard title="回撤持续" value={`${analysis.equityAnalysis.maxDrawdownDuration} 笔`} icon={Clock} color="orange" />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 p-5 rounded-xl text-center">
+                    <div className="text-xs text-gray-500 mb-1">交易天数</div>
+                    <div className="text-2xl font-bold text-gray-900">{analysis.equityAnalysis.tradingDays.total}</div>
+                  </div>
+                  <div className="bg-emerald-50 p-5 rounded-xl text-center border border-emerald-100">
+                    <div className="text-xs text-gray-500 mb-1">盈利天数</div>
+                    <div className="text-2xl font-bold text-emerald-600">{analysis.equityAnalysis.tradingDays.profitable}</div>
+                    <div className="text-xs text-emerald-600">{analysis.equityAnalysis.tradingDays.profitRatio}%</div>
+                  </div>
+                  <div className="bg-rose-50 p-5 rounded-xl text-center border border-rose-100">
+                    <div className="text-xs text-gray-500 mb-1">亏损天数</div>
+                    <div className="text-2xl font-bold text-rose-600">{analysis.equityAnalysis.tradingDays.losing}</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* ========== 分析时间 ========== */}
-          <div className="text-center text-slate-400 text-xs py-4">分析时间: {dayjs(analysis.generatedAt).format('YYYY-MM-DD HH:mm:ss')}</div>
-        </div>
-      )}
+            {/* ========== 分析时间 ========== */}
+            <div className="text-center text-gray-400 text-xs py-4">
+              分析时间: {dayjs(analysis.generatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ========== 复盘说明编辑弹窗 ========== */}
-      <Modal title={<div className="flex items-center gap-2"><EditOutlined className="text-blue-500" /><span className="font-bold">编辑复盘说明</span></div>} open={reviewModalVisible} onCancel={() => setReviewModalVisible(false)} onOk={handleSaveReview} okText="保存" cancelText="取消" width={600} destroyOnClose>
+      <Modal 
+        title={
+          <div className="flex items-center gap-2">
+            <Edit3 size={18} className="text-blue-600" />
+            <span className="font-bold">编辑复盘说明</span>
+          </div>
+        } 
+        open={reviewModalVisible} 
+        onCancel={() => setReviewModalVisible(false)} 
+        onOk={handleSaveReview} 
+        okText="保存" 
+        cancelText="取消" 
+        width={600}
+        className="[&_.ant-modal-content]:rounded-2xl"
+      >
         {editingTrade && (
           <div className="space-y-4 mt-4">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
               <div className="grid grid-cols-4 gap-4 text-sm">
-                <div><span className="text-slate-400">品种:</span><span className="ml-2 font-bold">{editingTrade.instrumentCode}</span></div>
-                <div><span className="text-slate-400">方向:</span><Tag color={editingTrade.direction === 'LONG' ? 'green' : 'red'} className="ml-2">{editingTrade.direction === 'LONG' ? '多' : '空'}</Tag></div>
-                <div><span className="text-slate-400">盈亏:</span><span className={`ml-2 font-bold ${editingTrade.pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{editingTrade.pnl >= 0 ? '+' : ''}{editingTrade.pnl?.toFixed(2)}</span></div>
-                <div><span className="text-slate-400">时段:</span><span className="ml-2">{editingTrade.marketSession}</span></div>
+                <div><span className="text-gray-400">品种:</span><span className="ml-2 font-bold">{editingTrade.instrumentCode}</span></div>
+                <div><span className="text-gray-400">方向:</span><Tag color={editingTrade.direction === 'LONG' ? 'green' : 'red'} className="ml-2 rounded-full">{editingTrade.direction === 'LONG' ? '多' : '空'}</Tag></div>
+                <div><span className="text-gray-400">盈亏:</span><span className={`ml-2 font-bold ${editingTrade.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{editingTrade.pnl >= 0 ? '+' : ''}{editingTrade.pnl?.toFixed(2)}</span></div>
+                <div><span className="text-gray-400">时段:</span><span className="ml-2">{editingTrade.marketSession}</span></div>
               </div>
-              <div className="mt-2 text-sm text-slate-400">开仓时间: {dayjs(editingTrade.openTime).format('YYYY-MM-DD HH:mm:ss')}</div>
+              <div className="mt-2 text-sm text-gray-400">开仓时间: {dayjs(editingTrade.openTime).format('YYYY-MM-DD HH:mm:ss')}</div>
             </div>
             <Form form={reviewForm} layout="vertical">
-              <Form.Item name="expectedTrend" label="期望行情"><Select placeholder="选择开仓时的期望行情" allowClear options={[{ value: '看涨', label: '看涨' }, { value: '看跌', label: '看跌' }, { value: '震荡', label: '震荡' }, { value: '突破', label: '突破' }, { value: '回调', label: '回调' }]} /></Form.Item>
-              <Form.Item name="logicAnalysis" label="逻辑分析"><TextArea rows={3} placeholder="分析这笔交易的逻辑依据，如：入场信号、技术形态、基本面因素等" maxLength={500} showCount /></Form.Item>
-              <Form.Item name="reviewNotes" label="复盘说明"><TextArea rows={4} placeholder="记录复盘心得：为什么亏损/盈利？有哪些可以改进的地方？下次遇到类似情况如何处理？" maxLength={1000} showCount /></Form.Item>
+              <Form.Item name="expectedTrend" label="期望行情">
+                <Select 
+                  placeholder="选择开仓时的期望行情" 
+                  allowClear 
+                  className="rounded-xl"
+                  options={[
+                    { value: '看涨', label: '看涨' }, 
+                    { value: '看跌', label: '看跌' }, 
+                    { value: '震荡', label: '震荡' }, 
+                    { value: '突破', label: '突破' }, 
+                    { value: '回调', label: '回调' }
+                  ]} 
+                />
+              </Form.Item>
+              <Form.Item name="logicAnalysis" label="逻辑分析">
+                <TextArea rows={3} placeholder="分析这笔交易的逻辑依据..." maxLength={500} showCount className="rounded-xl" />
+              </Form.Item>
+              <Form.Item name="reviewNotes" label="复盘说明">
+                <TextArea rows={4} placeholder="记录复盘心得..." maxLength={1000} showCount className="rounded-xl" />
+              </Form.Item>
             </Form>
           </div>
         )}
