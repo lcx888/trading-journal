@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+// 生产环境使用相对路径（前后端同域），开发环境使用本地后端
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '');
 
 export const getAuthToken = () => {
   if (typeof window === 'undefined') return null;

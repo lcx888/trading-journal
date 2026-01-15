@@ -4,9 +4,14 @@ import cors from 'cors';
 import morgan from 'morgan';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,6 +23,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
+
+// 生产环境：提供前端静态文件
+const distPath = path.join(__dirname, '../../dist');
+app.use(express.static(distPath));
 
 const signToken = (user) => jwt.sign(
   { id: user.id, email: user.email, role: user.role },
@@ -497,6 +506,12 @@ app.post('/migrate', authRequired, async (req, res) => {
   }
 
   return res.json({ success: true });
+});
+
+// SPA 路由支持：所有未匹配的路由返回 index.html
+app.get('*', (req, res) => {
+  const indexPath = path.join(__dirname, '../../dist/index.html');
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {
