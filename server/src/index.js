@@ -6,12 +6,32 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// 在启动时运行数据库迁移
+async function runMigrations() {
+  console.log('Running database migrations...');
+  console.log('DATABASE_URL is set:', !!process.env.DATABASE_URL);
+  try {
+    execSync('npx prisma db push --accept-data-loss', { 
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env }
+    });
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Migration failed:', error.message);
+    // 如果迁移失败，尝试继续启动（数据库可能已经是最新的）
+  }
+}
+
+await runMigrations();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
