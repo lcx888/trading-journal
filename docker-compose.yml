@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: trading-journal-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: trading123456
+      POSTGRES_DB: trading_journal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 应用服务
+  app:
+    build: .
+    container_name: trading-journal-app
+    restart: always
+    ports:
+      - "80:4000"
+    environment:
+      DATABASE_URL: postgresql://postgres:trading123456@postgres:5432/trading_journal
+      JWT_SECRET: your-super-secret-key-2026
+      CORS_ORIGIN: "*"
+      PORT: 4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
