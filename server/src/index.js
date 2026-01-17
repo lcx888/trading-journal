@@ -65,7 +65,7 @@ const normalizeTrade = (trade, userId) => ({
   instrumentCode: trade.instrumentCode || null,
   openTime: trade.openTime ? new Date(trade.openTime) : null,
   pnl: trade.pnl ?? null,
-  data: trade, // PostgreSQL supports JSON natively
+  data: JSON.stringify(trade), // SQLite 需要字符串
 });
 
 const mapTrade = (row) => {
@@ -417,18 +417,19 @@ app.post('/reviews', authRequired, async (req, res) => {
   delete data.date;
   delete data.type;
   const id = review.id || `review_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const dataStr = JSON.stringify(data); // SQLite 需要字符串
   const saved = await prisma.review.upsert({
     where: { userId_date: { userId: req.user.id, date: review.date } },
     update: {
       type: review.type,
-      data: data,
+      data: dataStr,
     },
     create: {
       id,
       userId: req.user.id,
       date: review.date,
       type: review.type,
-      data: data,
+      data: dataStr,
     },
   });
   const savedData = typeof saved.data === 'string' ? JSON.parse(saved.data) : saved.data;
@@ -517,10 +518,11 @@ app.post('/migrate', authRequired, async (req, res) => {
       delete data.id;
       delete data.date;
       delete data.type;
+      const dataStr = JSON.stringify(data);
       await prisma.review.upsert({
         where: { userId_date: { userId: req.user.id, date: r.date } },
-        update: { type: r.type, data: data },
-        create: { id: r.id || `review_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, userId: req.user.id, date: r.date, type: r.type, data: data },
+        update: { type: r.type, data: dataStr },
+        create: { id: r.id || `review_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, userId: req.user.id, date: r.date, type: r.type, data: dataStr },
       });
     }
   }

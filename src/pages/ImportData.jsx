@@ -367,7 +367,7 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
           <div className="text-center py-8">
             <Progress type="circle" percent={importProgress} strokeColor={COLORS.primary} strokeWidth={8} size={80} />
             <div className="text-lg font-bold text-[#131722] mt-6">正在同步数据</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">正在写入本地存储...</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">正在保存到服务器...</div>
           </div>
         </Modal>
       )}
