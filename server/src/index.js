@@ -270,7 +270,17 @@ app.post('/trades/bulk', authRequired, async (req, res) => {
   const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
   if (trades.length === 0) return res.json({ inserted: 0 });
   const data = trades.map(t => normalizeTrade(t, req.user.id));
-  const result = await prisma.trade.createMany({ data, skipDuplicates: true });
+  // SQLite 不支持 skipDuplicates，逐条插入并忽略错误
+  let inserted = 0;
+  for (const trade of data) {
+    try {
+      await prisma.trade.create({ data: trade });
+      inserted++;
+    } catch (e) {
+      // 忽略重复错误
+    }
+  }
+  const result = { count: inserted };
   return res.json({ inserted: result.count });
 });
 
@@ -278,10 +288,11 @@ app.put('/trades', authRequired, async (req, res) => {
   const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
   await prisma.trade.deleteMany({ where: { userId: req.user.id } });
   if (trades.length > 0) {
-    await prisma.trade.createMany({
-      data: trades.map(t => normalizeTrade(t, req.user.id)),
-      skipDuplicates: true,
-    });
+    for (const t of trades) {
+      try {
+        await prisma.trade.create({ data: normalizeTrade(t, req.user.id) });
+      } catch (e) { /* 忽略 */ }
+    }
   }
   return res.json({ success: true });
 });
@@ -461,41 +472,48 @@ app.post('/migrate', authRequired, async (req, res) => {
   }
 
   if (records.length > 0) {
-    await prisma.record.createMany({
-      data: records.map(r => ({
-        id: r.id,
-        userId: req.user.id,
-        name: r.name,
-        description: r.description || '',
-        status: r.status || 'active',
-        tradeCount: r.tradeCount || 0,
-        totalPnL: r.totalPnL || 0,
-        winRate: r.winRate || 0,
-      })),
-      skipDuplicates: true,
-    });
+    for (const r of records) {
+      try {
+        await prisma.record.create({
+          data: {
+            id: r.id,
+            userId: req.user.id,
+            name: r.name,
+            description: r.description || '',
+            status: r.status || 'active',
+            tradeCount: r.tradeCount || 0,
+            totalPnL: r.totalPnL || 0,
+            winRate: r.winRate || 0,
+          }
+        });
+      } catch (e) { /* 忽略重复 */ }
+    }
   }
 
   if (trades.length > 0) {
-    await prisma.trade.createMany({
-      data: trades.map(t => normalizeTrade(t, req.user.id)),
-      skipDuplicates: true,
-    });
+    for (const t of trades) {
+      try {
+        await prisma.trade.create({ data: normalizeTrade(t, req.user.id) });
+      } catch (e) { /* 忽略重复 */ }
+    }
   }
 
   if (strategies.length > 0) {
-    await prisma.strategy.createMany({
-      data: strategies.map(s => ({
-        id: s.id,
-        userId: req.user.id,
-        name: s.name,
-        description: s.description || '',
-        color: s.color || '#2962ff',
-        category: s.category || '通用',
-        usageCount: s.usageCount || 0,
-      })),
-      skipDuplicates: true,
-    });
+    for (const s of strategies) {
+      try {
+        await prisma.strategy.create({
+          data: {
+            id: s.id,
+            userId: req.user.id,
+            name: s.name,
+            description: s.description || '',
+            color: s.color || '#2962ff',
+            category: s.category || '通用',
+            usageCount: s.usageCount || 0,
+          }
+        });
+      } catch (e) { /* 忽略重复 */ }
+    }
   }
 
   if (imports.length > 0) {
