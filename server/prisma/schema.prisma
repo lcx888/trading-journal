@@ -3,18 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  role         String   @default("user")
-  status       String   @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  role           String   @default("user")
+  status         String   @default("active")
+  emailVerified  Boolean  @default(false)
+  verifyToken    String?
+  verifyExpires  DateTime?
+  resetToken     String?
+  resetExpires   DateTime?
+  rememberToken  String?
+  lastLoginAt    DateTime?
+  lastLoginIp    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   instruments  Instrument[]
   records      Record[]
@@ -67,7 +75,7 @@ model Trade {
   instrumentCode String?
   openTime       DateTime?
   pnl            Float?
-  data           Json
+  data           String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -11,6 +11,7 @@ import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
 import { setupInstallRoutes, isInstalled } from './install.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken } from './email.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,11 +53,18 @@ app.use(express.static(distPath));
 // 安装向导路由
 setupInstallRoutes(app);
 
-const signToken = (user) => jwt.sign(
+const signToken = (user, rememberMe = false) => jwt.sign(
   { id: user.id, email: user.email, role: user.role },
   process.env.JWT_SECRET || 'dev_secret',
-  { expiresIn: '7d' }
+  { expiresIn: rememberMe ? '30d' : '7d' }
 );
+
+// 获取请求来源 URL
+const getBaseUrl = (req) => {
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return `${protocol}://${host}`;
+};
 
 const normalizeTrade = (trade, userId) => ({
   id: trade.id,
@@ -117,20 +125,41 @@ app.post('/auth/register', async (req, res) => {
   const totalUsers = await prisma.user.count();
   const role = totalUsers === 0 ? 'admin' : 'user';
   const passwordHash = await bcrypt.hash(password, 10);
+  
+  // 生成验证令牌
+  const verifyToken = generateToken();
+  const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
+  
   const user = await prisma.user.create({
-    data: { email: normalizedEmail, passwordHash, role, status: 'active' },
+    data: { 
+      email: normalizedEmail, 
+      passwordHash, 
+      role, 
+      status: 'active',
+      emailVerified: false,
+      verifyToken,
+      verifyExpires,
+    },
   });
 
   await prisma.instrument.createMany({
     data: DEFAULT_INSTRUMENTS.map(inst => ({ ...inst, userId: user.id })),
   });
 
+  // 发送验证邮件
+  const baseUrl = getBaseUrl(req);
+  await sendVerificationEmail(normalizedEmail, verifyToken, baseUrl);
+
   const token = signToken(user);
-  return res.json({ token, user: { id: user.id, email: user.email, role: user.role, status: user.status } });
+  return res.json({ 
+    token, 
+    user: { id: user.id, email: user.email, role: user.role, status: user.status, emailVerified: user.emailVerified },
+    message: '注册成功！验证邮件已发送，请查收。'
+  });
 });
 
 app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, rememberMe } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ message: '邮箱和密码必填' });
   }
@@ -149,14 +178,274 @@ app.post('/auth/login', async (req, res) => {
     return res.status(401).json({ message: '邮箱或密码错误' });
   }
 
-  const token = signToken(user);
-  return res.json({ token, user: { id: user.id, email: user.email, role: user.role, status: user.status } });
+  // 更新最后登录时间
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date(), lastLoginIp: String(clientIp).split(',')[0] },
+  });
+
+  const token = signToken(user, !!rememberMe);
+  return res.json({ 
+    token, 
+    user: { id: user.id, email: user.email, role: user.role, status: user.status, emailVerified: user.emailVerified } 
+  });
 });
 
 app.get('/auth/me', authRequired, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   if (!user) return res.status(404).json({ message: '用户不存在' });
-  return res.json({ id: user.id, email: user.email, role: user.role, status: user.status });
+  return res.json({ 
+    id: user.id, 
+    email: user.email, 
+    role: user.role, 
+    status: user.status,
+    emailVerified: user.emailVerified,
+    lastLoginAt: user.lastLoginAt,
+  });
+});
+
+// 验证邮箱
+app.post('/auth/verify-email', async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) {
+    return res.status(400).json({ message: '验证令牌缺失' });
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { verifyToken: token, verifyExpires: { gt: new Date() } },
+  });
+  
+  if (!user) {
+    return res.status(400).json({ message: '验证链接无效或已过期' });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerified: true, verifyToken: null, verifyExpires: null },
+  });
+
+  return res.json({ message: '邮箱验证成功！' });
+});
+
+// 重新发送验证邮件
+app.post('/auth/resend-verification', authRequired, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' });
+  }
+  if (user.emailVerified) {
+    return res.status(400).json({ message: '邮箱已验证' });
+  }
+
+  const verifyToken = generateToken();
+  const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { verifyToken, verifyExpires },
+  });
+
+  const baseUrl = getBaseUrl(req);
+  await sendVerificationEmail(user.email, verifyToken, baseUrl);
+
+  return res.json({ message: '验证邮件已重新发送' });
+});
+
+// 忘记密码 - 发送重置邮件
+app.post('/auth/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) {
+    return res.status(400).json({ message: '请输入邮箱' });
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  
+  // 不管用户是否存在都返回成功（防止邮箱枚举）
+  if (user) {
+    const resetToken = generateToken();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1小时
+    
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken, resetExpires },
+    });
+
+    const baseUrl = getBaseUrl(req);
+    await sendPasswordResetEmail(user.email, resetToken, baseUrl);
+  }
+
+  return res.json({ message: '如果该邮箱已注册，重置链接已发送' });
+});
+
+// 重置密码
+app.post('/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) {
+    return res.status(400).json({ message: '参数缺失' });
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ message: '密码至少 6 位' });
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { resetToken: token, resetExpires: { gt: new Date() } },
+  });
+  
+  if (!user) {
+    return res.status(400).json({ message: '重置链接无效或已过期' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash, resetToken: null, resetExpires: null },
+  });
+
+  return res.json({ message: '密码重置成功！请使用新密码登录。' });
+});
+
+// 修改密码（需要登录）
+app.post('/auth/change-password', authRequired, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: '请输入当前密码和新密码' });
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    return res.status(400).json({ message: '新密码至少 6 位' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' });
+  }
+
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) {
+    return res.status(401).json({ message: '当前密码错误' });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+
+  return res.json({ message: '密码修改成功！' });
+});
+
+// 修改邮箱（需要登录）
+app.post('/auth/change-email', authRequired, async (req, res) => {
+  const { newEmail, password } = req.body || {};
+  if (!newEmail || !password) {
+    return res.status(400).json({ message: '请输入新邮箱和当前密码' });
+  }
+
+  const normalizedEmail = String(newEmail).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ message: '邮箱格式不正确' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' });
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) {
+    return res.status(401).json({ message: '密码错误' });
+  }
+
+  // 检查新邮箱是否已被使用
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) {
+    return res.status(409).json({ message: '该邮箱已被使用' });
+  }
+
+  // 生成验证令牌（存储新邮箱信息）
+  const verifyToken = generateToken();
+  const verifyExpires = new Date(Date.now() + 60 * 60 * 1000); // 1小时
+  
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      verifyToken: `change:${normalizedEmail}:${verifyToken}`,
+      verifyExpires,
+    },
+  });
+
+  const baseUrl = getBaseUrl(req);
+  await sendEmailChangeEmail(normalizedEmail, verifyToken, baseUrl);
+
+  return res.json({ message: '验证邮件已发送到新邮箱，请查收确认。' });
+});
+
+// 确认更改邮箱
+app.post('/auth/confirm-email-change', async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) {
+    return res.status(400).json({ message: '验证令牌缺失' });
+  }
+
+  const users = await prisma.user.findMany({
+    where: { verifyExpires: { gt: new Date() } },
+  });
+  
+  const user = users.find(u => u.verifyToken && u.verifyToken.includes(token));
+  if (!user || !user.verifyToken) {
+    return res.status(400).json({ message: '验证链接无效或已过期' });
+  }
+
+  const parts = user.verifyToken.split(':');
+  if (parts[0] !== 'change' || parts[2] !== token) {
+    return res.status(400).json({ message: '验证链接无效' });
+  }
+
+  const newEmail = parts[1];
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      email: newEmail,
+      emailVerified: true,
+      verifyToken: null, 
+      verifyExpires: null,
+    },
+  });
+
+  return res.json({ message: '邮箱更改成功！' });
+});
+
+// 注销账户
+app.post('/auth/delete-account', authRequired, async (req, res) => {
+  const { password, confirmText } = req.body || {};
+  if (!password) {
+    return res.status(400).json({ message: '请输入密码确认' });
+  }
+  if (confirmText !== '确认注销') {
+    return res.status(400).json({ message: '请输入"确认注销"以确认操作' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' });
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) {
+    return res.status(401).json({ message: '密码错误' });
+  }
+
+  // 删除用户相关数据
+  await prisma.review.deleteMany({ where: { userId: user.id } });
+  await prisma.importRecord.deleteMany({ where: { userId: user.id } });
+  await prisma.trade.deleteMany({ where: { userId: user.id } });
+  await prisma.strategy.deleteMany({ where: { userId: user.id } });
+  await prisma.record.deleteMany({ where: { userId: user.id } });
+  await prisma.instrument.deleteMany({ where: { userId: user.id } });
+  await prisma.user.delete({ where: { id: user.id } });
+
+  return res.json({ message: '账户已注销' });
 });
 
 // ========== Admin ==========

@@ -18,11 +18,16 @@ import {
   ArrowRightOutlined,
   FileSearchOutlined,
   InfoCircleOutlined,
+  LockOutlined,
+  MailOutlined,
+  UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import { isUSDaylightSavingTime, isEUDaylightSavingTime, formatCSTTime } from '../utils/timezone';
 import { fixHoldingTimes } from '../utils/debugHoldingTime';
+import { changePassword, changeEmail, deleteAccount, resendVerification, getMe } from '../services/auth';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -38,7 +43,7 @@ const COLORS = {
   grid: '#f0f3fa'
 };
 
-const Settings = () => {
+const Settings = ({ onLogout }) => {
   const [instruments, setInstruments] = useState([]);
   const [importHistory, setImportHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +51,16 @@ const Settings = () => {
   const [editingInstrument, setEditingInstrument] = useState(null);
   const [form] = Form.useForm();
   const [dataStats, setDataStats] = useState({ trades: 0, imports: 0 });
+  
+  // 账户安全相关状态
+  const [userInfo, setUserInfo] = useState(null);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [emailForm] = Form.useForm();
+  const [deleteForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -54,10 +69,11 @@ const Settings = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [instrumentList, history, trades] = await Promise.all([
+      const [instrumentList, history, trades, user] = await Promise.all([
         StorageService.getInstruments(),
         StorageService.getImportHistory(),
         StorageService.getAllTrades(),
+        getMe().catch(() => null),
       ]);
       setInstruments(instrumentList);
       setImportHistory(history);
@@ -65,10 +81,71 @@ const Settings = () => {
         trades: trades.length,
         imports: history.length,
       });
+      setUserInfo(user);
     } catch (error) {
       message.error('加载设置失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 修改密码
+  const handleChangePassword = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      setSecurityLoading(true);
+      await changePassword(values.currentPassword, values.newPassword);
+      message.success('密码修改成功');
+      setPasswordModalVisible(false);
+      passwordForm.resetFields();
+    } catch (e) {
+      message.error(e.message || '修改失败');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  // 修改邮箱
+  const handleChangeEmail = async () => {
+    try {
+      const values = await emailForm.validateFields();
+      setSecurityLoading(true);
+      await changeEmail(values.newEmail, values.password);
+      message.success('验证邮件已发送到新邮箱，请查收确认');
+      setEmailModalVisible(false);
+      emailForm.resetFields();
+    } catch (e) {
+      message.error(e.message || '修改失败');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  // 重新发送验证邮件
+  const handleResendVerification = async () => {
+    try {
+      setSecurityLoading(true);
+      await resendVerification();
+      message.success('验证邮件已发送');
+    } catch (e) {
+      message.error(e.message || '发送失败');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  // 注销账户
+  const handleDeleteAccount = async () => {
+    try {
+      const values = await deleteForm.validateFields();
+      setSecurityLoading(true);
+      await deleteAccount(values.password, values.confirmText);
+      message.success('账户已注销');
+      onLogout?.();
+    } catch (e) {
+      message.error(e.message || '注销失败');
+    } finally {
+      setSecurityLoading(false);
     }
   };
 
@@ -339,6 +416,82 @@ const Settings = () => {
             </div>
           </div>
 
+          {/* 账户安全 */}
+          <div className="modern-card bg-white p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <LockOutlined className="text-blue-500" />
+              <span className="font-bold text-[#131722] tracking-tight">账户安全</span>
+            </div>
+            
+            {/* 用户信息 */}
+            {userInfo && (
+              <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {userInfo.email?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-[#131722]">{userInfo.email}</div>
+                    <div className="flex items-center gap-2">
+                      {userInfo.emailVerified ? (
+                        <Tag color="success" className="text-[9px] m-0">已验证</Tag>
+                      ) : (
+                        <Tag color="warning" className="text-[9px] m-0">未验证</Tag>
+                      )}
+                      <Tag color="blue" className="text-[9px] m-0">{userInfo.role}</Tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 邮箱未验证提示 */}
+            {userInfo && !userInfo.emailVerified && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <WarningOutlined className="text-yellow-500 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-yellow-700">邮箱未验证</div>
+                    <div className="text-[10px] text-yellow-600 mb-2">请验证邮箱以确保账户安全</div>
+                    <Button size="small" loading={securityLoading} onClick={handleResendVerification}>
+                      重新发送验证邮件
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <Button block className="h-10 text-left px-4 group hover:border-blue-400 rounded-lg transition-all" onClick={() => setPasswordModalVisible(true)}>
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <div className="text-xs font-bold text-[#131722]">修改密码</div>
+                    <div className="text-[9px] text-slate-400 font-medium">更新账户登录密码</div>
+                  </div>
+                  <ArrowRightOutlined className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Button>
+              <Button block className="h-10 text-left px-4 group hover:border-blue-400 rounded-lg transition-all" onClick={() => setEmailModalVisible(true)}>
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <div className="text-xs font-bold text-[#131722]">修改邮箱</div>
+                    <div className="text-[9px] text-slate-400 font-medium">更换账户绑定邮箱</div>
+                  </div>
+                  <ArrowRightOutlined className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Button>
+              <Button block danger className="h-10 text-left px-4 group rounded-lg" onClick={() => setDeleteModalVisible(true)}>
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <div className="text-xs font-bold">注销账户</div>
+                    <div className="text-[9px] opacity-60 font-medium">永久删除账户和数据</div>
+                  </div>
+                  <DeleteOutlined className="opacity-40 group-hover:opacity-100 transition-all" />
+                </div>
+              </Button>
+            </div>
+          </div>
+
           {/* Maintenance Actions */}
           <div className="modern-card bg-white p-6">
             <div className="flex items-center gap-2 mb-6">
@@ -359,7 +512,7 @@ const Settings = () => {
                 <div className="flex justify-between items-center w-full">
                   <div>
                     <div className="text-xs font-bold">数据清空</div>
-                    <div className="text-[9px] opacity-60 font-medium">清空本地存储</div>
+                    <div className="text-[9px] opacity-60 font-medium">清空服务器数据</div>
                   </div>
                   <DeleteOutlined className="opacity-40 group-hover:opacity-100 transition-all" />
                 </div>
@@ -411,6 +564,132 @@ const Settings = () => {
           </Form.Item>
           <Form.Item name="atasPattern" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">ATAS 正则匹配</span>}>
             <Input placeholder="例如：GC.*@NYMEX" className="font-mono text-xs" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 修改密码 Modal */}
+      <Modal
+        title={<div className="flex items-center gap-2 py-2"><LockOutlined className="text-blue-500" /><span className="text-lg font-bold">修改密码</span></div>}
+        open={passwordModalVisible}
+        onOk={handleChangePassword}
+        onCancel={() => { setPasswordModalVisible(false); passwordForm.resetFields(); }}
+        okText="确认修改"
+        cancelText="取消"
+        confirmLoading={securityLoading}
+        destroyOnClose
+      >
+        <Form form={passwordForm} layout="vertical" className="mt-4">
+          <Form.Item
+            name="currentPassword"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">当前密码</span>}
+            rules={[{ required: true, message: '请输入当前密码' }]}
+          >
+            <Input.Password placeholder="输入当前密码" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">新密码</span>}
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, message: '密码至少 6 位' }
+            ]}
+          >
+            <Input.Password placeholder="至少 6 位字符" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">确认新密码</span>}
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: '请确认新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('两次密码不一致'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="再次输入新密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 修改邮箱 Modal */}
+      <Modal
+        title={<div className="flex items-center gap-2 py-2"><MailOutlined className="text-blue-500" /><span className="text-lg font-bold">修改邮箱</span></div>}
+        open={emailModalVisible}
+        onOk={handleChangeEmail}
+        onCancel={() => { setEmailModalVisible(false); emailForm.resetFields(); }}
+        okText="发送验证"
+        cancelText="取消"
+        confirmLoading={securityLoading}
+        destroyOnClose
+      >
+        <Form form={emailForm} layout="vertical" className="mt-4">
+          <Form.Item
+            name="newEmail"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">新邮箱</span>}
+            rules={[
+              { required: true, message: '请输入新邮箱' },
+              { type: 'email', message: '请输入有效的邮箱地址' }
+            ]}
+          >
+            <Input prefix={<MailOutlined className="text-gray-400" />} placeholder="name@example.com" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">当前密码</span>}
+            rules={[{ required: true, message: '请输入密码验证身份' }]}
+          >
+            <Input.Password placeholder="输入密码验证身份" />
+          </Form.Item>
+          <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+            验证邮件将发送到新邮箱，点击邮件中的链接完成更换。
+          </div>
+        </Form>
+      </Modal>
+
+      {/* 注销账户 Modal */}
+      <Modal
+        title={<div className="flex items-center gap-2 py-2 text-red-500"><WarningOutlined /><span className="text-lg font-bold">注销账户</span></div>}
+        open={deleteModalVisible}
+        onOk={handleDeleteAccount}
+        onCancel={() => { setDeleteModalVisible(false); deleteForm.resetFields(); }}
+        okText="确认注销"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        confirmLoading={securityLoading}
+        destroyOnClose
+      >
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="font-bold text-red-600 mb-2">⚠️ 警告：此操作不可撤销</div>
+          <ul className="text-sm text-red-600 space-y-1 list-disc list-inside">
+            <li>所有交易数据将被永久删除</li>
+            <li>所有账本和策略将被清除</li>
+            <li>账户将无法恢复</li>
+          </ul>
+        </div>
+        <Form form={deleteForm} layout="vertical">
+          <Form.Item
+            name="password"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">输入密码</span>}
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password placeholder="输入密码确认身份" />
+          </Form.Item>
+          <Form.Item
+            name="confirmText"
+            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">输入"确认注销"以确认</span>}
+            rules={[
+              { required: true, message: '请输入确认文字' },
+              { pattern: /^确认注销$/, message: '请输入"确认注销"' }
+            ]}
+          >
+            <Input placeholder='请输入"确认注销"' />
           </Form.Item>
         </Form>
       </Modal>

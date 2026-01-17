@@ -33,7 +33,7 @@ import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
 import StorageService from './services/storage';
-import { getMe, logout } from './services/auth';
+import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
 
 dayjs.locale('zh-cn');
@@ -68,6 +68,56 @@ function App() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [resetToken, setResetToken] = useState(null);
+
+  // 处理 URL 参数（邮箱验证、密码重置等）
+  useEffect(() => {
+    const handleUrlParams = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const path = window.location.pathname;
+      
+      // 验证邮箱
+      if (path === '/verify-email' || params.get('token') && path.includes('verify')) {
+        const token = params.get('token');
+        if (token) {
+          try {
+            await verifyEmail(token);
+            alert('邮箱验证成功！');
+          } catch (e) {
+            alert('验证失败：' + (e.message || '链接无效或已过期'));
+          }
+          window.history.replaceState({}, '', '/');
+        }
+      }
+      
+      // 确认更改邮箱
+      if (path === '/verify-email-change') {
+        const token = params.get('token');
+        if (token) {
+          try {
+            await confirmEmailChange(token);
+            alert('邮箱更改成功！');
+          } catch (e) {
+            alert('更改失败：' + (e.message || '链接无效或已过期'));
+          }
+          window.history.replaceState({}, '', '/');
+        }
+      }
+      
+      // 重置密码
+      if (path === '/reset-password') {
+        const token = params.get('token');
+        if (token) {
+          setResetToken(token);
+          setAuthMode('reset');
+          setShowAuth(true);
+          window.history.replaceState({}, '', '/');
+        }
+      }
+    };
+    handleUrlParams();
+  }, []);
 
   useEffect(() => {
     const runMigrations = async () => {
@@ -128,7 +178,7 @@ function App() {
       case 'ai-analysis': return <AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
       case 'calendar': return <TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
       case 'import': return <ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} />;
-      case 'settings': return <Settings />;
+      case 'settings': return <Settings onLogout={handleLogout} />;
       case 'admin':
         if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
           return <Admin />;
@@ -154,9 +204,20 @@ function App() {
     );
   }
 
+  const handleLogout = () => {
+    logout();
+    setAuthUser(null);
+    setShowAuth(false);
+  };
+
   if (!authUser) {
     if (showAuth) {
-      return <Auth onAuth={(user) => { setAuthUser(user); }} onBack={() => setShowAuth(false)} />;
+      return <Auth 
+        onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
+        onBack={() => { setShowAuth(false); setResetToken(null); }}
+        initialMode={authMode}
+        resetToken={resetToken}
+      />;
     }
     return <Home onStart={() => setShowAuth(true)} />;
   }

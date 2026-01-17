@@ -1,22 +1,38 @@
 import { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
-import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { login, register } from '../services/auth';
+import { Form, Input, Button, message, Checkbox } from 'antd';
+import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { login, register, forgotPassword, resetPassword } from '../services/auth';
 
-const Auth = ({ onAuth, onBack }) => {
+const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [mode, setMode] = useState(initialMode || 'login'); // 'login', 'register', 'forgot', 'reset'
+  const [rememberMe, setRememberMe] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [form] = Form.useForm();
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      const user = mode === 'register'
-        ? await register(values.email, values.password)
-        : await login(values.email, values.password);
-      message.success(mode === 'register' ? '注册成功' : '登录成功');
-      onAuth?.(user);
+      
+      if (mode === 'register') {
+        const result = await register(values.email, values.password);
+        message.success(result.message || '注册成功');
+        onAuth?.(result);
+      } else if (mode === 'login') {
+        const user = await login(values.email, values.password, rememberMe);
+        message.success('登录成功');
+        onAuth?.(user);
+      } else if (mode === 'forgot') {
+        await forgotPassword(values.email);
+        message.success('如果该邮箱已注册，重置链接已发送');
+        setResetSuccess(true);
+      } else if (mode === 'reset') {
+        await resetPassword(resetToken, values.password);
+        message.success('密码重置成功！');
+        setMode('login');
+        form.resetFields();
+      }
     } catch (e) {
       message.error(e.message || '操作失败');
     } finally {
@@ -25,8 +41,46 @@ const Auth = ({ onAuth, onBack }) => {
   };
 
   const toggleMode = () => {
-    setMode(mode === 'login' ? 'register' : 'login');
+    if (mode === 'forgot' || mode === 'reset') {
+      setMode('login');
+    } else {
+      setMode(mode === 'login' ? 'register' : 'login');
+    }
+    setResetSuccess(false);
     form.resetFields();
+  };
+
+  const goToForgot = () => {
+    setMode('forgot');
+    setResetSuccess(false);
+    form.resetFields();
+  };
+
+  const getTitle = () => {
+    switch (mode) {
+      case 'register': return '创建账号';
+      case 'forgot': return '忘记密码';
+      case 'reset': return '重置密码';
+      default: return '欢迎回来';
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (mode) {
+      case 'register': return '开始你的专业交易复盘之旅';
+      case 'forgot': return '输入你的邮箱，我们将发送重置链接';
+      case 'reset': return '设置你的新密码';
+      default: return '输入你的凭据以访问你的账户';
+    }
+  };
+
+  const getButtonText = () => {
+    switch (mode) {
+      case 'register': return '创建账号';
+      case 'forgot': return '发送重置链接';
+      case 'reset': return '重置密码';
+      default: return '登录';
+    }
   };
 
   return (
@@ -104,96 +158,186 @@ const Auth = ({ onAuth, onBack }) => {
           {/* Header */}
           <div className="mb-10">
             <h2 className="text-3xl font-bold text-gray-900 mb-3">
-              {mode === 'login' ? '欢迎回来' : '创建账号'}
+              {getTitle()}
             </h2>
             <p className="text-gray-500">
-              {mode === 'login' 
-                ? '输入你的凭据以访问你的账户' 
-                : '开始你的专业交易复盘之旅'}
+              {getSubtitle()}
             </p>
           </div>
 
-          {/* Form */}
-          <Form form={form} layout="vertical" className="space-y-1">
-            <Form.Item 
-              name="email" 
-              label={<span className="text-gray-700 font-medium">邮箱地址</span>}
-              rules={[
-                { required: true, message: '请输入邮箱' },
-                { type: 'email', message: '请输入有效的邮箱地址' }
-              ]}
-            >
-              <Input 
-                prefix={<MailOutlined className="text-gray-400" />} 
-                placeholder="name@example.com" 
-                size="large"
-                className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
-              />
-            </Form.Item>
-            
-            <Form.Item 
-              name="password" 
-              label={<span className="text-gray-700 font-medium">密码</span>}
-              rules={[
-                { required: true, message: '请输入密码' }, 
-                { min: 6, message: '密码至少 6 位' }
-              ]}
-            >
-              <Input.Password 
-                prefix={<LockOutlined className="text-gray-400" />} 
-                placeholder={mode === 'register' ? '至少 6 位字符' : '输入你的密码'}
-                size="large"
-                className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
-              />
-            </Form.Item>
-
-            {mode === 'login' && (
-              <div className="flex justify-end mb-4">
-                <button type="button" className="text-sm text-gray-500 hover:text-black transition-colors">
-                  忘记密码？
-                </button>
+          {/* Success message for forgot password */}
+          {mode === 'forgot' && resetSuccess ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircleOutlined className="text-3xl text-green-500" />
               </div>
-            )}
+              <h3 className="text-xl font-bold text-gray-900 mb-2">邮件已发送</h3>
+              <p className="text-gray-500 mb-6">
+                如果该邮箱已注册，你将收到密码重置链接。<br />
+                请检查你的收件箱和垃圾邮件文件夹。
+              </p>
+              <Button 
+                type="link" 
+                onClick={() => setMode('login')}
+                className="text-black font-medium"
+              >
+                返回登录
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Form */}
+              <Form form={form} layout="vertical" className="space-y-1">
+                {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
+                  <Form.Item 
+                    name="email" 
+                    label={<span className="text-gray-700 font-medium">邮箱地址</span>}
+                    rules={[
+                      { required: true, message: '请输入邮箱' },
+                      { type: 'email', message: '请输入有效的邮箱地址' }
+                    ]}
+                  >
+                    <Input 
+                      prefix={<MailOutlined className="text-gray-400" />} 
+                      placeholder="name@example.com" 
+                      size="large"
+                      className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                    />
+                  </Form.Item>
+                )}
+                
+                {(mode === 'login' || mode === 'register') && (
+                  <Form.Item 
+                    name="password" 
+                    label={<span className="text-gray-700 font-medium">密码</span>}
+                    rules={[
+                      { required: true, message: '请输入密码' }, 
+                      { min: 6, message: '密码至少 6 位' }
+                    ]}
+                  >
+                    <Input.Password 
+                      prefix={<LockOutlined className="text-gray-400" />} 
+                      placeholder={mode === 'register' ? '至少 6 位字符' : '输入你的密码'}
+                      size="large"
+                      className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                    />
+                  </Form.Item>
+                )}
 
-            <Button 
-              type="primary" 
-              block 
-              size="large"
-              loading={loading} 
-              onClick={handleSubmit}
-              className="h-12 bg-black hover:!bg-gray-800 border-none rounded-lg font-medium text-base shadow-lg shadow-gray-200 mt-4"
-            >
-              {mode === 'login' ? '登录' : '创建账号'}
-              <ArrowRightOutlined className="ml-2" />
-            </Button>
-          </Form>
+                {mode === 'reset' && (
+                  <>
+                    <Form.Item 
+                      name="password" 
+                      label={<span className="text-gray-700 font-medium">新密码</span>}
+                      rules={[
+                        { required: true, message: '请输入新密码' }, 
+                        { min: 6, message: '密码至少 6 位' }
+                      ]}
+                    >
+                      <Input.Password 
+                        prefix={<LockOutlined className="text-gray-400" />} 
+                        placeholder="至少 6 位字符"
+                        size="large"
+                        className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                      />
+                    </Form.Item>
+                    <Form.Item 
+                      name="confirmPassword" 
+                      label={<span className="text-gray-700 font-medium">确认密码</span>}
+                      dependencies={['password']}
+                      rules={[
+                        { required: true, message: '请确认密码' },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value || getFieldValue('password') === value) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error('两次密码不一致'));
+                          },
+                        }),
+                      ]}
+                    >
+                      <Input.Password 
+                        prefix={<LockOutlined className="text-gray-400" />} 
+                        placeholder="再次输入密码"
+                        size="large"
+                        className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                      />
+                    </Form.Item>
+                  </>
+                )}
 
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-8">
-            <div className="flex-1 h-px bg-gray-200"></div>
-            <span className="text-gray-400 text-sm">或</span>
-            <div className="flex-1 h-px bg-gray-200"></div>
-          </div>
+                {mode === 'login' && (
+                  <div className="flex justify-between items-center mb-4">
+                    <Checkbox 
+                      checked={rememberMe} 
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="text-gray-500"
+                    >
+                      记住登录 30 天
+                    </Checkbox>
+                    <button 
+                      type="button" 
+                      onClick={goToForgot}
+                      className="text-sm text-gray-500 hover:text-black transition-colors"
+                    >
+                      忘记密码？
+                    </button>
+                  </div>
+                )}
 
-          {/* Toggle mode */}
-          <div className="text-center">
-            <span className="text-gray-500">
-              {mode === 'login' ? '还没有账号？' : '已有账号？'}
-            </span>
-            <button 
-              onClick={toggleMode}
-              className="ml-2 text-black font-medium hover:underline"
-            >
-              {mode === 'login' ? '免费注册' : '立即登录'}
-            </button>
-          </div>
+                <Button 
+                  type="primary" 
+                  block 
+                  size="large"
+                  loading={loading} 
+                  onClick={handleSubmit}
+                  className="h-12 bg-black hover:!bg-gray-800 border-none rounded-lg font-medium text-base shadow-lg shadow-gray-200 mt-4"
+                >
+                  {getButtonText()}
+                  <ArrowRightOutlined className="ml-2" />
+                </Button>
+              </Form>
 
-          {/* Terms */}
-          {mode === 'register' && (
-            <p className="text-center text-gray-400 text-xs mt-8 leading-relaxed">
-              点击"创建账号"即表示你同意我们的<br />
-              <a href="#" className="text-gray-600 hover:text-black">服务条款</a> 和 <a href="#" className="text-gray-600 hover:text-black">隐私政策</a>
-            </p>
+              {/* Divider */}
+              <div className="flex items-center gap-4 my-8">
+                <div className="flex-1 h-px bg-gray-200"></div>
+                <span className="text-gray-400 text-sm">或</span>
+                <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+
+              {/* Toggle mode */}
+              <div className="text-center">
+                {mode === 'forgot' || mode === 'reset' ? (
+                  <button 
+                    onClick={() => setMode('login')}
+                    className="text-black font-medium hover:underline"
+                  >
+                    返回登录
+                  </button>
+                ) : (
+                  <>
+                    <span className="text-gray-500">
+                      {mode === 'login' ? '还没有账号？' : '已有账号？'}
+                    </span>
+                    <button 
+                      onClick={toggleMode}
+                      className="ml-2 text-black font-medium hover:underline"
+                    >
+                      {mode === 'login' ? '免费注册' : '立即登录'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Terms */}
+              {mode === 'register' && (
+                <p className="text-center text-gray-400 text-xs mt-8 leading-relaxed">
+                  点击"创建账号"即表示你同意我们的<br />
+                  <a href="#" className="text-gray-600 hover:text-black">服务条款</a> 和 <a href="#" className="text-gray-600 hover:text-black">隐私政策</a>
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
