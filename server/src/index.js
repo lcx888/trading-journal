@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
+import { setupInstallRoutes, isInstalled } from './install.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,9 @@ app.use(morgan('dev'));
 // 生产环境：提供前端静态文件
 const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath));
+
+// 安装向导路由
+setupInstallRoutes(app);
 
 const signToken = (user) => jwt.sign(
   { id: user.id, email: user.email, role: user.role },
