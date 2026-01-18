@@ -710,20 +710,28 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
               <div className="modern-card bg-white p-4">
                 <div className="text-slate-400 text-[10px] font-bold uppercase mb-3">时段表现</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {Object.entries(JSON.parse(viewingHistory.sessionStats)).map(([session, stats]) => {
-                    const pnl = parseFloat(stats.pnl) || 0;
-                    const count = parseInt(stats.count) || 0;
-                    const wins = parseInt(stats.wins) || 0;
-                    return (
-                      <div key={session} className="bg-slate-50 rounded-lg p-3">
-                        <div className="text-xs font-medium text-[#131722] mb-1">{session}</div>
-                        <div className={`text-lg font-bold ${pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
-                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                  {(() => {
+                    const sessionData = JSON.parse(viewingHistory.sessionStats);
+                    // 支持数组格式（新格式）和对象格式（旧格式）
+                    const sessionList = Array.isArray(sessionData) 
+                      ? sessionData 
+                      : Object.entries(sessionData).map(([session, data]) => ({ session, ...data }));
+                    return sessionList.map((item, idx) => {
+                      const sessionName = item.session || '未知';
+                      const pnl = parseFloat(item.pnl) || 0;
+                      const count = parseInt(item.count) || 0;
+                      const winRate = item.winRate ? item.winRate.replace('%', '') : (item.wins && count > 0 ? ((item.wins / count) * 100).toFixed(0) : 0);
+                      return (
+                        <div key={idx} className="bg-slate-50 rounded-lg p-3">
+                          <div className="text-xs font-medium text-[#131722] mb-1">{sessionName}</div>
+                          <div className={`text-lg font-bold ${pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+                            {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                          </div>
+                          <div className="text-xs text-slate-400">{count}笔 | 胜率{winRate}%</div>
                         </div>
-                        <div className="text-xs text-slate-400">{count}笔 | 胜率{count > 0 ? ((wins / count) * 100).toFixed(0) : 0}%</div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}
