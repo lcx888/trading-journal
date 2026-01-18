@@ -44,6 +44,18 @@ const { Panel } = Collapse;
 const { TextArea } = Input;
 const { Text } = Typography;
 
+// 分析任务节点配置
+const ANALYSIS_STEPS = [
+  { key: 'fetch', label: '获取交易数据', duration: 3 },
+  { key: 'stats', label: '计算基础统计', duration: 5 },
+  { key: 'pattern', label: '识别交易模式', duration: 15 },
+  { key: 'instrument', label: '分析品种表现', duration: 20 },
+  { key: 'session', label: '评估时段效率', duration: 25 },
+  { key: 'risk', label: '风险指标诊断', duration: 35 },
+  { key: 'strategy', label: '生成策略建议', duration: 55 },
+  { key: 'report', label: '输出诊断报告', duration: 75 },
+];
+
 const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -54,6 +66,11 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     instrument: 'ALL',
     dateRange: null,
   });
+  
+  // AI 分析进度状态
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
   
   // AI 对话状态
   const [chatVisible, setChatVisible] = useState(false);
@@ -82,6 +99,47 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     loadInstruments();
     setAnalysis(null);
   }, [activeRecordId]);
+
+  // AI 分析进度模拟
+  useEffect(() => {
+    let interval;
+    if (aiLoading) {
+      setAnalysisProgress(0);
+      setCurrentStep(0);
+      setElapsedTime(0);
+      
+      interval = setInterval(() => {
+        setElapsedTime(prev => {
+          const newTime = prev + 1;
+          
+          // 根据时间更新当前步骤
+          let step = 0;
+          for (let i = ANALYSIS_STEPS.length - 1; i >= 0; i--) {
+            if (newTime >= ANALYSIS_STEPS[i].duration) {
+              step = i + 1;
+              break;
+            }
+          }
+          setCurrentStep(Math.min(step, ANALYSIS_STEPS.length - 1));
+          
+          // 计算进度百分比（最高95%，完成后才100%）
+          const maxProgress = 95;
+          const progress = Math.min(Math.floor((newTime / 80) * maxProgress), maxProgress);
+          setAnalysisProgress(progress);
+          
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      // 分析完成，设置100%
+      if (aiResult?.success) {
+        setAnalysisProgress(100);
+        setCurrentStep(ANALYSIS_STEPS.length);
+      }
+    }
+    
+    return () => clearInterval(interval);
+  }, [aiLoading, aiResult]);
 
   const loadInstruments = async () => {
     const instList = await StorageService.getInstruments();
@@ -348,14 +406,110 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             {/* Content - 极简风格 */}
             <div className="p-6">
               {aiLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="text-center">
-                    <div className="relative w-12 h-12 mx-auto mb-4">
-                      <div className="absolute inset-0 border-2 border-slate-200 rounded-full"></div>
-                      <div className="absolute inset-0 border-t-2 border-[#2962ff] rounded-full animate-spin"></div>
+                <div className="py-8 px-4">
+                  {/* 顶部进度信息 */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-10 h-10">
+                        <div className="absolute inset-0 border-2 border-slate-200 rounded-full"></div>
+                        <div className="absolute inset-0 border-t-2 border-[#2962ff] rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-[#2962ff]">{analysisProgress}%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-[#131722]">AI 深度分析中</div>
+                        <div className="text-xs text-slate-400">已用时 {Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')}</div>
+                      </div>
                     </div>
-                    <div className="text-sm text-slate-600">正在分析...</div>
-                    <div className="text-xs text-slate-400 mt-1">预计需要 60-90 秒</div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-400">预计剩余</div>
+                      <div className="text-sm font-medium text-slate-600">{Math.max(0, 80 - elapsedTime)} 秒</div>
+                    </div>
+                  </div>
+                  
+                  {/* 进度条 */}
+                  <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-8">
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2962ff] to-[#26a69a] rounded-full transition-all duration-500"
+                      style={{ width: `${analysisProgress}%` }}
+                    />
+                    <div 
+                      className="absolute inset-y-0 bg-white/50 rounded-full animate-pulse"
+                      style={{ left: `${Math.max(0, analysisProgress - 5)}%`, width: '5%' }}
+                    />
+                  </div>
+                  
+                  {/* 任务节点列表 */}
+                  <div className="space-y-3">
+                    {ANALYSIS_STEPS.map((step, index) => {
+                      const isCompleted = index < currentStep;
+                      const isCurrent = index === currentStep;
+                      const isPending = index > currentStep;
+                      
+                      return (
+                        <div 
+                          key={step.key}
+                          className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                            isCurrent ? 'bg-blue-50 border border-blue-100' : 
+                            isCompleted ? 'bg-slate-50' : 'opacity-50'
+                          }`}
+                        >
+                          {/* 状态图标 */}
+                          <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                            isCompleted ? 'bg-[#26a69a] text-white' :
+                            isCurrent ? 'bg-[#2962ff] text-white' :
+                            'bg-slate-200 text-slate-400'
+                          }`}>
+                            {isCompleted ? (
+                              <CheckCircleOutlined className="text-xs" />
+                            ) : isCurrent ? (
+                              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                            ) : (
+                              <span className="text-xs">{index + 1}</span>
+                            )}
+                          </div>
+                          
+                          {/* 任务名称 */}
+                          <div className="flex-1">
+                            <span className={`text-sm ${
+                              isCompleted ? 'text-slate-500' :
+                              isCurrent ? 'text-[#2962ff] font-medium' :
+                              'text-slate-400'
+                            }`}>
+                              {step.label}
+                            </span>
+                          </div>
+                          
+                          {/* 状态标签 */}
+                          <div className="flex-shrink-0">
+                            {isCompleted && (
+                              <span className="text-xs text-[#26a69a]">已完成</span>
+                            )}
+                            {isCurrent && (
+                              <span className="text-xs text-[#2962ff] flex items-center gap-1">
+                                <span className="inline-block w-1 h-1 bg-[#2962ff] rounded-full animate-ping" />
+                                进行中
+                              </span>
+                            )}
+                            {isPending && (
+                              <span className="text-xs text-slate-300">等待中</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* 底部提示 */}
+                  <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <BulbOutlined className="text-amber-500 mt-0.5" />
+                      <div className="text-xs text-slate-500 leading-relaxed">
+                        AI 正在对您的 <span className="font-medium text-slate-700">157 笔交易</span> 进行多维度深度分析，
+                        包括品种表现、时段效率、风险指标、交易心理等，并生成个性化策略建议。
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : aiResult?.success ? (
