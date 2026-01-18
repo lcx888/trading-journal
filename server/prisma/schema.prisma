@@ -138,6 +138,8 @@ model Review {
 model AIAnalysis {
   id             String   @id @default(uuid())
   userId         String
+  recordId       String?
+  recordName     String?
   title          String
   summary        String
   report         String

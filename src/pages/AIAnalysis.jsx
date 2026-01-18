@@ -561,16 +561,18 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                       />
                     </Popconfirm>
                   </div>
-                  {/* 交易日 */}
-                  {item.tradingDays ? (
-                    <div className="text-xs text-slate-400 mb-1">
-                      {item.tradingDays} 个交易日
-                    </div>
-                  ) : item.dataStartTime && item.dataEndTime ? (
-                    <div className="text-xs text-slate-400 mb-1">
-                      {dayjs(item.dataStartTime).format('MM/DD')} - {dayjs(item.dataEndTime).format('MM/DD')}
-                    </div>
-                  ) : null}
+                  {/* 账本和时间范围 */}
+                  <div className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+                    <span className="font-medium text-blue-600">{item.recordName || '全部账本'}</span>
+                    <span className="text-slate-300">|</span>
+                    {item.dataStartTime && item.dataEndTime ? (
+                      <span>{dayjs(item.dataStartTime).format('MM/DD')} - {dayjs(item.dataEndTime).format('MM/DD')}</span>
+                    ) : item.tradingDays ? (
+                      <span>{item.tradingDays} 个交易日</span>
+                    ) : (
+                      <span>全部数据</span>
+                    )}
+                  </div>
                   {/* 核心指标 */}
                   <div className="flex flex-wrap gap-1 mb-1">
                     <Tag color={item.totalPnL >= 0 ? 'green' : 'red'} className="text-xs">
@@ -661,7 +663,12 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             </div>
 
             {/* 详细信息 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* 账本 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">账本</div>
+                <div className="text-sm font-bold text-blue-600">{viewingHistory.recordName || '全部账本'}</div>
+              </div>
               {/* 交易日 */}
               <div className="modern-card bg-white p-4">
                 <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">交易日</div>
@@ -703,15 +710,20 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
               <div className="modern-card bg-white p-4">
                 <div className="text-slate-400 text-[10px] font-bold uppercase mb-3">时段表现</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {Object.entries(JSON.parse(viewingHistory.sessionStats)).map(([session, stats]) => (
-                    <div key={session} className="bg-slate-50 rounded-lg p-3">
-                      <div className="text-xs font-medium text-[#131722] mb-1">{session}</div>
-                      <div className={`text-lg font-bold ${stats.pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
-                        {stats.pnl >= 0 ? '+' : ''}${stats.pnl?.toFixed(0)}
+                  {Object.entries(JSON.parse(viewingHistory.sessionStats)).map(([session, stats]) => {
+                    const pnl = parseFloat(stats.pnl) || 0;
+                    const count = parseInt(stats.count) || 0;
+                    const wins = parseInt(stats.wins) || 0;
+                    return (
+                      <div key={session} className="bg-slate-50 rounded-lg p-3">
+                        <div className="text-xs font-medium text-[#131722] mb-1">{session}</div>
+                        <div className={`text-lg font-bold ${pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-slate-400">{count}笔 | 胜率{count > 0 ? ((wins / count) * 100).toFixed(0) : 0}%</div>
                       </div>
-                      <div className="text-xs text-slate-400">{stats.count}笔 | 胜率{stats.count > 0 ? ((stats.wins / stats.count) * 100).toFixed(0) : 0}%</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

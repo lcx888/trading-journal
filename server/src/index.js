@@ -914,6 +914,14 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         const instruments = [...new Set(filteredTrades.map(t => t.instrumentCode).filter(Boolean))].join(',');
         const dateRangeStr = dateRange ? `${dateRange[0]} - ${dateRange[1]}` : null;
         const now = new Date();
+        
+        // 获取账本名称
+        let recordName = '全部账本';
+        if (recordId && recordId !== 'all') {
+          const record = await prisma.record.findUnique({ where: { id: recordId } });
+          if (record) recordName = record.name;
+        }
+        
         const title = `AI分析 ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
         
         // 获取交易时间范围和交易日
@@ -950,6 +958,8 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         await prisma.aIAnalysis.create({
           data: {
             userId: req.user.id,
+            recordId: recordId && recordId !== 'all' ? recordId : null,
+            recordName,
             title,
             summary,
             report: result.analysis,
@@ -994,6 +1004,8 @@ app.get('/ai/history', authRequired, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
+        recordId: true,
+        recordName: true,
         title: true,
         summary: true,
         totalTrades: true,
