@@ -888,10 +888,21 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
     let filteredTrades = parsedTrades;
     if (dateRange && dateRange[0] && dateRange[1]) {
       const start = new Date(dateRange[0]);
+      start.setHours(0, 0, 0, 0); // 设置为当天开始
       const end = new Date(dateRange[1]);
+      end.setHours(23, 59, 59, 999); // 设置为当天结束
       filteredTrades = parsedTrades.filter(t => {
         const tradeDate = new Date(t.openTime);
         return tradeDate >= start && tradeDate <= end;
+      });
+    }
+    
+    // 如果没有交易数据，返回错误
+    if (filteredTrades.length === 0) {
+      return res.json({ 
+        success: false, 
+        message: '所选日期范围内没有交易数据',
+        analysis: null 
       });
     }
     

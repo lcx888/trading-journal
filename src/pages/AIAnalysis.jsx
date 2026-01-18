@@ -978,7 +978,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                     <div className="flex items-start gap-2">
                       <BulbOutlined className="text-amber-500 mt-0.5" />
                       <div className="text-xs text-slate-500 leading-relaxed">
-                        AI 正在对您的 <span className="font-medium text-slate-700">157 笔交易</span> 进行多维度深度分析，
+                        AI 正在对您的 <span className="font-medium text-slate-700">{analysis?.tradeData?.summary?.totalTrades || 0} 笔交易</span> 进行多维度深度分析，
                         包括品种表现、时段效率、风险指标、交易心理等，并生成个性化策略建议。
                       </div>
                     </div>
