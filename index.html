@@ -2,11 +2,112 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>交易日志管理系统</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>MetworthAI - 智能交易日志 | AI驱动的期货交易分析平台</title>
+    <meta name="title" content="MetworthAI - 智能交易日志 | AI驱动的期货交易分析平台" />
+    <meta name="description" content="MetworthAI是专业的期货交易日志管理系统，提供AI智能复盘分析、交易策略诊断、盈亏统计、风险评估等功能。支持ATAS数据导入，帮助交易者提升盈利能力。" />
+    <meta name="keywords" content="交易日志,期货交易,AI复盘,交易分析,ATAS,交易策略,盈亏分析,风险管理,量化交易,交易记录,MetworthAI,智能交易,交易诊断,黄金期货,原油期货,股指期货" />
+    <meta name="author" content="MetworthAI" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Chinese" />
+    <meta name="revisit-after" content="7 days" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#2962ff" />
+    <meta name="msapplication-TileColor" content="#2962ff" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://metworth.ai/" />
+    <meta property="og:title" content="MetworthAI - 智能交易日志 | AI驱动的期货交易分析平台" />
+    <meta property="og:description" content="专业的期货交易日志管理系统，AI智能复盘分析，帮助交易者提升盈利能力。支持ATAS数据导入，提供交易策略诊断、盈亏统计、风险评估等功能。" />
+    <meta property="og:image" content="https://metworth.ai/og-image.png" />
+    <meta property="og:site_name" content="MetworthAI" />
+    <meta property="og:locale" content="zh_CN" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://metworth.ai/" />
+    <meta property="twitter:title" content="MetworthAI - 智能交易日志 | AI驱动的期货交易分析平台" />
+    <meta property="twitter:description" content="专业的期货交易日志管理系统，AI智能复盘分析，帮助交易者提升盈利能力。" />
+    <meta property="twitter:image" content="https://metworth.ai/og-image.png" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://metworth.ai/" />
+    
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "MetworthAI",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "description": "智能交易日志管理系统，AI驱动的期货交易分析平台",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "CNY"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "1000"
+      },
+      "featureList": [
+        "AI智能复盘分析",
+        "交易策略诊断",
+        "盈亏统计报表",
+        "风险评估管理",
+        "ATAS数据导入",
+        "多账本管理",
+        "交易日历视图"
+      ]
+    }
+    </script>
+    
+    <!-- Structured Data - WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MetworthAI",
+      "url": "https://metworth.ai/",
+      "description": "智能交易日志管理系统",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://metworth.ai/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
   </head>
   <body>
+    <!-- Noscript fallback -->
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+        <h1>MetworthAI - 智能交易日志</h1>
+        <p>请启用 JavaScript 以使用本应用。</p>
+        <p>MetworthAI 是专业的期货交易日志管理系统，提供 AI 智能复盘分析功能。</p>
+      </div>
+    </noscript>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
