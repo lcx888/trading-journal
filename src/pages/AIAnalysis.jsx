@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Card, Button, Spin, Alert, Row, Col, Statistic, Tag, Table, 
   Select, DatePicker, Space, Progress, Collapse, Empty, Divider,
-  Modal, Form, Input, message, Tooltip, Typography, Badge, Drawer, Popconfirm
+  Modal, Form, Input, message, Tooltip, Typography, Badge, Popconfirm
 } from 'antd';
 import {
   RobotOutlined,
@@ -82,7 +82,6 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [chatLoading, setChatLoading] = useState(false);
   
   // 历史记录状态
-  const [historyVisible, setHistoryVisible] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewingHistory, setViewingHistory] = useState(null);
@@ -106,6 +105,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
   useEffect(() => {
     loadInstruments();
+    loadHistory(); // 页面加载时获取历史记录
     setAnalysis(null);
   }, [activeRecordId]);
 
@@ -173,7 +173,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     try {
       const detail = await aiApi.getAnalysis(id);
       setViewingHistory(detail);
-      setHistoryVisible(false);
+      setAnalysis(null); // 清除当前分析，显示历史记录
     } catch (e) {
       message.error('加载详情失败');
     }
@@ -188,12 +188,6 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     } catch (e) {
       message.error('删除失败');
     }
-  };
-
-  // 打开历史记录抽屉
-  const openHistory = () => {
-    setHistoryVisible(true);
-    loadHistory();
   };
 
   const openReviewModal = (trade) => {
@@ -242,6 +236,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const handleAnalyze = async () => {
     setLoading(true);
     setAiResult(null);
+    setViewingHistory(null); // 清除正在查看的历史
     try {
       // 本地统计分析
       const result = await generateAIAnalysis({ ...filters, activeRecordId });
@@ -257,6 +252,8 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
           ] : null;
           const aiResponse = await aiApi.analyze(activeRecordId, dateRange);
           setAiResult(aiResponse);
+          // 分析完成后刷新历史列表
+          loadHistory();
         } catch (aiError) {
           console.error('DeepSeek AI 分析失败:', aiError);
           // AI 分析失败不影响本地分析结果
@@ -497,36 +494,146 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   );
 
   return (
-    <div className="space-y-6">
-      {/* 控制栏 */}
-      <div className="modern-card bg-white p-4 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-2 bg-[#f0f3fa] px-3 py-1.5 rounded-lg">
-            <GlobalOutlined className="text-blue-500 text-xs" />
-            <Select value={filters.instrument} onChange={(v) => setFilters({ ...filters, instrument: v })} style={{ width: 120 }} variant="borderless" className="font-bold text-xs" options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} />
+    <div className="flex gap-6">
+      {/* ========== 左侧历史记录面板 ========== */}
+      <div className="w-80 flex-shrink-0">
+        <div className="modern-card bg-white sticky top-4" style={{ maxHeight: 'calc(100vh - 120px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HistoryOutlined className="text-blue-500" />
+              <span className="font-bold text-[#131722]">分析历史</span>
+              <Tag color="blue" className="ml-1">{historyList.length}</Tag>
+            </div>
+            <Button type="primary" size="small" icon={<ThunderboltOutlined />} onClick={handleAnalyze} loading={loading}>
+              新建分析
+            </Button>
           </div>
-          <div className="bg-[#f0f3fa] px-2 py-0.5 rounded-lg">
-            <RangePicker value={filters.dateRange} onChange={(v) => setFilters({ ...filters, dateRange: v })} variant="borderless" className="font-medium text-xs" allowClear placeholder={['开始日期', '结束日期']} />
+          <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            {historyLoading ? (
+              <div className="flex justify-center py-8"><Spin /></div>
+            ) : historyList.length === 0 ? (
+              <div className="text-center py-12">
+                <RobotOutlined className="text-4xl text-slate-200 mb-3" />
+                <p className="text-slate-400 text-sm">暂无分析记录</p>
+                <p className="text-slate-300 text-xs mt-1">点击上方按钮开始分析</p>
+              </div>
+            ) : (
+              historyList.map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-3 rounded-lg cursor-pointer transition-all ${
+                    viewingHistory?.id === item.id 
+                      ? 'bg-blue-50 border border-blue-200' 
+                      : 'bg-slate-50 hover:bg-slate-100 border border-transparent'
+                  }`}
+                  onClick={() => viewHistoryDetail(item.id)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="font-medium text-sm text-[#131722] truncate flex-1">{item.title}</div>
+                    <Popconfirm
+                      title="确定删除？"
+                      onConfirm={(e) => { e?.stopPropagation(); deleteHistory(item.id); }}
+                      okText="删除"
+                      cancelText="取消"
+                    >
+                      <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => e.stopPropagation()}
+                        className="opacity-50 hover:opacity-100"
+                      />
+                    </Popconfirm>
+                  </div>
+                  <div className="text-xs text-slate-500 mb-2 truncate">{item.summary}</div>
+                  <div className="flex flex-wrap gap-1">
+                    <Tag color={item.totalPnL >= 0 ? 'green' : 'red'} className="text-xs">
+                      {item.totalPnL >= 0 ? '+' : ''}${item.totalPnL?.toFixed(0)}
+                    </Tag>
+                    <Tag className="text-xs">胜率 {item.winRate?.toFixed(1)}%</Tag>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-2">
+                    {dayjs(item.createdAt).format('MM-DD HH:mm')}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button icon={<HistoryOutlined />} onClick={openHistory}>历史记录</Button>
-          <Button type="primary" icon={<RobotOutlined />} onClick={handleAnalyze} size="large" className="font-bold">开始 AI 分析</Button>
         </div>
       </div>
 
-      {!analysis && (
-        <div className="modern-card bg-white p-16 text-center">
-          <RobotOutlined className="text-6xl text-slate-200 mb-4" />
-          <h2 className="text-xl font-bold text-[#131722] mb-2">AI 智能交易分析</h2>
-          <p className="text-slate-400 max-w-md mx-auto mb-6">点击上方按钮，AI 将深度分析您的交易数据，识别问题模式并提供个性化优化建议。</p>
-          <Button type="primary" onClick={handleAnalyze} size="large">开始分析</Button>
+      {/* ========== 右侧主内容区 ========== */}
+      <div className="flex-1 space-y-6 min-w-0">
+        {/* 控制栏 */}
+        <div className="modern-card bg-white p-4 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 bg-[#f0f3fa] px-3 py-1.5 rounded-lg">
+              <GlobalOutlined className="text-blue-500 text-xs" />
+              <Select value={filters.instrument} onChange={(v) => setFilters({ ...filters, instrument: v })} style={{ width: 120 }} variant="borderless" className="font-bold text-xs" options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} />
+            </div>
+            <div className="bg-[#f0f3fa] px-2 py-0.5 rounded-lg">
+              <RangePicker value={filters.dateRange} onChange={(v) => setFilters({ ...filters, dateRange: v })} variant="borderless" className="font-medium text-xs" allowClear placeholder={['开始日期', '结束日期']} />
+            </div>
+          </div>
+          {viewingHistory && (
+            <Button onClick={() => { setViewingHistory(null); setAnalysis(null); }}>
+              返回新建
+            </Button>
+          )}
         </div>
-      )}
 
-      {analysis && !analysis.success && <Alert message="分析失败" description={analysis.message} type="error" showIcon />}
+        {/* 查看历史分析 */}
+        {viewingHistory && (
+          <div className="space-y-6">
+            <div className="modern-card bg-white p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#131722]">{viewingHistory.title}</h2>
+                  <p className="text-sm text-slate-400 mt-1">{dayjs(viewingHistory.createdAt).format('YYYY-MM-DD HH:mm:ss')}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Tag color={viewingHistory.totalPnL >= 0 ? 'green' : 'red'} className="px-3 py-1">
+                    盈亏: ${viewingHistory.totalPnL?.toLocaleString()}
+                  </Tag>
+                  <Tag className="px-3 py-1">交易: {viewingHistory.totalTrades} 笔</Tag>
+                  <Tag className="px-3 py-1">胜率: {viewingHistory.winRate?.toFixed(1)}%</Tag>
+                </div>
+              </div>
+              <div className="prose max-w-none ai-report-content">
+                <ReactMarkdown
+                  components={{
+                    h2: ({children}) => <h2 className="text-base font-semibold text-[#131722] mt-6 mb-3 pb-2 border-b border-slate-100">{children}</h2>,
+                    h3: ({children}) => <h3 className="text-sm font-semibold text-[#131722] mt-4 mb-2">{children}</h3>,
+                    p: ({children}) => <p className="text-sm text-slate-600 leading-relaxed mb-3">{children}</p>,
+                    li: ({children}) => <li className="text-sm text-slate-600 mb-1">{children}</li>,
+                    strong: ({children}) => <strong className="font-semibold text-[#131722]">{children}</strong>,
+                  }}
+                >
+                  {viewingHistory.report}
+                </ReactMarkdown>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {analysis && analysis.success && (
+        {/* 无分析时的欢迎页 */}
+        {!analysis && !viewingHistory && !loading && (
+          <div className="modern-card bg-white p-16 text-center">
+            <RobotOutlined className="text-6xl text-slate-200 mb-4" />
+            <h2 className="text-xl font-bold text-[#131722] mb-2">AI 智能交易分析</h2>
+            <p className="text-slate-400 max-w-md mx-auto mb-6">
+              {historyList.length > 0 
+                ? '从左侧选择历史记录查看，或点击新建分析开始新的分析。' 
+                : '点击左上角按钮，AI 将深度分析您的交易数据，识别问题模式并提供个性化优化建议。'}
+            </p>
+            <Button type="primary" onClick={handleAnalyze} size="large" icon={<ThunderboltOutlined />}>开始分析</Button>
+          </div>
+        )}
+
+      {analysis && !analysis.success && !viewingHistory && <Alert message="分析失败" description={analysis.message} type="error" showIcon />}
+
+      {analysis && analysis.success && !viewingHistory && (
         <div className="space-y-6">
           {/* ========== 整体评级 ========== */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -993,6 +1100,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
           <div className="text-center text-slate-400 text-xs py-4">分析时间: {dayjs(analysis.generatedAt).format('YYYY-MM-DD HH:mm:ss')}</div>
         </div>
       )}
+      </div>
 
       {/* ========== 复盘说明编辑弹窗 ========== */}
       <Modal title={<div className="flex items-center gap-2"><EditOutlined className="text-blue-500" /><span className="font-bold">编辑复盘说明</span></div>} open={reviewModalVisible} onCancel={() => setReviewModalVisible(false)} onOk={handleSaveReview} okText="保存" cancelText="取消" width={600} destroyOnClose>
@@ -1118,110 +1226,6 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
         </div>
       </Modal>
 
-      {/* 历史记录抽屉 */}
-      <Drawer
-        title={
-          <div className="flex items-center gap-2">
-            <HistoryOutlined className="text-blue-500" />
-            <span className="font-bold">AI 分析历史</span>
-            <Tag color="blue">{historyList.length} 条记录</Tag>
-          </div>
-        }
-        open={historyVisible}
-        onClose={() => setHistoryVisible(false)}
-        width={480}
-      >
-        {historyLoading ? (
-          <div className="flex justify-center py-12">
-            <Spin />
-          </div>
-        ) : historyList.length === 0 ? (
-          <Empty description="暂无分析记录" />
-        ) : (
-          <div className="space-y-3">
-            {historyList.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                onClick={() => viewHistoryDetail(item.id)}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="font-medium text-[#131722]">{item.title}</div>
-                  <Popconfirm
-                    title="确定删除？"
-                    onConfirm={(e) => { e.stopPropagation(); deleteHistory(item.id); }}
-                    okText="删除"
-                    cancelText="取消"
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </Popconfirm>
-                </div>
-                <div className="text-sm text-slate-500 mb-3">{item.summary}</div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <Tag color={item.totalPnL >= 0 ? 'green' : 'red'}>
-                    {item.totalPnL >= 0 ? '+' : ''}{item.totalPnL?.toLocaleString()}
-                  </Tag>
-                  <Tag>胜率 {item.winRate?.toFixed(1)}%</Tag>
-                  {item.instruments && <Tag color="blue">{item.instruments}</Tag>}
-                </div>
-                <div className="text-xs text-slate-400 mt-2">
-                  {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Drawer>
-
-      {/* 查看历史详情弹窗 */}
-      <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <FileTextOutlined className="text-blue-500" />
-            <span className="font-bold">{viewingHistory?.title}</span>
-          </div>
-        }
-        open={!!viewingHistory}
-        onCancel={() => setViewingHistory(null)}
-        footer={null}
-        width={800}
-        destroyOnClose
-      >
-        {viewingHistory && (
-          <div className="max-h-[70vh] overflow-y-auto">
-            <div className="flex gap-3 mb-4 flex-wrap">
-              <Tag color={viewingHistory.totalPnL >= 0 ? 'green' : 'red'} className="px-3 py-1">
-                盈亏: ${viewingHistory.totalPnL?.toLocaleString()}
-              </Tag>
-              <Tag className="px-3 py-1">交易: {viewingHistory.totalTrades} 笔</Tag>
-              <Tag className="px-3 py-1">胜率: {viewingHistory.winRate?.toFixed(1)}%</Tag>
-              <Tag className="px-3 py-1">利润系数: {viewingHistory.profitFactor?.toFixed(2)}</Tag>
-            </div>
-            <div className="prose max-w-none">
-              <ReactMarkdown
-                components={{
-                  h2: ({children}) => <h2 className="text-base font-semibold text-[#131722] mt-6 mb-3 pb-2 border-b border-slate-100">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-sm font-semibold text-[#131722] mt-4 mb-2">{children}</h3>,
-                  p: ({children}) => <p className="text-sm text-slate-600 leading-relaxed mb-3">{children}</p>,
-                  li: ({children}) => <li className="text-sm text-slate-600 mb-1">{children}</li>,
-                  strong: ({children}) => <strong className="font-semibold text-[#131722]">{children}</strong>,
-                }}
-              >
-                {viewingHistory.report}
-              </ReactMarkdown>
-            </div>
-            <div className="text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">
-              分析时间: {dayjs(viewingHistory.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };
