@@ -233,6 +233,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     } catch (e) { message.error('保存失败'); }
   };
 
+  // 第一步：本地统计分析（快速，不调用AI）
   const handleAnalyze = async () => {
     // 检查是否选择了日期范围
     if (!filters.dateRange || !filters.dateRange[0] || !filters.dateRange[1]) {
@@ -244,33 +245,39 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     setAiResult(null);
     setViewingHistory(null); // 清除正在查看的历史
     try {
-      // 本地统计分析
+      // 仅执行本地统计分析
       const result = await generateAIAnalysis({ ...filters, activeRecordId });
       setAnalysis(result);
-      
-      // DeepSeek AI 分析（异步执行，不阻塞本地分析结果显示）
-      if (result.success) {
-        setAiLoading(true);
-        try {
-          const dateRange = filters.dateRange ? [
-            filters.dateRange[0]?.toISOString(),
-            filters.dateRange[1]?.toISOString()
-          ] : null;
-          const aiResponse = await aiApi.analyze(activeRecordId, dateRange);
-          setAiResult(aiResponse);
-          // 分析完成后刷新历史列表
-          loadHistory();
-        } catch (aiError) {
-          console.error('DeepSeek AI 分析失败:', aiError);
-          // AI 分析失败不影响本地分析结果
-        } finally {
-          setAiLoading(false);
-        }
-      }
     } catch (e) { 
       message.error('分析失败'); 
     } finally { 
       setLoading(false); 
+    }
+  };
+
+  // 第二步：调用 DeepSeek AI 生成深度报告（用户主动触发）
+  const handleDeepAnalyze = async () => {
+    if (!analysis || !analysis.success) {
+      message.warning('请先完成基础分析');
+      return;
+    }
+    
+    setAiLoading(true);
+    try {
+      const dateRange = filters.dateRange ? [
+        filters.dateRange[0]?.toISOString(),
+        filters.dateRange[1]?.toISOString()
+      ] : null;
+      const aiResponse = await aiApi.analyze(activeRecordId, dateRange);
+      setAiResult(aiResponse);
+      // 分析完成后刷新历史列表
+      loadHistory();
+      message.success('深度分析报告生成成功');
+    } catch (aiError) {
+      console.error('DeepSeek AI 分析失败:', aiError);
+      message.error('深度分析失败: ' + aiError.message);
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -850,18 +857,22 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                   <RobotOutlined className="text-white text-sm" />
                 </div>
                 <div>
-                  <div className="font-semibold text-[#131722]">AI 智能诊断</div>
+                  <div className="font-semibold text-[#131722]">AI 深度诊断报告</div>
                   <div className="text-[10px] text-slate-400">Powered by DeepSeek</div>
                 </div>
               </div>
-              <Button 
-                type="text"
-                icon={<ThunderboltOutlined />} 
-                onClick={() => setChatVisible(true)}
-                className="text-slate-500 hover:text-[#2962ff] hover:bg-blue-50"
-              >
-                问答
-              </Button>
+              <div className="flex items-center gap-2">
+                {aiResult?.success && (
+                  <Button 
+                    type="text"
+                    icon={<ThunderboltOutlined />} 
+                    onClick={() => setChatVisible(true)}
+                    className="text-slate-500 hover:text-[#2962ff] hover:bg-blue-50"
+                  >
+                    问答
+                  </Button>
+                )}
+              </div>
             </div>
             
             {/* Content - 极简风格 */}
@@ -1046,9 +1057,26 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                   showIcon 
                 />
               ) : (
-                <div className="text-center py-16">
-                  <RobotOutlined className="text-3xl text-slate-200 mb-3" />
-                  <div className="text-sm text-slate-400">等待分析</div>
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl flex items-center justify-center">
+                    <RobotOutlined className="text-2xl text-slate-300" />
+                  </div>
+                  <div className="text-base font-medium text-[#131722] mb-2">生成 AI 深度诊断报告</div>
+                  <p className="text-sm text-slate-400 max-w-sm mx-auto mb-6">
+                    基于您的交易数据，AI 将生成包含品种分析、策略诊断、心理画像等内容的专业诊断报告
+                  </p>
+                  <Button 
+                    type="primary" 
+                    size="large"
+                    icon={<ThunderboltOutlined />}
+                    onClick={handleDeepAnalyze}
+                    className="px-8"
+                  >
+                    生成深度报告
+                  </Button>
+                  <div className="mt-4 text-xs text-slate-400">
+                    预计耗时 60-90 秒
+                  </div>
                 </div>
               )}
             </div>
