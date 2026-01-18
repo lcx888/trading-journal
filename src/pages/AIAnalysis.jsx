@@ -756,7 +756,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                 </div>
                 <div>
                   <div className="font-semibold text-[#131722]">AI 智能诊断报告</div>
-                  <div className="text-[10px] text-slate-400">Powered by DeepSeek</div>
+                  <div className="text-[10px] text-slate-400">Powered by MetworthAI</div>
                 </div>
               </div>
               <div className="prose max-w-none ai-report-content">
@@ -943,7 +943,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                 </div>
                 <div>
                   <div className="font-semibold text-[#131722]">AI 深度诊断报告</div>
-                  <div className="text-[10px] text-slate-400">Powered by DeepSeek</div>
+                  <div className="text-[10px] text-slate-400">Powered by MetworthAI</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
