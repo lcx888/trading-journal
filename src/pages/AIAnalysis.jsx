@@ -528,7 +528,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                   }`}
                   onClick={() => viewHistoryDetail(item.id)}
                 >
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-1">
                     <div className="font-medium text-sm text-[#131722] truncate flex-1">{item.title}</div>
                     <Popconfirm
                       title="确定删除？"
@@ -546,15 +546,36 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                       />
                     </Popconfirm>
                   </div>
-                  <div className="text-xs text-slate-500 mb-2 truncate">{item.summary}</div>
-                  <div className="flex flex-wrap gap-1">
+                  {/* 数据时间范围 */}
+                  {item.dataStartTime && item.dataEndTime && (
+                    <div className="text-xs text-slate-400 mb-1">
+                      {dayjs(item.dataStartTime).format('MM/DD')} - {dayjs(item.dataEndTime).format('MM/DD')}
+                    </div>
+                  )}
+                  {/* 核心指标 */}
+                  <div className="flex flex-wrap gap-1 mb-1">
                     <Tag color={item.totalPnL >= 0 ? 'green' : 'red'} className="text-xs">
                       {item.totalPnL >= 0 ? '+' : ''}${item.totalPnL?.toFixed(0)}
                     </Tag>
-                    <Tag className="text-xs">胜率 {item.winRate?.toFixed(1)}%</Tag>
+                    <Tag className="text-xs">{item.totalTrades}笔</Tag>
+                    {item.overallScore && (
+                      <Tag color={item.overallScore >= 80 ? 'green' : item.overallScore >= 60 ? 'blue' : item.overallScore >= 40 ? 'orange' : 'red'} className="text-xs">
+                        {item.overallScore}分
+                      </Tag>
+                    )}
                   </div>
-                  <div className="text-xs text-slate-400 mt-2">
-                    {dayjs(item.createdAt).format('MM-DD HH:mm')}
+                  {/* 胜率和盈亏比 */}
+                  <div className="flex gap-2 text-xs text-slate-500 mb-1">
+                    <span>胜率 {item.winRate?.toFixed(1)}%</span>
+                    <span>|</span>
+                    <span>盈亏比 {item.profitLossRatio?.toFixed(2)}</span>
+                  </div>
+                  {/* 品种 */}
+                  {item.instruments && (
+                    <div className="text-xs text-blue-500 truncate">{item.instruments}</div>
+                  )}
+                  <div className="text-xs text-slate-400 mt-1">
+                    分析于 {dayjs(item.createdAt).format('MM-DD HH:mm')}
                   </div>
                 </div>
               ))
@@ -586,18 +607,100 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
         {/* 查看历史分析 */}
         {viewingHistory && (
           <div className="space-y-6">
-            <div className="modern-card bg-white p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-[#131722]">{viewingHistory.title}</h2>
-                  <p className="text-sm text-slate-400 mt-1">{dayjs(viewingHistory.createdAt).format('YYYY-MM-DD HH:mm:ss')}</p>
+            {/* 概览卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {/* 综合评分 */}
+              <div className="modern-card bg-[#131722] p-4 text-white">
+                <div className="text-blue-400 text-[10px] font-bold uppercase mb-2">综合评分</div>
+                <div className="text-4xl font-black" style={{ color: viewingHistory.overallScore >= 60 ? '#26a69a' : '#ef5350' }}>
+                  {viewingHistory.overallScore || '--'}
                 </div>
-                <div className="flex gap-2">
-                  <Tag color={viewingHistory.totalPnL >= 0 ? 'green' : 'red'} className="px-3 py-1">
-                    盈亏: ${viewingHistory.totalPnL?.toLocaleString()}
-                  </Tag>
-                  <Tag className="px-3 py-1">交易: {viewingHistory.totalTrades} 笔</Tag>
-                  <Tag className="px-3 py-1">胜率: {viewingHistory.winRate?.toFixed(1)}%</Tag>
+                <div className="text-xs text-blue-300 mt-1">{viewingHistory.overallLevel || '待评估'}</div>
+              </div>
+              {/* 总盈亏 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-1">总盈亏</div>
+                <div className={`text-2xl font-bold ${viewingHistory.totalPnL >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+                  {viewingHistory.totalPnL >= 0 ? '+' : ''}${viewingHistory.totalPnL?.toLocaleString()}
+                </div>
+              </div>
+              {/* 交易笔数 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-1">交易笔数</div>
+                <div className="text-2xl font-bold text-[#131722]">{viewingHistory.totalTrades}</div>
+              </div>
+              {/* 胜率 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-1">胜率</div>
+                <div className="text-2xl font-bold text-[#131722]">{viewingHistory.winRate?.toFixed(1)}%</div>
+              </div>
+              {/* 盈亏比 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-1">盈亏比</div>
+                <div className="text-2xl font-bold text-[#2962ff]">{viewingHistory.profitLossRatio?.toFixed(2)}</div>
+              </div>
+            </div>
+
+            {/* 详细信息 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 数据时间范围 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">数据时间范围</div>
+                <div className="text-sm font-medium text-[#131722]">
+                  {viewingHistory.dataStartTime && viewingHistory.dataEndTime ? (
+                    <>
+                      {dayjs(viewingHistory.dataStartTime).format('YYYY/MM/DD HH:mm')}
+                      <span className="text-slate-300 mx-2">→</span>
+                      {dayjs(viewingHistory.dataEndTime).format('YYYY/MM/DD HH:mm')}
+                    </>
+                  ) : '未记录'}
+                </div>
+              </div>
+              {/* 品种 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">交易品种</div>
+                <div className="flex flex-wrap gap-1">
+                  {viewingHistory.instruments ? viewingHistory.instruments.split(',').map(code => (
+                    <Tag key={code} color="blue" className="text-xs">{code}</Tag>
+                  )) : <span className="text-slate-400 text-sm">全部</span>}
+                </div>
+              </div>
+              {/* 分析时间 */}
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">分析时间</div>
+                <div className="text-sm font-medium text-[#131722]">
+                  {dayjs(viewingHistory.createdAt).format('YYYY/MM/DD HH:mm:ss')}
+                </div>
+              </div>
+            </div>
+
+            {/* 时段表现 */}
+            {viewingHistory.sessionStats && (
+              <div className="modern-card bg-white p-4">
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-3">时段表现</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {Object.entries(JSON.parse(viewingHistory.sessionStats)).map(([session, stats]) => (
+                    <div key={session} className="bg-slate-50 rounded-lg p-3">
+                      <div className="text-xs font-medium text-[#131722] mb-1">{session}</div>
+                      <div className={`text-lg font-bold ${stats.pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+                        {stats.pnl >= 0 ? '+' : ''}${stats.pnl?.toFixed(0)}
+                      </div>
+                      <div className="text-xs text-slate-400">{stats.count}笔 | 胜率{stats.count > 0 ? ((stats.wins / stats.count) * 100).toFixed(0) : 0}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI 报告 */}
+            <div className="modern-card bg-white p-6">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+                <div className="w-8 h-8 bg-[#131722] rounded-lg flex items-center justify-center">
+                  <RobotOutlined className="text-white text-sm" />
+                </div>
+                <div>
+                  <div className="font-semibold text-[#131722]">AI 智能诊断报告</div>
+                  <div className="text-[10px] text-slate-400">Powered by DeepSeek</div>
                 </div>
               </div>
               <div className="prose max-w-none ai-report-content">

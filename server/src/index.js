@@ -905,8 +905,26 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         const now = new Date();
         const title = `AI分析 ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
         
+        // 获取交易时间范围
+        const sortedTrades = [...filteredTrades].sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
+        const dataStartTime = sortedTrades.length > 0 ? new Date(sortedTrades[0].openTime) : null;
+        const dataEndTime = sortedTrades.length > 0 ? new Date(sortedTrades[sortedTrades.length - 1].openTime) : null;
+        
         // 生成摘要
         const summary = `${result.tradeData?.summary?.totalTrades || 0}笔交易 | 盈亏$${result.tradeData?.summary?.totalPnL || 0} | 胜率${result.tradeData?.summary?.winRate || 0}%`;
+        
+        // 计算综合评分（简单逻辑：基于盈亏、胜率、盈亏比）
+        let overallScore = 50;
+        const pnl = parseFloat(result.tradeData?.summary?.totalPnL) || 0;
+        const winRateVal = parseFloat(result.tradeData?.summary?.winRate) || 0;
+        const plRatio = parseFloat(result.tradeData?.summary?.profitLossRatio) || 0;
+        if (pnl > 0) overallScore += 20;
+        if (winRateVal >= 50) overallScore += 15;
+        else if (winRateVal >= 40) overallScore += 5;
+        if (plRatio >= 1.5) overallScore += 15;
+        else if (plRatio >= 1) overallScore += 5;
+        overallScore = Math.min(100, Math.max(0, overallScore));
+        const overallLevel = overallScore >= 80 ? '优秀' : overallScore >= 60 ? '良好' : overallScore >= 40 ? '一般' : '需改进';
         
         await prisma.aIAnalysis.create({
           data: {
@@ -921,6 +939,16 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
             maxDrawdown: parseFloat(result.tradeData?.summary?.maxDrawdown) || 0,
             dateRange: dateRangeStr,
             instruments,
+            dataStartTime,
+            dataEndTime,
+            overallScore,
+            overallLevel,
+            avgProfit: parseFloat(result.tradeData?.summary?.avgProfit) || 0,
+            avgLoss: parseFloat(result.tradeData?.summary?.avgLoss) || 0,
+            profitLossRatio: plRatio,
+            sessionStats: JSON.stringify(result.tradeData?.bySession || {}),
+            instrumentStats: JSON.stringify(result.tradeData?.byInstrument || {}),
+            directionStats: JSON.stringify(result.tradeData?.direction || {}),
           },
         });
       } catch (saveError) {
@@ -950,7 +978,18 @@ app.get('/ai/history', authRequired, async (req, res) => {
         totalPnL: true,
         winRate: true,
         profitFactor: true,
+        maxDrawdown: true,
         instruments: true,
+        dataStartTime: true,
+        dataEndTime: true,
+        overallScore: true,
+        overallLevel: true,
+        avgProfit: true,
+        avgLoss: true,
+        profitLossRatio: true,
+        sessionStats: true,
+        instrumentStats: true,
+        directionStats: true,
         createdAt: true,
       },
     });

@@ -148,6 +148,16 @@ model AIAnalysis {
   maxDrawdown    Float
   dateRange      String?
   instruments    String?
+  dataStartTime  DateTime?
+  dataEndTime    DateTime?
+  overallScore   Int?
+  overallLevel   String?
+  avgProfit      Float?
+  avgLoss        Float?
+  profitLossRatio Float?
+  sessionStats   String?
+  instrumentStats String?
+  directionStats String?
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
