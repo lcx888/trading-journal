@@ -366,12 +366,16 @@ export const checkDuplicates = async (newTrades) => {
   const unique = [];
 
   newTrades.forEach(trade => {
-    const isDuplicate = existingTrades.some(existing => 
-      existing.symbol === trade.symbol &&
-      existing.openTime?.getTime() === trade.openTime?.getTime() &&
-      existing.openPrice === trade.openPrice &&
-      existing.openQuantity === trade.openQuantity
-    );
+    const isDuplicate = existingTrades.some(existing => {
+      // 安全地比较时间，处理字符串和Date对象
+      const existingTime = existing.openTime ? new Date(existing.openTime).getTime() : null;
+      const tradeTime = trade.openTime ? new Date(trade.openTime).getTime() : null;
+      
+      return existing.symbol === trade.symbol &&
+        existingTime === tradeTime &&
+        existing.openPrice === trade.openPrice &&
+        existing.openQuantity === trade.openQuantity;
+    });
 
     if (isDuplicate) {
       duplicates.push(trade);
