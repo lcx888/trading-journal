@@ -546,12 +546,16 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                       />
                     </Popconfirm>
                   </div>
-                  {/* 数据时间范围 */}
-                  {item.dataStartTime && item.dataEndTime && (
+                  {/* 交易日 */}
+                  {item.tradingDays ? (
+                    <div className="text-xs text-slate-400 mb-1">
+                      {item.tradingDays} 个交易日
+                    </div>
+                  ) : item.dataStartTime && item.dataEndTime ? (
                     <div className="text-xs text-slate-400 mb-1">
                       {dayjs(item.dataStartTime).format('MM/DD')} - {dayjs(item.dataEndTime).format('MM/DD')}
                     </div>
-                  )}
+                  ) : null}
                   {/* 核心指标 */}
                   <div className="flex flex-wrap gap-1 mb-1">
                     <Tag color={item.totalPnL >= 0 ? 'green' : 'red'} className="text-xs">
@@ -643,17 +647,22 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
             {/* 详细信息 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 数据时间范围 */}
+              {/* 交易日 */}
               <div className="modern-card bg-white p-4">
-                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">数据时间范围</div>
+                <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">交易日</div>
                 <div className="text-sm font-medium text-[#131722]">
-                  {viewingHistory.dataStartTime && viewingHistory.dataEndTime ? (
+                  {viewingHistory.tradingDays ? (
+                    <span className="text-2xl font-bold text-[#2962ff]">{viewingHistory.tradingDays}</span>
+                  ) : viewingHistory.dataStartTime && viewingHistory.dataEndTime ? (
                     <>
-                      {dayjs(viewingHistory.dataStartTime).format('YYYY/MM/DD HH:mm')}
-                      <span className="text-slate-300 mx-2">→</span>
-                      {dayjs(viewingHistory.dataEndTime).format('YYYY/MM/DD HH:mm')}
+                      {dayjs(viewingHistory.dataStartTime).format('MM/DD')} - {dayjs(viewingHistory.dataEndTime).format('MM/DD')}
                     </>
-                  ) : '未记录'}
+                  ) : '--'}
+                  {viewingHistory.dataStartTime && viewingHistory.dataEndTime && (
+                    <span className="text-xs text-slate-400 ml-2">
+                      ({dayjs(viewingHistory.dataStartTime).format('MM/DD')} - {dayjs(viewingHistory.dataEndTime).format('MM/DD')})
+                    </span>
+                  )}
                 </div>
               </div>
               {/* 品种 */}

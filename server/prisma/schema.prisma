@@ -150,6 +150,7 @@ model AIAnalysis {
   instruments    String?
   dataStartTime  DateTime?
   dataEndTime    DateTime?
+  tradingDays    Int?
   overallScore   Int?
   overallLevel   String?
   avgProfit      Float?

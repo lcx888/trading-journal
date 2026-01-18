@@ -905,10 +905,20 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         const now = new Date();
         const title = `AI分析 ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
         
-        // 获取交易时间范围
+        // 获取交易时间范围和交易日
         const sortedTrades = [...filteredTrades].sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
         const dataStartTime = sortedTrades.length > 0 ? new Date(sortedTrades[0].openTime) : null;
         const dataEndTime = sortedTrades.length > 0 ? new Date(sortedTrades[sortedTrades.length - 1].openTime) : null;
+        
+        // 计算交易日数量（去重的日期）
+        const tradingDaysSet = new Set();
+        filteredTrades.forEach(t => {
+          if (t.openTime) {
+            const date = new Date(t.openTime).toISOString().split('T')[0];
+            tradingDaysSet.add(date);
+          }
+        });
+        const tradingDays = tradingDaysSet.size;
         
         // 生成摘要
         const summary = `${result.tradeData?.summary?.totalTrades || 0}笔交易 | 盈亏$${result.tradeData?.summary?.totalPnL || 0} | 胜率${result.tradeData?.summary?.winRate || 0}%`;
@@ -941,6 +951,7 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
             instruments,
             dataStartTime,
             dataEndTime,
+            tradingDays,
             overallScore,
             overallLevel,
             avgProfit: parseFloat(result.tradeData?.summary?.avgProfit) || 0,
@@ -982,6 +993,7 @@ app.get('/ai/history', authRequired, async (req, res) => {
         instruments: true,
         dataStartTime: true,
         dataEndTime: true,
+        tradingDays: true,
         overallScore: true,
         overallLevel: true,
         avgProfit: true,
