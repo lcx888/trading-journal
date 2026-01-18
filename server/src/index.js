@@ -896,9 +896,100 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
     }
     
     const result = await analyzeTradesWithAI(filteredTrades);
+    
+    // 保存分析结果到数据库
+    if (result.success && result.analysis) {
+      try {
+        const instruments = [...new Set(filteredTrades.map(t => t.instrumentCode).filter(Boolean))].join(',');
+        const dateRangeStr = dateRange ? `${dateRange[0]} - ${dateRange[1]}` : null;
+        const now = new Date();
+        const title = `AI分析 ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+        
+        // 生成摘要
+        const summary = `${result.tradeData?.summary?.totalTrades || 0}笔交易 | 盈亏$${result.tradeData?.summary?.totalPnL || 0} | 胜率${result.tradeData?.summary?.winRate || 0}%`;
+        
+        await prisma.aIAnalysis.create({
+          data: {
+            userId: req.user.id,
+            title,
+            summary,
+            report: result.analysis,
+            totalTrades: result.tradeData?.summary?.totalTrades || 0,
+            totalPnL: parseFloat(result.tradeData?.summary?.totalPnL) || 0,
+            winRate: parseFloat(result.tradeData?.summary?.winRate) || 0,
+            profitFactor: parseFloat(result.tradeData?.summary?.profitFactor) || 0,
+            maxDrawdown: parseFloat(result.tradeData?.summary?.maxDrawdown) || 0,
+            dateRange: dateRangeStr,
+            instruments,
+          },
+        });
+      } catch (saveError) {
+        console.error('保存分析记录失败:', saveError);
+        // 保存失败不影响返回结果
+      }
+    }
+    
     return res.json(result);
   } catch (error) {
     console.error('AI 分析失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 获取 AI 分析历史列表
+app.get('/ai/history', authRequired, async (req, res) => {
+  try {
+    const analyses = await prisma.aIAnalysis.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        totalTrades: true,
+        totalPnL: true,
+        winRate: true,
+        profitFactor: true,
+        instruments: true,
+        createdAt: true,
+      },
+    });
+    return res.json(analyses);
+  } catch (error) {
+    console.error('获取分析历史失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 获取单个 AI 分析详情
+app.get('/ai/history/:id', authRequired, async (req, res) => {
+  try {
+    const analysis = await prisma.aIAnalysis.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!analysis || analysis.userId !== req.user.id) {
+      return res.status(404).json({ success: false, message: '分析记录不存在' });
+    }
+    return res.json(analysis);
+  } catch (error) {
+    console.error('获取分析详情失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 删除 AI 分析记录
+app.delete('/ai/history/:id', authRequired, async (req, res) => {
+  try {
+    const analysis = await prisma.aIAnalysis.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!analysis || analysis.userId !== req.user.id) {
+      return res.status(404).json({ success: false, message: '分析记录不存在' });
+    }
+    await prisma.aIAnalysis.delete({ where: { id: req.params.id } });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('删除分析记录失败:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });

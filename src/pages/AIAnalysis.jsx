@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Card, Button, Spin, Alert, Row, Col, Statistic, Tag, Table, 
   Select, DatePicker, Space, Progress, Collapse, Empty, Divider,
-  Modal, Form, Input, message, Tooltip, Typography, Badge
+  Modal, Form, Input, message, Tooltip, Typography, Badge, Drawer, Popconfirm
 } from 'antd';
 import {
   RobotOutlined,
@@ -31,6 +31,9 @@ import {
   SafetyCertificateOutlined,
   DollarOutlined,
   ScanOutlined,
+  HistoryOutlined,
+  DeleteOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
@@ -77,6 +80,12 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  
+  // 历史记录状态
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyList, setHistoryList] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [viewingHistory, setViewingHistory] = useState(null);
   
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
@@ -144,6 +153,47 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const loadInstruments = async () => {
     const instList = await StorageService.getInstruments();
     setInstruments(instList);
+  };
+
+  // 加载历史记录
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const list = await aiApi.getHistory();
+      setHistoryList(list);
+    } catch (e) {
+      console.error('加载历史记录失败:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // 查看历史记录详情
+  const viewHistoryDetail = async (id) => {
+    try {
+      const detail = await aiApi.getAnalysis(id);
+      setViewingHistory(detail);
+      setHistoryVisible(false);
+    } catch (e) {
+      message.error('加载详情失败');
+    }
+  };
+
+  // 删除历史记录
+  const deleteHistory = async (id) => {
+    try {
+      await aiApi.deleteAnalysis(id);
+      message.success('删除成功');
+      loadHistory();
+    } catch (e) {
+      message.error('删除失败');
+    }
+  };
+
+  // 打开历史记录抽屉
+  const openHistory = () => {
+    setHistoryVisible(true);
+    loadHistory();
   };
 
   const openReviewModal = (trade) => {
@@ -459,7 +509,10 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             <RangePicker value={filters.dateRange} onChange={(v) => setFilters({ ...filters, dateRange: v })} variant="borderless" className="font-medium text-xs" allowClear placeholder={['开始日期', '结束日期']} />
           </div>
         </div>
-        <Button type="primary" icon={<RobotOutlined />} onClick={handleAnalyze} size="large" className="font-bold">开始 AI 分析</Button>
+        <div className="flex gap-2">
+          <Button icon={<HistoryOutlined />} onClick={openHistory}>历史记录</Button>
+          <Button type="primary" icon={<RobotOutlined />} onClick={handleAnalyze} size="large" className="font-bold">开始 AI 分析</Button>
+        </div>
       </div>
 
       {!analysis && (
@@ -1063,6 +1116,111 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* 历史记录抽屉 */}
+      <Drawer
+        title={
+          <div className="flex items-center gap-2">
+            <HistoryOutlined className="text-blue-500" />
+            <span className="font-bold">AI 分析历史</span>
+            <Tag color="blue">{historyList.length} 条记录</Tag>
+          </div>
+        }
+        open={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+        width={480}
+      >
+        {historyLoading ? (
+          <div className="flex justify-center py-12">
+            <Spin />
+          </div>
+        ) : historyList.length === 0 ? (
+          <Empty description="暂无分析记录" />
+        ) : (
+          <div className="space-y-3">
+            {historyList.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                onClick={() => viewHistoryDetail(item.id)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="font-medium text-[#131722]">{item.title}</div>
+                  <Popconfirm
+                    title="确定删除？"
+                    onConfirm={(e) => { e.stopPropagation(); deleteHistory(item.id); }}
+                    okText="删除"
+                    cancelText="取消"
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Popconfirm>
+                </div>
+                <div className="text-sm text-slate-500 mb-3">{item.summary}</div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Tag color={item.totalPnL >= 0 ? 'green' : 'red'}>
+                    {item.totalPnL >= 0 ? '+' : ''}{item.totalPnL?.toLocaleString()}
+                  </Tag>
+                  <Tag>胜率 {item.winRate?.toFixed(1)}%</Tag>
+                  {item.instruments && <Tag color="blue">{item.instruments}</Tag>}
+                </div>
+                <div className="text-xs text-slate-400 mt-2">
+                  {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Drawer>
+
+      {/* 查看历史详情弹窗 */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <FileTextOutlined className="text-blue-500" />
+            <span className="font-bold">{viewingHistory?.title}</span>
+          </div>
+        }
+        open={!!viewingHistory}
+        onCancel={() => setViewingHistory(null)}
+        footer={null}
+        width={800}
+        destroyOnClose
+      >
+        {viewingHistory && (
+          <div className="max-h-[70vh] overflow-y-auto">
+            <div className="flex gap-3 mb-4 flex-wrap">
+              <Tag color={viewingHistory.totalPnL >= 0 ? 'green' : 'red'} className="px-3 py-1">
+                盈亏: ${viewingHistory.totalPnL?.toLocaleString()}
+              </Tag>
+              <Tag className="px-3 py-1">交易: {viewingHistory.totalTrades} 笔</Tag>
+              <Tag className="px-3 py-1">胜率: {viewingHistory.winRate?.toFixed(1)}%</Tag>
+              <Tag className="px-3 py-1">利润系数: {viewingHistory.profitFactor?.toFixed(2)}</Tag>
+            </div>
+            <div className="prose max-w-none">
+              <ReactMarkdown
+                components={{
+                  h2: ({children}) => <h2 className="text-base font-semibold text-[#131722] mt-6 mb-3 pb-2 border-b border-slate-100">{children}</h2>,
+                  h3: ({children}) => <h3 className="text-sm font-semibold text-[#131722] mt-4 mb-2">{children}</h3>,
+                  p: ({children}) => <p className="text-sm text-slate-600 leading-relaxed mb-3">{children}</p>,
+                  li: ({children}) => <li className="text-sm text-slate-600 mb-1">{children}</li>,
+                  strong: ({children}) => <strong className="font-semibold text-[#131722]">{children}</strong>,
+                }}
+              >
+                {viewingHistory.report}
+              </ReactMarkdown>
+            </div>
+            <div className="text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">
+              分析时间: {dayjs(viewingHistory.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -55,4 +55,16 @@ export const aiApi = {
   // 每日总结
   dailySummary: (date) => 
     apiRequest('/ai/daily-summary', { method: 'POST', body: { date } }),
+  
+  // 获取分析历史列表
+  getHistory: () => 
+    apiRequest('/ai/history'),
+  
+  // 获取单个分析详情
+  getAnalysis: (id) => 
+    apiRequest(`/ai/history/${id}`),
+  
+  // 删除分析记录
+  deleteAnalysis: (id) => 
+    apiRequest(`/ai/history/${id}`, { method: 'DELETE' }),
 };

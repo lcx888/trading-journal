@@ -30,6 +30,7 @@ model User {
   strategies   Strategy[]
   imports      ImportRecord[]
   reviews      Review[]
+  aiAnalyses   AIAnalysis[]
 }
 
 model Instrument {
@@ -132,4 +133,25 @@ model Review {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+model AIAnalysis {
+  id             String   @id @default(uuid())
+  userId         String
+  title          String
+  summary        String
+  report         String
+  totalTrades    Int
+  totalPnL       Float
+  winRate        Float
+  profitFactor   Float
+  maxDrawdown    Float
+  dateRange      String?
+  instruments    String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
 }
