@@ -103,7 +103,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   // AI 分析进度模拟
   useEffect(() => {
     let interval;
-    if (aiLoading) {
+    if (loading) {
       setAnalysisProgress(0);
       setCurrentStep(0);
       setElapsedTime(0);
@@ -132,14 +132,14 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
       }, 1000);
     } else {
       // 分析完成，设置100%
-      if (aiResult?.success) {
+      if (analysis?.success) {
         setAnalysisProgress(100);
         setCurrentStep(ANALYSIS_STEPS.length);
       }
     }
     
     return () => clearInterval(interval);
-  }, [aiLoading, aiResult]);
+  }, [loading, analysis]);
 
   const loadInstruments = async () => {
     const instList = await StorageService.getInstruments();
@@ -319,14 +319,130 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   };
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center h-[60vh]">
-      <div className="relative w-24 h-24 mb-6">
-        <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
-        <div className="absolute inset-0 border-t-4 border-blue-500 rounded-full animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center"><RobotOutlined className="text-3xl text-blue-500" /></div>
+    <div className="max-w-2xl mx-auto py-8 px-4">
+      {/* 顶部进度信息 */}
+      <div className="modern-card bg-white p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="relative w-14 h-14">
+              <svg className="w-14 h-14 transform -rotate-90">
+                <circle cx="28" cy="28" r="24" stroke="#e2e8f0" strokeWidth="4" fill="none" />
+                <circle 
+                  cx="28" cy="28" r="24" 
+                  stroke="url(#progress-gradient)" 
+                  strokeWidth="4" 
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${analysisProgress * 1.5} 150`}
+                  className="transition-all duration-500"
+                />
+                <defs>
+                  <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#2962ff" />
+                    <stop offset="100%" stopColor="#26a69a" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold text-[#2962ff]">{analysisProgress}%</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-base font-semibold text-[#131722]">AI 深度分析中</div>
+              <div className="text-sm text-slate-400">已用时 {Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-slate-400">预计剩余</div>
+            <div className="text-lg font-semibold text-slate-600">{Math.max(0, 80 - elapsedTime)}s</div>
+          </div>
+        </div>
+        
+        {/* 进度条 */}
+        <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+          <div 
+            className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+            style={{ 
+              width: `${analysisProgress}%`,
+              background: 'linear-gradient(90deg, #2962ff, #26a69a)'
+            }}
+          />
+        </div>
       </div>
-      <div className="text-lg font-bold text-[#131722]">AI 正在分析您的交易数据...</div>
-      <div className="text-sm text-slate-400 mt-2">识别模式、评估风险、生成建议</div>
+      
+      {/* 任务节点列表 */}
+      <div className="modern-card bg-white p-6">
+        <div className="text-sm font-semibold text-slate-700 mb-4">分析任务</div>
+        <div className="space-y-3">
+          {ANALYSIS_STEPS.map((step, index) => {
+            const isCompleted = index < currentStep;
+            const isCurrent = index === currentStep;
+            const isPending = index > currentStep;
+            
+            return (
+              <div 
+                key={step.key}
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                  isCurrent ? 'bg-blue-50 border border-blue-100' : 
+                  isCompleted ? 'bg-slate-50' : ''
+                }`}
+              >
+                {/* 状态图标 */}
+                <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm ${
+                  isCompleted ? 'bg-[#26a69a] text-white' :
+                  isCurrent ? 'bg-[#2962ff] text-white' :
+                  'bg-slate-200 text-slate-400'
+                }`}>
+                  {isCompleted ? (
+                    <CheckCircleOutlined className="text-xs" />
+                  ) : isCurrent ? (
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  ) : (
+                    <span className="text-xs">{index + 1}</span>
+                  )}
+                </div>
+                
+                {/* 任务名称 */}
+                <div className="flex-1">
+                  <span className={`text-sm ${
+                    isCompleted ? 'text-slate-500' :
+                    isCurrent ? 'text-[#2962ff] font-medium' :
+                    'text-slate-400'
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+                
+                {/* 状态标签 */}
+                <div className="flex-shrink-0 text-xs">
+                  {isCompleted && (
+                    <span className="text-[#26a69a]">✓ 完成</span>
+                  )}
+                  {isCurrent && (
+                    <span className="text-[#2962ff] flex items-center gap-1">
+                      <span className="inline-block w-1.5 h-1.5 bg-[#2962ff] rounded-full animate-ping" />
+                      进行中
+                    </span>
+                  )}
+                  {isPending && (
+                    <span className="text-slate-300">等待</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* 底部提示 */}
+      <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
+        <div className="flex items-start gap-3">
+          <BulbOutlined className="text-amber-500 text-lg mt-0.5" />
+          <div className="text-sm text-amber-700 leading-relaxed">
+            AI 正在对您的交易数据进行多维度深度分析，包括品种表现、时段效率、风险指标、交易心理等，并生成个性化策略建议。请耐心等待...
+          </div>
+        </div>
+      </div>
     </div>
   );
 
