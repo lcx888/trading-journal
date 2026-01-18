@@ -323,66 +323,146 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
           </div>
 
           {/* ========== DeepSeek AI 智能分析 ========== */}
-          <div className="modern-card bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-white">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <RobotOutlined className="text-xl" />
-                </div>
-                <div>
-                  <div className="font-bold text-lg">DeepSeek AI 智能分析</div>
-                  <div className="text-xs text-slate-400">基于深度学习的交易诊断</div>
-                </div>
-              </div>
-              <Button 
-                type="primary" 
-                ghost 
-                icon={<ThunderboltOutlined />} 
-                onClick={() => setChatVisible(true)}
-                className="border-blue-400 text-blue-400 hover:bg-blue-500/20"
-              >
-                AI 问答
-              </Button>
-            </div>
-            <div className="p-6">
-              {aiLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <div className="relative w-16 h-16 mx-auto mb-4">
-                      <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
-                      <div className="absolute inset-0 border-t-4 border-blue-400 rounded-full animate-spin"></div>
+          <div className="modern-card overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d1b2a 100%)' }}>
+            {/* Header */}
+            <div className="relative p-6 border-b border-white/5">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-cyan-500/10"></div>
+              <div className="relative flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                      <RobotOutlined className="text-2xl text-white" />
                     </div>
-                    <div className="text-slate-300">DeepSeek AI 正在深度分析...</div>
-                    <div className="text-xs text-slate-500 mt-1">这可能需要几秒钟</div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#0f0f23] flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-xl text-white tracking-wide">MetWorth AI</div>
+                    <div className="text-xs text-slate-400 flex items-center gap-2">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      智能交易诊断系统 · Powered by DeepSeek
+                    </div>
+                  </div>
+                </div>
+                <Button 
+                  type="primary"
+                  icon={<ThunderboltOutlined />} 
+                  onClick={() => setChatVisible(true)}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 border-none shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all"
+                  size="large"
+                >
+                  AI 问答
+                </Button>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-8">
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <div className="relative w-20 h-20 mx-auto mb-6">
+                      <div className="absolute inset-0 border-4 border-purple-500/20 rounded-full"></div>
+                      <div className="absolute inset-0 border-t-4 border-r-4 border-purple-500 rounded-full animate-spin"></div>
+                      <div className="absolute inset-2 border-t-4 border-l-4 border-blue-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <RobotOutlined className="text-2xl text-purple-400 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="text-lg font-medium text-white mb-2">AI 正在深度分析您的交易数据...</div>
+                    <div className="text-sm text-slate-500">正在识别模式、评估风险、生成建议</div>
+                    <div className="mt-4 flex justify-center gap-1">
+                      {[0, 1, 2, 3, 4].map(i => (
+                        <div key={i} className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : aiResult?.success ? (
-                <div className="prose prose-invert prose-sm max-w-none">
+                <div className="ai-report-content">
                   <ReactMarkdown
                     components={{
-                      h2: ({children}) => <h2 className="text-lg font-bold text-blue-300 mt-6 mb-3 border-b border-white/10 pb-2">{children}</h2>,
-                      h3: ({children}) => <h3 className="text-base font-bold text-slate-200 mt-4 mb-2">{children}</h3>,
-                      p: ({children}) => <p className="text-slate-300 leading-relaxed mb-3">{children}</p>,
-                      ul: ({children}) => <ul className="list-disc list-inside text-slate-300 space-y-1 mb-3">{children}</ul>,
-                      ol: ({children}) => <ol className="list-decimal list-inside text-slate-300 space-y-1 mb-3">{children}</ol>,
-                      li: ({children}) => <li className="text-slate-300">{children}</li>,
+                      hr: () => <hr className="border-white/10 my-6" />,
+                      h2: ({children}) => (
+                        <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 mt-8 mb-4 flex items-center gap-2">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({children}) => (
+                        <h3 className="text-lg font-bold text-white mt-6 mb-3 flex items-center gap-2">
+                          {children}
+                        </h3>
+                      ),
+                      p: ({children}) => <p className="text-slate-300 leading-relaxed mb-4 text-[15px]">{children}</p>,
+                      blockquote: ({children}) => (
+                        <blockquote className="border-l-4 border-purple-500 pl-4 py-2 my-4 bg-purple-500/10 rounded-r-lg italic text-slate-300">
+                          {children}
+                        </blockquote>
+                      ),
+                      ul: ({children}) => <ul className="space-y-2 mb-4 text-slate-300">{children}</ul>,
+                      ol: ({children}) => <ol className="space-y-2 mb-4 text-slate-300 list-decimal list-inside">{children}</ol>,
+                      li: ({children}) => (
+                        <li className="text-slate-300 flex items-start gap-2">
+                          <span className="text-purple-400 mt-1">•</span>
+                          <span className="flex-1">{children}</span>
+                        </li>
+                      ),
                       strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
-                      code: ({children}) => <code className="bg-white/10 px-1.5 py-0.5 rounded text-blue-300 text-xs">{children}</code>,
+                      em: ({children}) => <em className="text-purple-300 not-italic">{children}</em>,
+                      code: ({children}) => <code className="bg-white/10 px-2 py-1 rounded-md text-cyan-300 text-sm font-mono">{children}</code>,
+                      table: ({children}) => (
+                        <div className="overflow-x-auto my-6">
+                          <table className="w-full border-collapse">
+                            {children}
+                          </table>
+                        </div>
+                      ),
+                      thead: ({children}) => <thead className="bg-gradient-to-r from-blue-500/20 to-purple-500/20">{children}</thead>,
+                      th: ({children}) => <th className="px-4 py-3 text-left text-sm font-bold text-white border-b border-white/10">{children}</th>,
+                      td: ({children}) => <td className="px-4 py-3 text-sm text-slate-300 border-b border-white/5">{children}</td>,
+                      a: ({children, href}) => <a href={href} className="text-blue-400 hover:text-blue-300 underline">{children}</a>,
+                      input: ({checked, type}) => {
+                        if (type === 'checkbox') {
+                          return checked 
+                            ? <span className="inline-flex items-center justify-center w-5 h-5 bg-green-500 rounded mr-2 text-white text-xs">✓</span>
+                            : <span className="inline-flex items-center justify-center w-5 h-5 border-2 border-slate-500 rounded mr-2"></span>;
+                        }
+                        return null;
+                      },
                     }}
                   >
                     {aiResult.analysis}
                   </ReactMarkdown>
-                  <div className="mt-6 pt-4 border-t border-white/10 text-xs text-slate-500">
-                    分析时间: {dayjs(aiResult.generatedAt).format('YYYY-MM-DD HH:mm:ss')} | Powered by DeepSeek
+                  
+                  {/* Footer */}
+                  <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <RobotOutlined className="text-white text-xs" />
+                      </div>
+                      <span>MetWorth AI · 智能交易助手</span>
+                    </div>
+                    <div>分析时间: {dayjs(aiResult.generatedAt).format('YYYY-MM-DD HH:mm:ss')}</div>
                   </div>
                 </div>
               ) : aiResult?.message ? (
-                <Alert message="AI 分析失败" description={aiResult.message} type="warning" showIcon className="bg-yellow-500/10 border-yellow-500/30" />
+                <Alert 
+                  message="AI 分析失败" 
+                  description={aiResult.message} 
+                  type="warning" 
+                  showIcon 
+                  className="bg-yellow-500/10 border-yellow-500/30" 
+                />
               ) : (
-                <div className="text-center py-8 text-slate-400">
-                  <RobotOutlined className="text-4xl mb-3 opacity-50" />
-                  <div>请先配置 DEEPSEEK_API_KEY 环境变量</div>
-                  <div className="text-xs mt-1 text-slate-500">在服务器 .env 文件中添加您的 DeepSeek API Key</div>
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl flex items-center justify-center">
+                    <RobotOutlined className="text-4xl text-slate-500" />
+                  </div>
+                  <div className="text-white font-medium text-lg mb-2">等待 AI 分析</div>
+                  <div className="text-slate-500 text-sm max-w-md mx-auto">
+                    请先配置 DEEPSEEK_API_KEY 环境变量，然后点击"开始 AI 分析"按钮
+                  </div>
                 </div>
               )}
             </div>

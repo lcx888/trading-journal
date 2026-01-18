@@ -145,3 +145,157 @@ body {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
+
+/* ========== AI Report Styles ========== */
+.ai-report-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.7;
+}
+
+.ai-report-content h2 {
+  position: relative;
+  padding-left: 0;
+}
+
+.ai-report-content h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, transparent);
+  border-radius: 3px;
+}
+
+.ai-report-content h3 {
+  position: relative;
+  padding-left: 16px;
+}
+
+.ai-report-content h3::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  border-radius: 2px;
+}
+
+.ai-report-content table {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-report-content table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ai-report-content blockquote {
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-report-content blockquote::before {
+  content: '"';
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  font-size: 60px;
+  color: rgba(139, 92, 246, 0.15);
+  font-family: Georgia, serif;
+  line-height: 1;
+}
+
+/* Checkbox styling in AI report */
+.ai-report-content li input[type="checkbox"] + span,
+.ai-report-content li > span:first-child {
+  transition: all 0.2s ease;
+}
+
+.ai-report-content li:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+
+/* Status badges */
+.ai-report-content span:has(🟢),
+.ai-report-content span:has(🟡),
+.ai-report-content span:has(🔴) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Animated gradient text for headers */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.ai-report-content h2 {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Risk warning box */
+.ai-report-content blockquote:has(⚠️) {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Success indicators */
+.ai-report-content strong:has(🟢) {
+  color: #22c55e;
+}
+
+.ai-report-content strong:has(🔴) {
+  color: #ef4444;
+}
+
+.ai-report-content strong:has(🟡) {
+  color: #f59e0b;
+}
+
+/* Code blocks in AI report */
+.ai-report-content pre {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.ai-report-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ai-report-content {
+    font-size: 14px;
+  }
+  
+  .ai-report-content h2 {
+    font-size: 18px;
+  }
+  
+  .ai-report-content h3 {
+    font-size: 16px;
+  }
+  
+  .ai-report-content table {
+    font-size: 12px;
+  }
+  
+  .ai-report-content th,
+  .ai-report-content td {
+    padding: 8px 12px !important;
+  }
+}
