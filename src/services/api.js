@@ -37,3 +37,22 @@ export const apiRequest = async (path, options = {}) => {
   if (res.status === 204) return null;
   return res.json();
 };
+
+// AI 分析 API
+export const aiApi = {
+  // 分析交易数据
+  analyze: (recordId, dateRange) => 
+    apiRequest('/ai/analyze', { method: 'POST', body: { recordId, dateRange } }),
+  
+  // 分析单笔交易
+  analyzeTrade: (tradeId) => 
+    apiRequest(`/ai/analyze-trade/${tradeId}`, { method: 'POST' }),
+  
+  // AI 问答
+  chat: (message, chatHistory = []) => 
+    apiRequest('/ai/chat', { method: 'POST', body: { message, chatHistory } }),
+  
+  // 每日总结
+  dailySummary: (date) => 
+    apiRequest('/ai/daily-summary', { method: 'POST', body: { date } }),
+};

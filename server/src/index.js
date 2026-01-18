@@ -19,6 +19,7 @@ import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
 import { setupInstallRoutes, isInstalled } from './install.js';
 import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken } from './email.js';
+import { analyzeTradesWithAI, analyzeSingleTrade, chatWithAI, generateDailySummary } from './deepseek.js';
 
 // 在启动时运行数据库迁移（仅生产环境或数据库不存在时）
 async function runMigrations() {
@@ -858,6 +859,120 @@ app.post('/migrate', authRequired, async (req, res) => {
   }
 
   return res.json({ success: true });
+});
+
+// ==================== AI 分析 API ====================
+
+// AI 智能分析 - 分析所有交易
+app.post('/ai/analyze', authRequired, async (req, res) => {
+  try {
+    const { recordId, dateRange } = req.body || {};
+    
+    let where = { userId: req.user.id };
+    if (recordId && recordId !== 'all') {
+      where.recordId = recordId;
+    }
+    
+    const trades = await prisma.trade.findMany({
+      where,
+      orderBy: { openTime: 'asc' },
+    });
+    
+    // 解析 trade data
+    const parsedTrades = trades.map(t => {
+      const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
+      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+    });
+    
+    // 日期范围筛选
+    let filteredTrades = parsedTrades;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const start = new Date(dateRange[0]);
+      const end = new Date(dateRange[1]);
+      filteredTrades = parsedTrades.filter(t => {
+        const tradeDate = new Date(t.openTime);
+        return tradeDate >= start && tradeDate <= end;
+      });
+    }
+    
+    const result = await analyzeTradesWithAI(filteredTrades);
+    return res.json(result);
+  } catch (error) {
+    console.error('AI 分析失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// AI 分析单笔交易
+app.post('/ai/analyze-trade/:id', authRequired, async (req, res) => {
+  try {
+    const trade = await prisma.trade.findUnique({ where: { id: req.params.id } });
+    if (!trade || trade.userId !== req.user.id) {
+      return res.status(404).json({ success: false, message: '交易不存在' });
+    }
+    
+    const data = typeof trade.data === 'string' ? JSON.parse(trade.data) : trade.data;
+    const parsedTrade = { ...data, id: trade.id, pnl: trade.pnl, instrumentCode: trade.instrumentCode, openTime: trade.openTime };
+    
+    const result = await analyzeSingleTrade(parsedTrade);
+    return res.json(result);
+  } catch (error) {
+    console.error('AI 分析失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// AI 问答
+app.post('/ai/chat', authRequired, async (req, res) => {
+  try {
+    const { message, chatHistory } = req.body || {};
+    if (!message) {
+      return res.status(400).json({ success: false, message: '消息不能为空' });
+    }
+    
+    // 获取用户交易数据用于上下文
+    const trades = await prisma.trade.findMany({
+      where: { userId: req.user.id },
+      orderBy: { openTime: 'asc' },
+    });
+    
+    const parsedTrades = trades.map(t => {
+      const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
+      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+    });
+    
+    const result = await chatWithAI(message, parsedTrades, chatHistory || []);
+    return res.json(result);
+  } catch (error) {
+    console.error('AI 问答失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// AI 每日总结
+app.post('/ai/daily-summary', authRequired, async (req, res) => {
+  try {
+    const { date } = req.body || {};
+    if (!date) {
+      return res.status(400).json({ success: false, message: '日期不能为空' });
+    }
+    
+    const trades = await prisma.trade.findMany({
+      where: { userId: req.user.id },
+      orderBy: { openTime: 'asc' },
+    });
+    
+    const parsedTrades = trades.map(t => {
+      const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
+      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+    });
+    
+    const result = await generateDailySummary(parsedTrades, date);
+    return res.json(result);
+  } catch (error) {
+    console.error('AI 每日总结失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // SPA 路由支持：所有未匹配的路由返回 index.html

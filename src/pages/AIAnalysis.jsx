@@ -34,8 +34,10 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
+import ReactMarkdown from 'react-markdown';
 import StorageService from '../services/storage';
 import { generateAIAnalysis } from '../services/aiAnalysis';
+import { aiApi } from '../services/api';
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -44,12 +46,20 @@ const { Text } = Typography;
 
 const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
+  const [aiResult, setAiResult] = useState(null);
   const [instruments, setInstruments] = useState([]);
   const [filters, setFilters] = useState({
     instrument: 'ALL',
     dateRange: null,
   });
+  
+  // AI 对话状态
+  const [chatVisible, setChatVisible] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
   
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
@@ -123,11 +133,57 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
   const handleAnalyze = async () => {
     setLoading(true);
+    setAiResult(null);
     try {
+      // 本地统计分析
       const result = await generateAIAnalysis({ ...filters, activeRecordId });
       setAnalysis(result);
-    } catch (e) { message.error('分析失败'); }
-    finally { setLoading(false); }
+      
+      // DeepSeek AI 分析（异步执行，不阻塞本地分析结果显示）
+      if (result.success) {
+        setAiLoading(true);
+        try {
+          const dateRange = filters.dateRange ? [
+            filters.dateRange[0]?.toISOString(),
+            filters.dateRange[1]?.toISOString()
+          ] : null;
+          const aiResponse = await aiApi.analyze(activeRecordId, dateRange);
+          setAiResult(aiResponse);
+        } catch (aiError) {
+          console.error('DeepSeek AI 分析失败:', aiError);
+          // AI 分析失败不影响本地分析结果
+        } finally {
+          setAiLoading(false);
+        }
+      }
+    } catch (e) { 
+      message.error('分析失败'); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  // AI 问答
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatLoading(true);
+    
+    try {
+      const response = await aiApi.chat(userMessage, chatMessages);
+      if (response.success) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: response.response }]);
+      } else {
+        message.error(response.message || 'AI 回复失败');
+      }
+    } catch (error) {
+      message.error('AI 问答失败: ' + error.message);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   // ========== 图表配置 ==========
@@ -263,6 +319,72 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             <div className="modern-card bg-white p-6">
               <div className="text-slate-400 text-[10px] font-bold uppercase mb-2">利润系数</div>
               <div className="text-3xl font-bold text-[#2962ff]">{analysis.summary.profitFactor === Infinity ? '∞' : analysis.summary.profitFactor.toFixed(2)}</div>
+            </div>
+          </div>
+
+          {/* ========== DeepSeek AI 智能分析 ========== */}
+          <div className="modern-card bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-white">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <RobotOutlined className="text-xl" />
+                </div>
+                <div>
+                  <div className="font-bold text-lg">DeepSeek AI 智能分析</div>
+                  <div className="text-xs text-slate-400">基于深度学习的交易诊断</div>
+                </div>
+              </div>
+              <Button 
+                type="primary" 
+                ghost 
+                icon={<ThunderboltOutlined />} 
+                onClick={() => setChatVisible(true)}
+                className="border-blue-400 text-blue-400 hover:bg-blue-500/20"
+              >
+                AI 问答
+              </Button>
+            </div>
+            <div className="p-6">
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="relative w-16 h-16 mx-auto mb-4">
+                      <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
+                      <div className="absolute inset-0 border-t-4 border-blue-400 rounded-full animate-spin"></div>
+                    </div>
+                    <div className="text-slate-300">DeepSeek AI 正在深度分析...</div>
+                    <div className="text-xs text-slate-500 mt-1">这可能需要几秒钟</div>
+                  </div>
+                </div>
+              ) : aiResult?.success ? (
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      h2: ({children}) => <h2 className="text-lg font-bold text-blue-300 mt-6 mb-3 border-b border-white/10 pb-2">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-base font-bold text-slate-200 mt-4 mb-2">{children}</h3>,
+                      p: ({children}) => <p className="text-slate-300 leading-relaxed mb-3">{children}</p>,
+                      ul: ({children}) => <ul className="list-disc list-inside text-slate-300 space-y-1 mb-3">{children}</ul>,
+                      ol: ({children}) => <ol className="list-decimal list-inside text-slate-300 space-y-1 mb-3">{children}</ol>,
+                      li: ({children}) => <li className="text-slate-300">{children}</li>,
+                      strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+                      code: ({children}) => <code className="bg-white/10 px-1.5 py-0.5 rounded text-blue-300 text-xs">{children}</code>,
+                    }}
+                  >
+                    {aiResult.analysis}
+                  </ReactMarkdown>
+                  <div className="mt-6 pt-4 border-t border-white/10 text-xs text-slate-500">
+                    分析时间: {dayjs(aiResult.generatedAt).format('YYYY-MM-DD HH:mm:ss')} | Powered by DeepSeek
+                  </div>
+                </div>
+              ) : aiResult?.message ? (
+                <Alert message="AI 分析失败" description={aiResult.message} type="warning" showIcon className="bg-yellow-500/10 border-yellow-500/30" />
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  <RobotOutlined className="text-4xl mb-3 opacity-50" />
+                  <div>请先配置 DEEPSEEK_API_KEY 环境变量</div>
+                  <div className="text-xs mt-1 text-slate-500">在服务器 .env 文件中添加您的 DeepSeek API Key</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -518,6 +640,108 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             </Form>
           </div>
         )}
+      </Modal>
+
+      {/* ========== AI 问答对话框 ========== */}
+      <Modal
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <RobotOutlined className="text-white" />
+            </div>
+            <span className="font-bold">MetWorth AI 交易助手</span>
+          </div>
+        }
+        open={chatVisible}
+        onCancel={() => setChatVisible(false)}
+        footer={null}
+        width={700}
+        styles={{ body: { padding: 0 } }}
+      >
+        <div className="flex flex-col h-[500px]">
+          {/* 对话区域 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-12">
+                <RobotOutlined className="text-5xl text-slate-300 mb-4" />
+                <div className="text-slate-500 font-medium">你好！我是 MetWorth AI 交易助手</div>
+                <div className="text-slate-400 text-sm mt-2">我可以帮您分析交易策略、解答交易问题</div>
+                <div className="mt-6 flex flex-wrap gap-2 justify-center">
+                  {['如何提高胜率？', '怎么控制回撤？', '我的交易有什么问题？', '给我一些交易建议'].map(q => (
+                    <Button 
+                      key={q} 
+                      size="small" 
+                      className="text-xs"
+                      onClick={() => { setChatInput(q); }}
+                    >
+                      {q}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    msg.role === 'user' 
+                      ? 'bg-blue-500 text-white rounded-br-md' 
+                      : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md shadow-sm'
+                  }`}>
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown
+                        components={{
+                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({children}) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                          strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <span>{msg.content}</span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+            {chatLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* 输入区域 */}
+          <div className="border-t border-slate-200 p-4 bg-white">
+            <div className="flex gap-3">
+              <Input
+                placeholder="输入您的问题..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onPressEnter={handleChatSubmit}
+                disabled={chatLoading}
+                className="flex-1"
+                size="large"
+              />
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                onClick={handleChatSubmit}
+                loading={chatLoading}
+                size="large"
+              >
+                发送
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );
