@@ -65,9 +65,12 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [analysis, setAnalysis] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [instruments, setInstruments] = useState([]);
+  const [records, setRecords] = useState([]);
   const [filters, setFilters] = useState({
     instrument: 'ALL',
     dateRange: null,
+    recordId: activeRecordId || 'all',
+    useAllTime: false, // 是否使用全部时间
   });
   
   // AI 分析进度状态
@@ -105,6 +108,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
   useEffect(() => {
     loadInstruments();
+    loadRecords(); // 加载账本列表
     loadHistory(); // 页面加载时获取历史记录
     setAnalysis(null);
   }, [activeRecordId]);
@@ -155,6 +159,16 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const loadInstruments = async () => {
     const instList = await StorageService.getInstruments();
     setInstruments(instList);
+  };
+
+  // 加载账本列表
+  const loadRecords = async () => {
+    try {
+      const allRecords = await StorageService.getAllRecords();
+      setRecords(allRecords.filter(r => r.status === 'active'));
+    } catch (e) {
+      console.error('加载账本失败:', e);
+    }
   };
 
   // 加载历史记录
@@ -237,9 +251,9 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
   // 第一步：本地统计分析（快速，不调用AI）
   const handleAnalyze = async () => {
-    // 检查是否选择了日期范围
-    if (!filters.dateRange || !filters.dateRange[0] || !filters.dateRange[1]) {
-      message.warning('请先选择交易日期范围');
+    // 如果没有选择"全部时间"，则需要检查日期范围
+    if (!filters.useAllTime && (!filters.dateRange || !filters.dateRange[0] || !filters.dateRange[1])) {
+      message.warning('请先选择交易日期范围或选择"全部时间"');
       return;
     }
     
@@ -247,8 +261,14 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     setAiResult(null);
     setViewingHistory(null); // 清除正在查看的历史
     try {
-      // 仅执行本地统计分析
-      const result = await generateAIAnalysis({ ...filters, activeRecordId });
+      // 构建分析参数，使用选择的账本ID
+      const analysisFilters = {
+        ...filters,
+        activeRecordId: filters.recordId || 'all',
+        // 如果使用全部时间，清除日期范围
+        dateRange: filters.useAllTime ? null : filters.dateRange,
+      };
+      const result = await generateAIAnalysis(analysisFilters);
       setAnalysis(result);
     } catch (e) { 
       message.error('分析失败'); 
@@ -266,11 +286,13 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     
     setAiLoading(true);
     try {
-      const dateRange = filters.dateRange ? [
+      // 如果使用全部时间，则不传日期范围
+      const dateRange = filters.useAllTime ? null : (filters.dateRange ? [
         filters.dateRange[0]?.toISOString(),
         filters.dateRange[1]?.toISOString()
-      ] : null;
-      const aiResponse = await aiApi.analyze(activeRecordId, dateRange);
+      ] : null);
+      const recordId = filters.recordId || 'all';
+      const aiResponse = await aiApi.analyze(recordId, dateRange);
       setAiResult(aiResponse);
       // 分析完成后刷新历史列表
       loadHistory();
@@ -607,27 +629,17 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
       {/* ========== 右侧主内容区 ========== */}
       <div className="flex-1 space-y-6 min-w-0">
-        {/* 控制栏 */}
-        <div className="modern-card bg-white p-4 flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex items-center gap-2 bg-[#f0f3fa] px-3 py-1.5 rounded-lg">
-              <GlobalOutlined className="text-blue-500 text-xs" />
-              <Select value={filters.instrument} onChange={(v) => setFilters({ ...filters, instrument: v })} style={{ width: 120 }} variant="borderless" className="font-bold text-xs" options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} />
-            </div>
-            <div className="bg-[#f0f3fa] px-2 py-0.5 rounded-lg">
-              <RangePicker value={filters.dateRange} onChange={(v) => setFilters({ ...filters, dateRange: v })} variant="borderless" className="font-medium text-xs" allowClear placeholder={['开始日期', '结束日期']} />
-            </div>
-          </div>
-          {viewingHistory && (
-            <Button onClick={() => { setViewingHistory(null); setAnalysis(null); }}>
-              返回新建
-            </Button>
-          )}
-        </div>
 
         {/* 查看历史分析 */}
         {viewingHistory && (
           <div className="space-y-6">
+            {/* 顶部操作栏 */}
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-bold text-[#131722]">{viewingHistory.title}</div>
+              <Button onClick={() => { setViewingHistory(null); setAnalysis(null); }}>
+                返回新建分析
+              </Button>
+            </div>
             {/* 概览卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* 综合评分 */}
@@ -764,74 +776,125 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
           </div>
         )}
 
-        {/* 无分析时的欢迎页 - 需要先选择交易日 */}
+        {/* 无分析时的欢迎页 - 新建分析 */}
         {!analysis && !viewingHistory && !loading && (
-          <div className="modern-card bg-white p-10">
-            <div className="max-w-lg mx-auto">
-              {/* 步骤指示 */}
-              <div className="flex items-center justify-center gap-4 mb-8">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${filters.dateRange ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                  <span className="w-6 h-6 rounded-full bg-current text-white flex items-center justify-center text-xs font-bold" style={{ backgroundColor: filters.dateRange ? '#22c55e' : '#2962ff' }}>1</span>
-                  <span className="font-medium text-sm">选择交易日</span>
-                  {filters.dateRange && <span className="text-green-500">✓</span>}
+          <div className="modern-card bg-white p-8">
+            <div className="max-w-2xl mx-auto">
+              {/* 标题 */}
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <RobotOutlined className="text-3xl text-white" />
                 </div>
-                <div className="w-8 h-px bg-slate-200"></div>
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${filters.dateRange ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: filters.dateRange ? '#2962ff' : '#cbd5e1', color: 'white' }}>2</span>
-                  <span className="font-medium text-sm">开始分析</span>
-                </div>
+                <h2 className="text-xl font-bold text-[#131722] mb-2">新建 AI 分析</h2>
+                <p className="text-slate-500 text-sm">选择分析范围，AI 将为您生成深度诊断报告</p>
               </div>
 
-              {/* 日期选择区域 */}
-              <div className="bg-slate-50 rounded-xl p-6 mb-6">
-                <div className="text-center mb-4">
-                  <div className="text-slate-400 text-xs font-bold uppercase mb-2">选择分析的交易日期范围</div>
-                  <p className="text-slate-500 text-sm">请先选择您想要分析的交易日期</p>
-                </div>
-                <div className="flex justify-center">
-                  <RangePicker 
-                    value={filters.dateRange} 
-                    onChange={(v) => setFilters({ ...filters, dateRange: v })} 
-                    size="large"
-                    className="w-80"
-                    placeholder={['开始日期', '结束日期']}
-                    format="YYYY-MM-DD"
-                  />
-                </div>
-                {filters.dateRange && (
-                  <div className="text-center mt-4 text-sm text-green-600">
-                    已选择: {dayjs(filters.dateRange[0]).format('YYYY/MM/DD')} - {dayjs(filters.dateRange[1]).format('YYYY/MM/DD')}
+              {/* 筛选条件 */}
+              <div className="space-y-4">
+                {/* 账本选择 */}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <FileTextOutlined className="text-blue-500 text-sm" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-[#131722]">选择账本</div>
+                        <div className="text-xs text-slate-400">选择要分析的交易账本</div>
+                      </div>
+                    </div>
+                    <Select 
+                      value={filters.recordId} 
+                      onChange={(v) => setFilters({ ...filters, recordId: v })} 
+                      style={{ width: 180 }}
+                      options={[
+                        { value: 'all', label: '全部账本' },
+                        ...records.map(r => ({ value: r.id, label: r.name }))
+                      ]} 
+                    />
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* 品种筛选（可选） */}
-              <div className="bg-slate-50 rounded-xl p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-slate-500 text-sm">筛选品种（可选）</div>
-                  <Select 
-                    value={filters.instrument} 
-                    onChange={(v) => setFilters({ ...filters, instrument: v })} 
-                    style={{ width: 150 }} 
-                    options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} 
-                  />
+                {/* 时间范围选择 */}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <CalendarOutlined className="text-green-500 text-sm" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-[#131722]">交易日期</div>
+                        <div className="text-xs text-slate-400">选择要分析的时间范围</div>
+                      </div>
+                    </div>
+                    <Button 
+                      type={filters.useAllTime ? 'primary' : 'default'}
+                      size="small"
+                      onClick={() => setFilters({ ...filters, useAllTime: !filters.useAllTime, dateRange: null })}
+                    >
+                      {filters.useAllTime ? '已选全部时间' : '全部时间'}
+                    </Button>
+                  </div>
+                  {!filters.useAllTime && (
+                    <div className="flex justify-center">
+                      <RangePicker 
+                        value={filters.dateRange} 
+                        onChange={(v) => setFilters({ ...filters, dateRange: v, useAllTime: false })} 
+                        size="middle"
+                        className="w-full"
+                        placeholder={['开始日期', '结束日期']}
+                        format="YYYY-MM-DD"
+                      />
+                    </div>
+                  )}
+                  {filters.useAllTime && (
+                    <div className="text-center py-2 text-sm text-green-600 bg-green-50 rounded-lg">
+                      将分析该账本的全部交易数据
+                    </div>
+                  )}
+                  {!filters.useAllTime && filters.dateRange && (
+                    <div className="text-center mt-3 text-sm text-green-600">
+                      已选择: {dayjs(filters.dateRange[0]).format('YYYY/MM/DD')} - {dayjs(filters.dateRange[1]).format('YYYY/MM/DD')}
+                    </div>
+                  )}
+                </div>
+
+                {/* 品种筛选 */}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <GlobalOutlined className="text-purple-500 text-sm" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-[#131722]">交易品种</div>
+                        <div className="text-xs text-slate-400">可选，筛选特定品种</div>
+                      </div>
+                    </div>
+                    <Select 
+                      value={filters.instrument} 
+                      onChange={(v) => setFilters({ ...filters, instrument: v })} 
+                      style={{ width: 180 }} 
+                      options={[{ value: 'ALL', label: '全部品种' }, ...instruments.map(i => ({ value: i.code, label: i.code }))]} 
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* 开始分析按钮 */}
-              <div className="text-center">
+              <div className="mt-8 text-center">
                 <Button 
                   type="primary" 
                   onClick={handleAnalyze} 
                   size="large" 
                   icon={<ThunderboltOutlined />}
-                  disabled={!filters.dateRange}
-                  className="px-8"
+                  disabled={!filters.useAllTime && !filters.dateRange}
+                  className="px-12 h-12 text-base font-medium"
                 >
-                  {filters.dateRange ? '开始 AI 分析' : '请先选择交易日期'}
+                  开始分析
                 </Button>
-                {!filters.dateRange && (
-                  <p className="text-slate-400 text-xs mt-3">选择日期范围后，AI 将深度分析您的交易数据</p>
+                {!filters.useAllTime && !filters.dateRange && (
+                  <p className="text-slate-400 text-xs mt-3">请选择时间范围或点击"全部时间"</p>
                 )}
               </div>
 
