@@ -1,11 +1,18 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 手动加载 .env 文件（确保在其他导入之前）
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
@@ -13,18 +20,25 @@ import { authRequired, adminRequired } from './middleware/auth.js';
 import { setupInstallRoutes, isInstalled } from './install.js';
 import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken } from './email.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 在启动时运行数据库迁移
+// 在启动时运行数据库迁移（仅生产环境或数据库不存在时）
 async function runMigrations() {
+  // 本地开发时跳过自动迁移（已手动执行过）
+  if (process.env.SKIP_MIGRATIONS === 'true') {
+    console.log('Skipping database migrations (SKIP_MIGRATIONS=true)');
+    return;
+  }
+  
   console.log('Running database migrations...');
   console.log('DATABASE_URL is set:', !!process.env.DATABASE_URL);
+  
   try {
     execSync('npx prisma db push --accept-data-loss', { 
       stdio: 'inherit',
       cwd: path.join(__dirname, '..'),
-      env: { ...process.env }
+      env: { 
+        ...process.env,
+        DATABASE_URL: process.env.DATABASE_URL || 'file:./dev.db'
+      }
     });
     console.log('Database migrations completed successfully');
   } catch (error) {
@@ -587,21 +601,26 @@ app.put('/trades', authRequired, async (req, res) => {
 });
 
 app.patch('/trades/:id', authRequired, async (req, res) => {
-  const existing = await prisma.trade.findUnique({ where: { id: req.params.id } });
-  if (!existing) return res.status(404).json({ message: '交易不存在' });
-  const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
-  const merged = { ...existingData, ...(req.body || {}) };
-  const updated = await prisma.trade.update({
-    where: { id: req.params.id },
-    data: {
-      data: merged,
-      recordId: merged.recordId || null,
-      instrumentCode: merged.instrumentCode || null,
-      openTime: merged.openTime ? new Date(merged.openTime) : null,
-      pnl: merged.pnl ?? null,
-    },
-  });
-  return res.json(mapTrade(updated));
+  try {
+    const existing = await prisma.trade.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ message: '交易不存在' });
+    const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
+    const merged = { ...existingData, ...(req.body || {}) };
+    const updated = await prisma.trade.update({
+      where: { id: req.params.id },
+      data: {
+        data: JSON.stringify(merged), // SQLite 需要字符串
+        recordId: merged.recordId || null,
+        instrumentCode: merged.instrumentCode || null,
+        openTime: merged.openTime ? new Date(merged.openTime) : null,
+        pnl: merged.pnl ?? null,
+      },
+    });
+    return res.json(mapTrade(updated));
+  } catch (error) {
+    console.error('更新交易失败:', error);
+    return res.status(500).json({ message: '更新失败', error: error.message });
+  }
 });
 
 app.delete('/trades/:id', authRequired, async (req, res) => {

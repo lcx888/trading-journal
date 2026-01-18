@@ -1,44 +1,39 @@
 // 邮件发送服务
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// 创建邮件传输器
-const createTransporter = () => {
-  // 如果配置了 SMTP，使用真实邮件服务
-  if (process.env.SMTP_HOST) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE !== 'false',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-  
-  // 否则使用测试模式（仅打印到控制台）
-  return null;
-};
-
-const transporter = createTransporter();
+// 初始化 Resend 客户端
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // 发送邮件
 export async function sendEmail({ to, subject, html }) {
-  const from = process.env.SMTP_FROM || 'noreply@metworth.com';
+  const from = process.env.EMAIL_FROM || 'MetworthAI <onboarding@resend.dev>';
   
-  if (!transporter) {
-    // 测试模式：打印到控制台
+  // 如果没有配置 Resend，使用测试模式
+  if (!resend) {
     console.log('========== 邮件（测试模式）==========');
     console.log('收件人:', to);
     console.log('主题:', subject);
-    console.log('内容:', html.replace(/<[^>]*>/g, ''));
+    console.log('内容:', html.replace(/<[^>]*>/g, '').substring(0, 200) + '...');
     console.log('=====================================');
+    console.log('💡 提示: 设置 RESEND_API_KEY 环境变量以启用真实邮件发送');
     return { success: true, testMode: true };
   }
 
   try {
-    await transporter.sendMail({ from, to, subject, html });
-    return { success: true };
+    const { data, error } = await resend.emails.send({
+      from,
+      to: [to],
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error('发送邮件失败:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ 邮件发送成功:', data?.id);
+    return { success: true, id: data?.id };
   } catch (error) {
     console.error('发送邮件失败:', error);
     return { success: false, error: error.message };
