@@ -157,15 +157,24 @@ function App() {
   }, []);
 
   useEffect(() => {
-    loadRecords();
-  }, [refreshKey]);
+    // 只有在用户已认证时才加载账本列表
+    if (authUser) {
+      loadRecords();
+    } else {
+      setRecords([]);
+      setLoadingRecords(false);
+    }
+  }, [refreshKey, authUser]);
 
   const loadRecords = async () => {
     setLoadingRecords(true);
     try {
       const allRecords = await StorageService.getAllRecords();
-      setRecords(allRecords);
-    } catch (e) { console.error(e); }
+      setRecords(allRecords || []);
+    } catch (e) { 
+      console.error('加载账本失败:', e); 
+      setRecords([]);
+    }
     finally { setLoadingRecords(false); }
   };
 

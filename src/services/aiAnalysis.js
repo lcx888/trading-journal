@@ -453,6 +453,290 @@ const analyzeRiskMetrics = (trades) => {
 };
 
 /**
+ * 分析执行质量（MAE/MFE）
+ * 这是Jigsaw特有的数据分析维度
+ */
+const analyzeExecutionQuality = (trades, instrumentsConfig = []) => {
+  if (!trades || trades.length === 0) return null;
+
+  // 获取有 MAE/MFE 数据的交易
+  const jigsawTrades = trades.filter(t => {
+    const mae = t.mae ?? t.jigsawData?.mae;
+    const mfe = t.mfe ?? t.jigsawData?.mfe;
+    return mae !== undefined && mae !== null && mfe !== undefined && mfe !== null;
+  });
+
+  if (jigsawTrades.length === 0) {
+    return {
+      hasData: false,
+      message: '没有MAE/MFE数据，请导入Jigsaw交易数据',
+    };
+  }
+
+  // 获取品种的tickValue
+  const getTickValue = (instrumentCode) => {
+    const instrument = instrumentsConfig.find(i => i.code === instrumentCode);
+    return instrument?.tickValue || 10; // 默认 10
+  };
+
+  // 计算每笔交易的 MAE/MFE 美元值
+  const tradesWithUsd = jigsawTrades.map(t => {
+    const mae = t.mae ?? t.jigsawData?.mae ?? 0;
+    const mfe = t.mfe ?? t.jigsawData?.mfe ?? 0;
+    const fills = t.fills ?? t.jigsawData?.fills ?? 0;
+    const tickValue = getTickValue(t.instrumentCode);
+    const qty = Math.abs(t.openQuantity || 1);
+    
+    return {
+      ...t,
+      maeTicks: mae,
+      mfeTicks: mfe,
+      maeUsd: mae * tickValue * qty,
+      mfeUsd: mfe * tickValue * qty,
+      fills,
+    };
+  });
+
+  // 分类盈利和亏损交易
+  const winningTrades = tradesWithUsd.filter(t => t.pnl > 0);
+  const losingTrades = tradesWithUsd.filter(t => t.pnl < 0);
+
+  // 计算基础统计
+  const totalMAETicks = tradesWithUsd.reduce((sum, t) => sum + t.maeTicks, 0);
+  const totalMFETicks = tradesWithUsd.reduce((sum, t) => sum + t.mfeTicks, 0);
+  const totalMAEUsd = tradesWithUsd.reduce((sum, t) => sum + t.maeUsd, 0);
+  const totalMFEUsd = tradesWithUsd.reduce((sum, t) => sum + t.mfeUsd, 0);
+  const totalFills = tradesWithUsd.reduce((sum, t) => sum + t.fills, 0);
+
+  const avgMAETicks = totalMAETicks / tradesWithUsd.length;
+  const avgMFETicks = totalMFETicks / tradesWithUsd.length;
+  const avgMAEUsd = totalMAEUsd / tradesWithUsd.length;
+  const avgMFEUsd = totalMFEUsd / tradesWithUsd.length;
+  const avgFills = totalFills / tradesWithUsd.length;
+
+  // 盈利交易的 MAE/MFE 统计
+  const winAvgMAETicks = winningTrades.length > 0 
+    ? winningTrades.reduce((sum, t) => sum + t.maeTicks, 0) / winningTrades.length 
+    : 0;
+  const winAvgMFETicks = winningTrades.length > 0 
+    ? winningTrades.reduce((sum, t) => sum + t.mfeTicks, 0) / winningTrades.length 
+    : 0;
+  const winAvgMAEUsd = winningTrades.length > 0 
+    ? winningTrades.reduce((sum, t) => sum + t.maeUsd, 0) / winningTrades.length 
+    : 0;
+  const winAvgMFEUsd = winningTrades.length > 0 
+    ? winningTrades.reduce((sum, t) => sum + t.mfeUsd, 0) / winningTrades.length 
+    : 0;
+
+  // 亏损交易的 MAE/MFE 统计
+  const lossAvgMAETicks = losingTrades.length > 0 
+    ? losingTrades.reduce((sum, t) => sum + t.maeTicks, 0) / losingTrades.length 
+    : 0;
+  const lossAvgMFETicks = losingTrades.length > 0 
+    ? losingTrades.reduce((sum, t) => sum + t.mfeTicks, 0) / losingTrades.length 
+    : 0;
+  const lossAvgMAEUsd = losingTrades.length > 0 
+    ? losingTrades.reduce((sum, t) => sum + t.maeUsd, 0) / losingTrades.length 
+    : 0;
+  const lossAvgMFEUsd = losingTrades.length > 0 
+    ? losingTrades.reduce((sum, t) => sum + t.mfeUsd, 0) / losingTrades.length 
+    : 0;
+
+  // 计算精准入场率 (MAE < 平均MAE的一半)
+  const precisionThreshold = avgMAETicks / 2;
+  const precisionEntries = tradesWithUsd.filter(t => t.maeTicks <= precisionThreshold).length;
+  const precisionRate = (precisionEntries / tradesWithUsd.length) * 100;
+
+  // 计算利润捕获率 (实际PnL / MFE)
+  const totalPnL = tradesWithUsd.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const profitCaptureRatio = totalMFEUsd > 0 ? (totalPnL / totalMFEUsd) * 100 : 0;
+
+  // 找出最差入场 (最高MAE的交易)
+  const sortedByMAE = [...tradesWithUsd].sort((a, b) => b.maeTicks - a.maeTicks);
+  const worstEntries = sortedByMAE.slice(0, 5);
+
+  // 找出利润回吐交易 (MFE高但最终亏损)
+  const profitGivebackTrades = tradesWithUsd
+    .filter(t => t.pnl < 0 && t.mfeTicks > 0)
+    .sort((a, b) => b.mfeTicks - a.mfeTicks)
+    .slice(0, 5);
+
+  // 找出最佳入场 (低MAE且盈利)
+  const bestEntries = tradesWithUsd
+    .filter(t => t.pnl > 0)
+    .sort((a, b) => a.maeTicks - b.maeTicks)
+    .slice(0, 5);
+
+  // 计算 MFE/MAE 比率
+  const mfeMaeRatio = avgMAETicks > 0 ? avgMFETicks / avgMAETicks : 0;
+  const winMfeMaeRatio = winAvgMAETicks > 0 ? winAvgMFETicks / winAvgMAETicks : 0;
+  const lossMfeMaeRatio = lossAvgMAETicks > 0 ? lossAvgMFETicks / lossAvgMAETicks : 0;
+
+  // 入场精度评级
+  let entryPrecisionRating;
+  if (precisionRate >= 60) entryPrecisionRating = { level: '优秀', color: 'green' };
+  else if (precisionRate >= 45) entryPrecisionRating = { level: '良好', color: 'blue' };
+  else if (precisionRate >= 30) entryPrecisionRating = { level: '一般', color: 'orange' };
+  else entryPrecisionRating = { level: '需改进', color: 'red' };
+
+  // 利润捕获评级
+  let profitCaptureRating;
+  if (profitCaptureRatio >= 50) profitCaptureRating = { level: '优秀', color: 'green' };
+  else if (profitCaptureRatio >= 30) profitCaptureRating = { level: '良好', color: 'blue' };
+  else if (profitCaptureRatio >= 10) profitCaptureRating = { level: '一般', color: 'orange' };
+  else profitCaptureRating = { level: '需改进', color: 'red' };
+
+  return {
+    hasData: true,
+    totalTrades: tradesWithUsd.length,
+    
+    // 整体统计
+    overall: {
+      avgMAETicks: Number(avgMAETicks.toFixed(1)),
+      avgMFETicks: Number(avgMFETicks.toFixed(1)),
+      avgMAEUsd: Number(avgMAEUsd.toFixed(0)),
+      avgMFEUsd: Number(avgMFEUsd.toFixed(0)),
+      avgFills: Number(avgFills.toFixed(1)),
+      totalFills,
+      mfeMaeRatio: Number(mfeMaeRatio.toFixed(2)),
+    },
+
+    // 入场精度分析
+    entryPrecision: {
+      precisionRate: Number(precisionRate.toFixed(1)),
+      precisionEntries,
+      rating: entryPrecisionRating,
+      avgMAETicks: Number(avgMAETicks.toFixed(1)),
+      avgMAEUsd: Number(avgMAEUsd.toFixed(0)),
+    },
+
+    // 利润捕获分析
+    profitCapture: {
+      captureRatio: Number(profitCaptureRatio.toFixed(1)),
+      avgMFETicks: Number(avgMFETicks.toFixed(1)),
+      avgMFEUsd: Number(avgMFEUsd.toFixed(0)),
+      totalMFEUsd: Number(totalMFEUsd.toFixed(0)),
+      actualPnL: Number(totalPnL.toFixed(0)),
+      rating: profitCaptureRating,
+    },
+
+    // 盈亏单对比
+    comparison: {
+      winning: {
+        count: winningTrades.length,
+        avgMAETicks: Number(winAvgMAETicks.toFixed(1)),
+        avgMFETicks: Number(winAvgMFETicks.toFixed(1)),
+        avgMAEUsd: Number(winAvgMAEUsd.toFixed(0)),
+        avgMFEUsd: Number(winAvgMFEUsd.toFixed(0)),
+        mfeMaeRatio: Number(winMfeMaeRatio.toFixed(2)),
+      },
+      losing: {
+        count: losingTrades.length,
+        avgMAETicks: Number(lossAvgMAETicks.toFixed(1)),
+        avgMFETicks: Number(lossAvgMFETicks.toFixed(1)),
+        avgMAEUsd: Number(lossAvgMAEUsd.toFixed(0)),
+        avgMFEUsd: Number(lossAvgMFEUsd.toFixed(0)),
+        mfeMaeRatio: Number(lossMfeMaeRatio.toFixed(2)),
+      },
+      maeDifference: Number((lossAvgMAETicks - winAvgMAETicks).toFixed(1)),
+      mfeDifference: Number((winAvgMFETicks - lossAvgMFETicks).toFixed(1)),
+    },
+
+    // 问题交易
+    worstEntries: worstEntries.map(t => ({
+      id: t.id,
+      instrumentCode: t.instrumentCode,
+      direction: t.direction,
+      openTime: t.openTime,
+      pnl: t.pnl,
+      maeTicks: t.maeTicks,
+      mfeTicks: t.mfeTicks,
+      maeUsd: Number(t.maeUsd.toFixed(0)),
+      mfeUsd: Number(t.mfeUsd.toFixed(0)),
+    })),
+    profitGivebackTrades: profitGivebackTrades.map(t => ({
+      id: t.id,
+      instrumentCode: t.instrumentCode,
+      direction: t.direction,
+      openTime: t.openTime,
+      pnl: t.pnl,
+      maeTicks: t.maeTicks,
+      mfeTicks: t.mfeTicks,
+      maeUsd: Number(t.maeUsd.toFixed(0)),
+      mfeUsd: Number(t.mfeUsd.toFixed(0)),
+      givebackAmount: Number((t.mfeUsd + Math.abs(t.pnl)).toFixed(0)), // MFE + 亏损 = 回吐金额
+    })),
+    bestEntries: bestEntries.map(t => ({
+      id: t.id,
+      instrumentCode: t.instrumentCode,
+      direction: t.direction,
+      openTime: t.openTime,
+      pnl: t.pnl,
+      maeTicks: t.maeTicks,
+      mfeTicks: t.mfeTicks,
+      maeUsd: Number(t.maeUsd.toFixed(0)),
+      mfeUsd: Number(t.mfeUsd.toFixed(0)),
+    })),
+
+    // 改进建议
+    suggestions: generateExecutionSuggestions(avgMAETicks, avgMFETicks, precisionRate, profitCaptureRatio, lossAvgMAETicks, winAvgMAETicks),
+  };
+};
+
+/**
+ * 生成执行质量改进建议
+ */
+const generateExecutionSuggestions = (avgMAE, avgMFE, precisionRate, captureRatio, lossMAE, winMAE) => {
+  const suggestions = [];
+
+  // 入场建议
+  if (precisionRate < 40) {
+    suggestions.push({
+      type: 'entry',
+      priority: 'high',
+      title: '提升入场精度',
+      description: `当前精准入场率仅 ${precisionRate.toFixed(1)}%，大部分交易入场后立即面临不利方向`,
+      action: '建议等待价格突破关键位后回踩确认再入场，而非直接追涨杀跌',
+    });
+  }
+
+  // MAE 建议
+  if (lossMAE > winMAE * 2) {
+    suggestions.push({
+      type: 'stoploss',
+      priority: 'high',
+      title: '优化止损设置',
+      description: `亏损交易的平均 MAE (${lossMAE.toFixed(1)} ticks) 是盈利交易的 ${(lossMAE / winMAE).toFixed(1)} 倍`,
+      action: '亏损主因是入场时机差。建议：1) 减少逆势交易；2) 设置更合理的止损位',
+    });
+  }
+
+  // MFE/利润捕获建议
+  if (captureRatio < 30) {
+    suggestions.push({
+      type: 'takeprofit',
+      priority: 'medium',
+      title: '改善利润捕获',
+      description: `利润捕获率仅 ${captureRatio.toFixed(1)}%，大量潜在利润未能实现`,
+      action: '建议：1) 浮盈达 1R 时移动止损至成本价；2) 使用 MFE 50% 回撤作为追踪止盈',
+    });
+  }
+
+  // MFE/MAE 比率建议
+  if (avgMFE < avgMAE) {
+    suggestions.push({
+      type: 'ratio',
+      priority: 'high',
+      title: 'MFE/MAE 比率失衡',
+      description: `平均 MFE (${avgMFE.toFixed(1)}) 小于平均 MAE (${avgMAE.toFixed(1)})，风险收益不对称`,
+      action: '市场给的机会小于承受的风险。建议只交易预期 MFE > MAE 的机会',
+    });
+  }
+
+  return suggestions;
+};
+
+/**
  * 分析交易频率
  */
 const analyzeTradeFrequency = (trades) => {
@@ -1186,6 +1470,11 @@ export const generateAIAnalysis = async (filters = {}) => {
     // 交易频率分析
     const frequencyAnalysis = analyzeTradeFrequency(allTrades);
 
+    // 执行质量分析 (MAE/MFE)
+    // 获取品种配置用于计算 tickValue
+    const instrumentsConfig = await StorageService.getInstruments();
+    const executionQualityAnalysis = analyzeExecutionQuality(allTrades, instrumentsConfig);
+
     // 生成持仓报告
     const holdingReport = generateHoldingReport(holdingAnalysis, streaksAnalysis, riskAnalysis);
 
@@ -1212,6 +1501,7 @@ export const generateAIAnalysis = async (filters = {}) => {
       equityAnalysis,
       riskAnalysis,
       frequencyAnalysis,
+      executionQualityAnalysis, // MAE/MFE 执行质量分析
       holdingReport,
       generatedAt: new Date(),
     };
@@ -1274,5 +1564,6 @@ export default {
   analyzeEquityCurve,
   analyzeRiskMetrics,
   analyzeTradeFrequency,
+  analyzeExecutionQuality,
 };
 

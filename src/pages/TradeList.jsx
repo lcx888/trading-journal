@@ -51,12 +51,47 @@ const formatHoldingTime = (seconds) => {
   return parts.join(' ');
 };
 
+// 品种 tick 价值映射（美元/tick）
+const TICK_VALUES = {
+  'GC': 10,      // 黄金: $10/tick
+  'ES': 12.5,   // 标普: $12.5/tick
+  'NQ': 5,      // 纳指: $5/tick
+  'RTY': 5,     // 罗素: $5/tick
+  'CL': 10,     // 原油: $10/tick
+  'SI': 25,     // 白银: $25/tick
+  'YM': 5,      // 道指: $5/tick
+  'ZB': 31.25,  // 国债: $31.25/tick
+  'ZN': 15.625, // 10年国债: $15.625/tick
+  '6E': 12.5,   // 欧元: $12.5/tick
+  'M2K': 0.5,   // 微型罗素: $0.5/tick
+  'MES': 1.25,  // 微型标普: $1.25/tick
+  'MNQ': 0.5,   // 微型纳指: $0.5/tick
+  'MGC': 1,     // 微型黄金: $1/tick
+};
+
+// 获取品种的 tick 价值
+const getTickValue = (instrumentCode, instruments) => {
+  // 先尝试从 instruments 列表中获取（用户自定义）
+  const instrument = instruments.find(i => i.code === instrumentCode);
+  if (instrument?.tickValue) return instrument.tickValue;
+  // 否则使用默认值
+  return TICK_VALUES[instrumentCode] || 5; // 默认 $5/tick
+};
+
+// 将 ticks 转换为美元金额
+const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
+  if (ticks === undefined || ticks === null) return null;
+  const tickValue = getTickValue(instrumentCode, instruments);
+  return ticks * tickValue * Math.abs(quantity || 1);
+};
+
 const TradeList = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
   const [filteredTrades, setFilteredTrades] = useState([]);
   const [instruments, setInstruments] = useState([]);
   const [strategies, setStrategies] = useState([]);
+  const [hasJigsawData, setHasJigsawData] = useState(false); // 是否有 Jigsaw 数据
   const [filters, setFilters] = useState({
     instrument: 'ALL',
     direction: 'ALL',
@@ -65,6 +100,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     strategy: 'ALL',
     dateRange: null,
     keyword: '',
+    source: 'ALL', // 新增：数据来源筛选
   });
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
@@ -94,6 +130,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       filteredByRecord.sort((a, b) => new Date(b.openTime) - new Date(a.openTime));
       setTrades(filteredByRecord);
       setInstruments(instrumentList);
+      
+      // 检查是否有 Jigsaw 数据
+      const hasJigsaw = filteredByRecord.some(t => 
+        t.source === 'jigsaw' || t.jigsawData || t.mae !== undefined || t.mfe !== undefined
+      );
+      setHasJigsawData(hasJigsaw);
     } catch (error) {
       message.error('加载数据失败');
     } finally {
@@ -129,6 +171,13 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     if (filters.strategy !== 'ALL') {
       if (filters.strategy === 'NONE') result = result.filter(t => !t.strategyIds || t.strategyIds.length === 0);
       else result = result.filter(t => t.strategyIds && t.strategyIds.includes(filters.strategy));
+    }
+    // 数据来源筛选
+    if (filters.source !== 'ALL') {
+      result = result.filter(t => {
+        const tradeSource = t.source || (t.jigsawData ? 'jigsaw' : 'atas');
+        return tradeSource === filters.source;
+      });
     }
     setFilteredTrades(result);
   };
@@ -173,17 +222,36 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   };
 
   const handleExport = () => {
-    const data = filteredTrades.map(t => ({
-      '品种': t.instrumentCode,
-      '时间': dayjs(t.openTime).format('YYYY-MM-DD HH:mm:ss'),
-      '方向': t.direction === 'LONG' ? '多' : '空',
-      '数量': t.openQuantity,
-      '开仓价': t.openPrice,
-      '平仓价': t.closePrice,
-      '盈亏': t.pnl,
-      '时段': t.marketSession,
-      '持仓时长': formatHoldingTime(t.holdingSeconds),
-    }));
+    const data = filteredTrades.map(t => {
+      const baseData = {
+        '品种': t.instrumentCode,
+        '时间': dayjs(t.openTime).format('YYYY-MM-DD HH:mm:ss'),
+        '方向': t.direction === 'LONG' ? '多' : '空',
+        '数量': t.openQuantity,
+        '开仓价': t.openPrice,
+        '平仓价': t.closePrice,
+        '盈亏': t.pnl,
+        '时段': t.marketSession,
+        '持仓时长': formatHoldingTime(t.holdingSeconds),
+        '数据来源': t.source === 'jigsaw' ? 'Jigsaw' : 'ATAS',
+      };
+      
+      // 如果有 Jigsaw 数据，添加额外字段（换算为美元）
+      if (hasJigsawData) {
+        const mae = t.mae ?? t.jigsawData?.mae;
+        const mfe = t.mfe ?? t.jigsawData?.mfe;
+        const maeUSD = mae !== undefined ? ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments) : '';
+        const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, t.instrumentCode, t.openQuantity, instruments) : '';
+        
+        baseData['MAE(ticks)'] = mae ?? '';
+        baseData['MAE(美元)'] = maeUSD ? -maeUSD.toFixed(2) : '';
+        baseData['MFE(ticks)'] = mfe ?? '';
+        baseData['MFE(美元)'] = mfeUSD ? mfeUSD.toFixed(2) : '';
+        baseData['成交次数'] = t.fills ?? t.jigsawData?.fills ?? '';
+      }
+      
+      return baseData;
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '交易记录');
@@ -268,6 +336,64 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       align: 'right',
       render: (s) => <div className="text-[10px] font-bold text-slate-400">{formatHoldingTime(s)}</div>,
     },
+    // Jigsaw 独有列：MAE（美元）
+    ...(hasJigsawData ? [{
+      title: (
+        <Tooltip title="Maximum Adverse Excursion - 最大不利偏移（已换算为美元）">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 cursor-help">MAE$</span>
+        </Tooltip>
+      ),
+      key: 'mae',
+      width: 90,
+      align: 'right',
+      render: (_, r) => {
+        const mae = r.mae ?? r.jigsawData?.mae;
+        if (mae === undefined || mae === null) return <span className="text-slate-300">-</span>;
+        const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
+        return (
+          <Tooltip title={`${mae} ticks`}>
+            <span className="text-[11px] font-mono font-bold text-[#ef5350]">-${maeUSD?.toFixed(0)}</span>
+          </Tooltip>
+        );
+      },
+    }] : []),
+    // Jigsaw 独有列：MFE（美元）
+    ...(hasJigsawData ? [{
+      title: (
+        <Tooltip title="Maximum Favorable Excursion - 最大有利偏移（已换算为美元）">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 cursor-help">MFE$</span>
+        </Tooltip>
+      ),
+      key: 'mfe',
+      width: 90,
+      align: 'right',
+      render: (_, r) => {
+        const mfe = r.mfe ?? r.jigsawData?.mfe;
+        if (mfe === undefined || mfe === null) return <span className="text-slate-300">-</span>;
+        const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
+        return (
+          <Tooltip title={`${mfe} ticks`}>
+            <span className="text-[11px] font-mono font-bold text-[#26a69a]">+${mfeUSD?.toFixed(0)}</span>
+          </Tooltip>
+        );
+      },
+    }] : []),
+    // Jigsaw 独有列：成交次数
+    ...(hasJigsawData ? [{
+      title: (
+        <Tooltip title="成交次数 (Fills)">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 cursor-help">成交</span>
+        </Tooltip>
+      ),
+      key: 'fills',
+      width: 60,
+      align: 'right',
+      render: (_, r) => {
+        const fills = r.fills ?? r.jigsawData?.fills;
+        if (fills === undefined || fills === null) return <span className="text-slate-300">-</span>;
+        return <span className="text-[11px] font-mono font-bold text-slate-600">{fills}</span>;
+      },
+    }] : []),
     {
       title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">策略</span>,
       key: 'strategyTags',
@@ -311,6 +437,30 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     pnl: filteredTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
     wins: filteredTrades.filter(t => t.pnl > 0).length,
   };
+  
+  // Jigsaw 统计（换算为美元）
+  const jigsawStats = hasJigsawData ? (() => {
+    const tradesWithMAE = filteredTrades.filter(t => (t.mae ?? t.jigsawData?.mae) !== undefined);
+    const tradesWithMFE = filteredTrades.filter(t => (t.mfe ?? t.jigsawData?.mfe) !== undefined);
+    
+    // 计算总 MAE 金额
+    const totalMAEUSD = tradesWithMAE.reduce((sum, t) => {
+      const mae = t.mae ?? t.jigsawData?.mae ?? 0;
+      return sum + ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments);
+    }, 0);
+    
+    // 计算总 MFE 金额
+    const totalMFEUSD = tradesWithMFE.reduce((sum, t) => {
+      const mfe = t.mfe ?? t.jigsawData?.mfe ?? 0;
+      return sum + ticksToUSD(mfe, t.instrumentCode, t.openQuantity, instruments);
+    }, 0);
+    
+    return {
+      avgMAE: tradesWithMAE.length > 0 ? (totalMAEUSD / tradesWithMAE.length).toFixed(0) : 0,
+      avgMFE: tradesWithMFE.length > 0 ? (totalMFEUSD / tradesWithMFE.length).toFixed(0) : 0,
+      totalFills: filteredTrades.reduce((sum, t) => sum + (t.fills ?? t.jigsawData?.fills ?? 0), 0),
+    };
+  })() : null;
 
   return (
     <div className="space-y-6 animate-in">
@@ -323,6 +473,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   options={[{ value: 'ALL', label: '方向' }, { value: 'LONG', label: '多' }, { value: 'SHORT', label: '空' }]} />
           <Select value={filters.result} onChange={v => setFilters({ ...filters, result: v })} style={{ width: 100 }} variant="borderless" className="bg-[#f0f3fa] rounded-lg font-bold text-xs"
                   options={[{ value: 'ALL', label: '结果' }, { value: 'WIN', label: '盈利' }, { value: 'LOSS', label: '亏损' }]} />
+          {hasJigsawData && (
+            <Select value={filters.source} onChange={v => setFilters({ ...filters, source: v })} style={{ width: 100 }} variant="borderless" className="bg-purple-50 rounded-lg font-bold text-xs text-purple-600"
+                    options={[{ value: 'ALL', label: '全部来源' }, { value: 'atas', label: 'ATAS' }, { value: 'jigsaw', label: 'Jigsaw' }]} />
+          )}
           <div className="h-4 w-px bg-slate-200 mx-1" />
           <RangePicker value={filters.dateRange} onChange={v => setFilters({ ...filters, dateRange: v })} variant="borderless" className="bg-[#f0f3fa] rounded-lg text-xs" placeholder={['开始日期', '结束日期']} />
           <div className="flex items-center bg-[#f0f3fa] rounded-lg px-3 py-1 gap-2">
@@ -354,6 +508,32 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">胜率</div>
           <div className="text-xl font-bold text-[#131722]">{currentStats.total > 0 ? (currentStats.wins / currentStats.total * 100).toFixed(1) : 0}%</div>
         </div>
+        {/* Jigsaw 独有统计（美元金额） */}
+        {hasJigsawData && jigsawStats && (
+          <>
+            <div className="w-px h-8 bg-purple-100 mt-2" />
+            <Tooltip title="Maximum Adverse Excursion - 平均最大不利偏移（已换算为美元）">
+              <div>
+                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">平均 MAE</div>
+                <div className="text-xl font-bold text-[#ef5350]">-${jigsawStats.avgMAE} <span className="text-[10px] opacity-60">美元</span></div>
+              </div>
+            </Tooltip>
+            <div className="w-px h-8 bg-purple-100 mt-2" />
+            <Tooltip title="Maximum Favorable Excursion - 平均最大有利偏移（已换算为美元）">
+              <div>
+                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">平均 MFE</div>
+                <div className="text-xl font-bold text-[#26a69a]">+${jigsawStats.avgMFE} <span className="text-[10px] opacity-60">美元</span></div>
+              </div>
+            </Tooltip>
+            <div className="w-px h-8 bg-purple-100 mt-2" />
+            <Tooltip title="总成交次数">
+              <div>
+                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">总成交</div>
+                <div className="text-xl font-bold text-purple-600">{jigsawStats.totalFills} <span className="text-[10px] opacity-60">次</span></div>
+              </div>
+            </Tooltip>
+          </>
+        )}
       </div>
 
       {/* Main Table Card */}

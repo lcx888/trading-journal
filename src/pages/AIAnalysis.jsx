@@ -1326,6 +1326,90 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             </div>
           )}
 
+          {/* ========== 执行质量分析 (MAE/MFE) ========== */}
+          {analysis.executionQualityAnalysis?.hasData && (
+            <div className="modern-card bg-white p-6">
+              <div className="flex items-center justify-between mb-6">
+                <span className="font-bold text-[#131722]">执行质量分析 (MAE/MFE)</span>
+                <span className="text-xs text-slate-400">{analysis.executionQualityAnalysis.totalTrades} 笔数据</span>
+              </div>
+              
+              {/* 核心指标 */}
+              <Row gutter={[16, 16]} className="mb-6">
+                <Col xs={12} sm={8} md={4}><Statistic title="平均 MAE" value={analysis.executionQualityAnalysis.overall.avgMAETicks} suffix="ticks" valueStyle={{ color: COLORS.loss, fontSize: 20 }} /><div className="text-xs text-slate-400">≈ ${analysis.executionQualityAnalysis.overall.avgMAEUsd}</div></Col>
+                <Col xs={12} sm={8} md={4}><Statistic title="平均 MFE" value={analysis.executionQualityAnalysis.overall.avgMFETicks} suffix="ticks" valueStyle={{ color: COLORS.profit, fontSize: 20 }} /><div className="text-xs text-slate-400">≈ ${analysis.executionQualityAnalysis.overall.avgMFEUsd}</div></Col>
+                <Col xs={12} sm={8} md={4}><Statistic title="MFE/MAE" value={analysis.executionQualityAnalysis.overall.mfeMaeRatio} precision={2} valueStyle={{ fontSize: 20 }} /></Col>
+                <Col xs={12} sm={8} md={4}><Statistic title="精准入场率" value={analysis.executionQualityAnalysis.entryPrecision.precisionRate} suffix="%" valueStyle={{ fontSize: 20 }} /></Col>
+                <Col xs={12} sm={8} md={4}><Statistic title="利润捕获率" value={analysis.executionQualityAnalysis.profitCapture.captureRatio} suffix="%" valueStyle={{ color: analysis.executionQualityAnalysis.profitCapture.captureRatio >= 0 ? COLORS.profit : COLORS.loss, fontSize: 20 }} /></Col>
+                <Col xs={12} sm={8} md={4}><Statistic title="总成交" value={analysis.executionQualityAnalysis.overall.totalFills} suffix="次" valueStyle={{ fontSize: 20 }} /></Col>
+              </Row>
+
+              <Divider className="my-4" />
+
+              {/* 盈亏单对比 - 简洁表格 */}
+              <Table 
+                dataSource={[
+                  { key: 'winning', type: '盈利单', count: analysis.executionQualityAnalysis.comparison.winning.count, avgMAE: analysis.executionQualityAnalysis.comparison.winning.avgMAETicks, avgMFE: analysis.executionQualityAnalysis.comparison.winning.avgMFETicks, ratio: analysis.executionQualityAnalysis.comparison.winning.mfeMaeRatio },
+                  { key: 'losing', type: '亏损单', count: analysis.executionQualityAnalysis.comparison.losing.count, avgMAE: analysis.executionQualityAnalysis.comparison.losing.avgMAETicks, avgMFE: analysis.executionQualityAnalysis.comparison.losing.avgMFETicks, ratio: analysis.executionQualityAnalysis.comparison.losing.mfeMaeRatio },
+                ]}
+                pagination={false}
+                size="small"
+                className="mb-4"
+                columns={[
+                  { title: '类型', dataIndex: 'type', width: 80 },
+                  { title: '笔数', dataIndex: 'count', align: 'right', width: 60 },
+                  { title: '平均MAE', dataIndex: 'avgMAE', align: 'right', render: v => <span className="text-[#ef5350]">{v}t</span> },
+                  { title: '平均MFE', dataIndex: 'avgMFE', align: 'right', render: v => <span className="text-[#26a69a]">{v}t</span> },
+                  { title: 'MFE/MAE', dataIndex: 'ratio', align: 'right', render: v => v >= 1 ? <span className="text-[#26a69a] font-medium">{v}</span> : <span className="text-[#ef5350]">{v}</span> },
+                ]}
+              />
+
+              {/* 问题交易表格 */}
+              <Row gutter={[16, 16]}>
+                <Col xs={24} lg={12}>
+                  <div className="text-xs text-slate-500 mb-2">入场最差交易 (Top 5 MAE)</div>
+                  <Table dataSource={analysis.executionQualityAnalysis.worstEntries} rowKey="id" pagination={false} size="small" columns={[
+                    { title: '品种', dataIndex: 'instrumentCode', width: 50 },
+                    { title: 'MAE', key: 'mae', align: 'right', render: (_, r) => <span className="text-[#ef5350]">{r.maeTicks}t</span> },
+                    { title: 'MFE', key: 'mfe', align: 'right', render: (_, r) => <span className="text-[#26a69a]">{r.mfeTicks}t</span> },
+                    { title: '盈亏', dataIndex: 'pnl', align: 'right', render: v => <span className={v >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}>${v?.toFixed(0)}</span> },
+                  ]} />
+                </Col>
+                <Col xs={24} lg={12}>
+                  <div className="text-xs text-slate-500 mb-2">利润回吐交易</div>
+                  {analysis.executionQualityAnalysis.profitGivebackTrades.length > 0 ? (
+                    <Table dataSource={analysis.executionQualityAnalysis.profitGivebackTrades} rowKey="id" pagination={false} size="small" columns={[
+                      { title: '品种', dataIndex: 'instrumentCode', width: 50 },
+                      { title: 'MFE', key: 'mfe', align: 'right', render: (_, r) => <span className="text-[#26a69a]">{r.mfeTicks}t</span> },
+                      { title: '盈亏', dataIndex: 'pnl', align: 'right', render: v => <span className="text-[#ef5350]">${v?.toFixed(0)}</span> },
+                      { title: '回吐', key: 'giveback', align: 'right', render: (_, r) => <span className="text-slate-500">${r.givebackAmount}</span> },
+                    ]} />
+                  ) : <div className="text-slate-400 text-sm py-2">暂无</div>}
+                </Col>
+              </Row>
+
+              {/* 改进建议 - 简洁列表 */}
+              {analysis.executionQualityAnalysis.suggestions?.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <div className="text-xs text-slate-500 mb-2">改进建议</div>
+                  <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                    {analysis.executionQualityAnalysis.suggestions.map((s, i) => (
+                      <li key={i}><span className="font-medium">{s.title}</span>: {s.action}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 无MAE/MFE数据提示 */}
+          {analysis.executionQualityAnalysis && !analysis.executionQualityAnalysis.hasData && (
+            <div className="modern-card bg-white p-6">
+              <div className="font-bold text-[#131722] mb-2">执行质量分析 (MAE/MFE)</div>
+              <div className="text-sm text-slate-500">请导入 Jigsaw RTP-Positions 文件以获取 MAE/MFE 分析数据</div>
+            </div>
+          )}
+
           {/* ========== 连续交易分析 ========== */}
           {analysis.streaksAnalysis && (
             <div className="modern-card bg-white p-6">

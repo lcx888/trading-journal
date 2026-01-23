@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { parseATASFile, checkDuplicates } from '../services/atasParser';
+import { parseJigsawFile, checkJigsawDuplicates, detectFileType } from '../services/jigsawParser';
 import StorageService from '../services/storage';
 
 const { Dragger } = Upload;
@@ -42,6 +43,7 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [fileType, setFileType] = useState(null); // 'atas' | 'jigsaw'
   
   const [records, setRecords] = useState([]);
   const [currentRecordId, setCurrentRecordId] = useState(selectedRecordId || null);
@@ -84,14 +86,34 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
     setParsing(true);
     setParsedData(null);
     setDuplicateInfo(null);
+    setFileType(null);
     try {
-      const result = await parseATASFile(file);
+      // 自动检测文件类型
+      const detectedType = await detectFileType(file);
+      setFileType(detectedType);
+      
+      let result;
+      let duplicateCheck;
+      
+      if (detectedType === 'jigsaw') {
+        result = await parseJigsawFile(file);
+        duplicateCheck = await checkJigsawDuplicates(result.trades);
+        message.info('检测到 Jigsaw RTP 格式');
+      } else {
+        result = await parseATASFile(file);
+        duplicateCheck = await checkDuplicates(result.trades);
+        if (detectedType === 'atas') {
+          message.info('检测到 ATAS 格式');
+        }
+      }
+      
       if (result.trades.length === 0) {
         message.warning('文件中未检测到交易');
         return;
       }
-      const { duplicates, unique } = await checkDuplicates(result.trades);
-      setParsedData(result);
+      
+      const { duplicates, unique } = duplicateCheck;
+      setParsedData({ ...result, fileType: detectedType });
       setDuplicateInfo({
         total: result.trades.length,
         duplicates: duplicates.length,
@@ -108,7 +130,11 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
     setImporting(true);
     setImportProgress(0);
     try {
-      const tradesToImport = duplicateInfo.uniqueTrades.map(t => ({ ...t, recordId: currentRecordId }));
+      const tradesToImport = duplicateInfo.uniqueTrades.map(t => ({ 
+        ...t, 
+        recordId: currentRecordId,
+        source: parsedData?.fileType || fileType || 'atas',
+      }));
       const timer = setInterval(() => setImportProgress(p => Math.min(p + 15, 95)), 150);
       await StorageService.addTrades(tradesToImport);
       await StorageService.refreshRecordStats(currentRecordId);
@@ -119,6 +145,7 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
         totalPnL: tradesToImport.reduce((sum, t) => sum + (t.pnl || 0), 0),
         recordId: currentRecordId,
         recordName: getCurrentRecord()?.name,
+        fileType: parsedData?.fileType || fileType || 'atas',
       });
       clearInterval(timer);
       setImportProgress(100);
@@ -126,19 +153,39 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
       setTimeout(() => {
         setParsedData(null);
         setDuplicateInfo(null);
+        setFileType(null);
         onImportSuccess?.();
       }, 800);
     } catch (e) { message.error(`同步失败：${e.message}`); }
     finally { setImporting(false); }
   };
 
-  const previewColumns = [
-    { title: <span className="text-[10px] font-bold uppercase text-slate-400">时间</span>, dataIndex: 'openTime', width: 120, render: t => <div className="text-[11px] font-medium">{dayjs(t).format('MM/DD HH:mm')}</div> },
-    { title: <span className="text-[10px] font-bold uppercase text-slate-400">品种</span>, dataIndex: 'instrumentCode', width: 80, render: c => <Tag className="rounded bg-slate-100 border-none font-bold text-slate-600">{c}</Tag> },
-    { title: <span className="text-[10px] font-bold uppercase text-slate-400">方向</span>, dataIndex: 'direction', width: 70, render: d => <span className={`text-[11px] font-bold ${d === 'LONG' ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{d === 'LONG' ? '多' : '空'}</span> },
-    { title: <span className="text-[10px] font-bold uppercase text-slate-400">开仓价</span>, dataIndex: 'openPrice', align: 'right', render: p => <span className="font-mono text-[11px]">{p?.toFixed(2)}</span> },
-    { title: <span className="text-[10px] font-bold uppercase text-slate-400">盈亏</span>, dataIndex: 'pnl', align: 'right', render: p => <span className={`font-mono font-bold text-[11px] ${p >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{p >= 0 ? '+' : ''}{p?.toFixed(2)}</span> },
-  ];
+  // 根据文件类型生成不同的列
+  const getPreviewColumns = () => {
+    const baseColumns = [
+      { title: <span className="text-[10px] font-bold uppercase text-slate-400">时间</span>, dataIndex: 'openTime', width: 110, render: t => <div className="text-[11px] font-medium">{dayjs(t).format('MM/DD HH:mm')}</div> },
+      { title: <span className="text-[10px] font-bold uppercase text-slate-400">品种</span>, dataIndex: 'instrumentCode', width: 70, render: c => <Tag className="rounded bg-slate-100 border-none font-bold text-slate-600">{c}</Tag> },
+      { title: <span className="text-[10px] font-bold uppercase text-slate-400">方向</span>, dataIndex: 'direction', width: 50, render: d => <span className={`text-[11px] font-bold ${d === 'LONG' ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{d === 'LONG' ? '多' : '空'}</span> },
+      { title: <span className="text-[10px] font-bold uppercase text-slate-400">价格</span>, dataIndex: 'openPrice', width: 80, align: 'right', render: p => <span className="font-mono text-[11px]">{p?.toFixed(2)}</span> },
+    ];
+    
+    // Jigsaw 特有列
+    if (fileType === 'jigsaw') {
+      baseColumns.push(
+        { title: <span className="text-[10px] font-bold uppercase text-slate-400">MAE</span>, dataIndex: ['jigsawData', 'mae'], width: 50, align: 'right', render: v => <span className="font-mono text-[11px] text-[#ef5350]">{v || 0}</span> },
+        { title: <span className="text-[10px] font-bold uppercase text-slate-400">MFE</span>, dataIndex: ['jigsawData', 'mfe'], width: 50, align: 'right', render: v => <span className="font-mono text-[11px] text-[#26a69a]">{v || 0}</span> },
+        { title: <span className="text-[10px] font-bold uppercase text-slate-400">成交</span>, dataIndex: ['jigsawData', 'fills'], width: 45, align: 'right', render: v => <span className="font-mono text-[11px]">{v || 0}</span> },
+      );
+    }
+    
+    baseColumns.push(
+      { title: <span className="text-[10px] font-bold uppercase text-slate-400">盈亏</span>, dataIndex: 'pnl', width: 80, align: 'right', render: p => <span className={`font-mono font-bold text-[11px] ${p >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>{p >= 0 ? '+' : ''}{p?.toFixed(2)}</span> },
+    );
+    
+    return baseColumns;
+  };
+  
+  const previewColumns = getPreviewColumns();
 
   if (!loadingRecords && records.length === 0) {
     return (
@@ -194,13 +241,24 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
             </div>
             
             <div className="p-8 relative z-10">
-              <div className="flex justify-between items-start mb-8">
+                <div className="flex justify-between items-start mb-8">
                 <div>
                   <div className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">数据导入引擎</div>
-                  <div className="text-white text-2xl font-bold tracking-tight">导入 ATAS 数据集</div>
+                  <div className="text-white text-2xl font-bold tracking-tight">导入交易数据</div>
+                  <div className="text-slate-500 text-[11px] mt-1">支持 ATAS / Jigsaw RTP 格式</div>
                 </div>
-                <div className={`px-3 py-1 rounded border ${currentRecordId ? 'border-blue-500 text-blue-400' : 'border-slate-700 text-slate-500'} text-[9px] font-black uppercase tracking-widest`}>
-                  {currentRecordId ? '系统就绪' : '待机'}
+                <div className="flex flex-col gap-2 items-end">
+                  <div className={`px-3 py-1 rounded border ${currentRecordId ? 'border-blue-500 text-blue-400' : 'border-slate-700 text-slate-500'} text-[9px] font-black uppercase tracking-widest`}>
+                    {currentRecordId ? '系统就绪' : '待机'}
+                  </div>
+                  {fileType && (
+                    <div className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest ${
+                      fileType === 'jigsaw' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 
+                      'bg-green-500/20 text-green-400 border border-green-500/30'
+                    }`}>
+                      {fileType === 'jigsaw' ? 'Jigsaw RTP' : 'ATAS'}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -235,7 +293,7 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
                     {currentRecordId ? '将交易数据拖放到此处' : '请先在上方选择目标账本'}
                   </div>
                   <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                    兼容 .xlsx 规范 v2.4+
+                    自动识别 ATAS / Jigsaw 格式
                   </div>
                 </div>
               </Dragger>
@@ -268,25 +326,66 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
           {/* Analysis Results - Styled as a dynamic report */}
           {parsedData && duplicateInfo && (
             <div className="space-y-6">
+              {/* 文件类型指示 */}
+              {fileType && (
+                <div className={`modern-card p-4 flex items-center gap-4 ${
+                  fileType === 'jigsaw' ? 'bg-purple-50 border-purple-200' : 'bg-green-50 border-green-200'
+                }`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    fileType === 'jigsaw' ? 'bg-purple-500' : 'bg-green-500'
+                  }`}>
+                    <FileExcelOutlined className="text-white text-lg" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-[#131722]">
+                      {fileType === 'jigsaw' ? 'Jigsaw RTP-Positions' : 'ATAS Statistics'}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {fileType === 'jigsaw' 
+                        ? '包含 MAE/MFE 分析、成交次数等高级数据' 
+                        : '标准交易日志格式'}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Row gutter={[16, 16]}>
-                <Col span={8}>
+                <Col span={fileType === 'jigsaw' ? 6 : 8}>
                   <div className="modern-card bg-white p-4 text-center">
                     <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">总检测数</div>
                     <div className="text-xl font-bold text-[#131722]">{duplicateInfo.total}</div>
                   </div>
                 </Col>
-                <Col span={8}>
+                <Col span={fileType === 'jigsaw' ? 6 : 8}>
                   <div className="modern-card bg-white p-4 text-center border-b-2 border-[#26a69a]">
                     <div className="text-[9px] font-bold text-[#26a69a] uppercase mb-1">新增记录</div>
                     <div className="text-xl font-bold text-[#26a69a]">{duplicateInfo.unique}</div>
                   </div>
                 </Col>
-                <Col span={8}>
+                <Col span={fileType === 'jigsaw' ? 6 : 8}>
                   <div className="modern-card bg-white p-4 text-center">
                     <div className="text-[9px] font-bold text-slate-400 uppercase mb-1">已过滤</div>
                     <div className="text-xl font-bold text-slate-400">{duplicateInfo.duplicates}</div>
                   </div>
                 </Col>
+                {/* Jigsaw 独有统计 */}
+                {fileType === 'jigsaw' && (
+                  <Col span={6}>
+                    <div className="modern-card bg-white p-4 text-center border-b-2 border-purple-500">
+                      <div className="text-[9px] font-bold text-purple-500 uppercase mb-1">平均 MFE/MAE</div>
+                      <div className="text-xl font-bold text-purple-600">
+                        {(() => {
+                          const trades = duplicateInfo.uniqueTrades;
+                          const totalMFE = trades.reduce((s, t) => s + (t.jigsawData?.mfe || 0), 0);
+                          const totalMAE = trades.reduce((s, t) => s + (t.jigsawData?.mae || 0), 0);
+                          const avgMFE = trades.length ? (totalMFE / trades.length).toFixed(1) : 0;
+                          const avgMAE = trades.length ? (totalMAE / trades.length).toFixed(1) : 0;
+                          return `${avgMFE}/${avgMAE}`;
+                        })()}
+                      </div>
+                    </div>
+                  </Col>
+                )}
               </Row>
 
               <Card 
@@ -332,8 +431,8 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
             <div className="space-y-6">
               {[
                 { step: '01', title: '目标账本', desc: '在账本模块先创建并选择目标账本。' },
-                { step: '02', title: '导出数据', desc: '从 ATAS 终端导出统计 Excel 文件。' },
-                { step: '03', title: '系统校验', desc: '将文件拖放到此处，系统会自动校验数据。' },
+                { step: '02', title: '导出数据', desc: '从 ATAS 或 Jigsaw 导出交易记录。' },
+                { step: '03', title: '自动识别', desc: '系统自动识别文件格式并解析数据。' },
                 { step: '04', title: '账本同步', desc: '查看预览并确认合并到当前账本。' }
               ].map(item => (
                 <div key={item.step} className="flex gap-4">
@@ -349,10 +448,11 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
 
           <div className="modern-card bg-blue-600 p-6 text-white overflow-hidden relative">
             <div className="relative z-10">
-              <div className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">技术说明</div>
-              <div className="text-xs font-medium leading-relaxed">
-                去重验证基于品种、时间戳与方向签名，防止重复导入。 
-                支持规范：Statistics_Realtime v2.4+
+              <div className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">支持格式</div>
+              <div className="text-xs font-medium leading-relaxed space-y-2">
+                <div><span className="font-bold">ATAS：</span>Statistics_Realtime.xlsx</div>
+                <div><span className="font-bold">Jigsaw：</span>RTP-Positions.xls</div>
+                <div className="text-white/70 text-[10px] mt-2">Jigsaw 独有：MAE/MFE 分析、成交次数统计</div>
               </div>
             </div>
             <div className="absolute -right-4 -bottom-4 text-white/5 transform rotate-12">

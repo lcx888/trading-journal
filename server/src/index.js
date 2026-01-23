@@ -89,6 +89,12 @@ const normalizeTrade = (trade, userId) => ({
   openTime: trade.openTime ? new Date(trade.openTime) : null,
   pnl: trade.pnl ?? null,
   data: JSON.stringify(trade), // SQLite 需要字符串
+  source: trade.source || 'atas',
+  account: trade.account || null,
+  mae: trade.jigsawData?.mae ?? trade.mae ?? null,
+  mfe: trade.jigsawData?.mfe ?? trade.mfe ?? null,
+  fills: trade.jigsawData?.fills ?? trade.fills ?? null,
+  holdingSeconds: trade.holdingSeconds ?? null,
 });
 
 const mapTrade = (row) => {
@@ -100,6 +106,12 @@ const mapTrade = (row) => {
     instrumentCode: row.instrumentCode,
     openTime: row.openTime,
     pnl: row.pnl,
+    source: row.source || 'atas',
+    account: row.account,
+    mae: row.mae,
+    mfe: row.mfe,
+    fills: row.fills,
+    holdingSeconds: row.holdingSeconds,
   };
 };
 
@@ -713,6 +725,7 @@ app.post('/imports', authRequired, async (req, res) => {
       totalPnL: record.totalPnL || 0,
       recordId: record.recordId || null,
       recordName: record.recordName || null,
+      fileType: record.fileType || 'atas',
     },
   });
   return res.json(created);
@@ -878,10 +891,24 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
       orderBy: { openTime: 'asc' },
     });
     
-    // 解析 trade data
+    // 解析 trade data，包含 Jigsaw 扩展字段
     const parsedTrades = trades.map(t => {
       const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
-      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+      return { 
+        ...data, 
+        id: t.id, 
+        pnl: t.pnl, 
+        instrumentCode: t.instrumentCode, 
+        openTime: t.openTime,
+        // Jigsaw 扩展字段
+        mae: t.mae ?? data?.mae ?? data?.jigsawData?.mae,
+        mfe: t.mfe ?? data?.mfe ?? data?.jigsawData?.mfe,
+        fills: t.fills ?? data?.fills ?? data?.jigsawData?.fills,
+        timeIn: t.timeIn ?? data?.timeIn ?? data?.jigsawData?.timeIn,
+        maxQty: t.maxQty ?? data?.maxQty ?? data?.jigsawData?.maxQty,
+        account: t.account ?? data?.account ?? data?.jigsawData?.account,
+        source: t.source ?? data?.source,
+      };
     });
     
     // 日期范围筛选
@@ -1077,7 +1104,21 @@ app.post('/ai/analyze-trade/:id', authRequired, async (req, res) => {
     }
     
     const data = typeof trade.data === 'string' ? JSON.parse(trade.data) : trade.data;
-    const parsedTrade = { ...data, id: trade.id, pnl: trade.pnl, instrumentCode: trade.instrumentCode, openTime: trade.openTime };
+    const parsedTrade = { 
+      ...data, 
+      id: trade.id, 
+      pnl: trade.pnl, 
+      instrumentCode: trade.instrumentCode, 
+      openTime: trade.openTime,
+      // Jigsaw 扩展字段
+      mae: trade.mae ?? data?.mae ?? data?.jigsawData?.mae,
+      mfe: trade.mfe ?? data?.mfe ?? data?.jigsawData?.mfe,
+      fills: trade.fills ?? data?.fills ?? data?.jigsawData?.fills,
+      timeIn: trade.timeIn ?? data?.timeIn ?? data?.jigsawData?.timeIn,
+      maxQty: trade.maxQty ?? data?.maxQty ?? data?.jigsawData?.maxQty,
+      account: trade.account ?? data?.account ?? data?.jigsawData?.account,
+      source: trade.source ?? data?.source,
+    };
     
     const result = await analyzeSingleTrade(parsedTrade);
     return res.json(result);
@@ -1103,7 +1144,18 @@ app.post('/ai/chat', authRequired, async (req, res) => {
     
     const parsedTrades = trades.map(t => {
       const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
-      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+      return { 
+        ...data, 
+        id: t.id, 
+        pnl: t.pnl, 
+        instrumentCode: t.instrumentCode, 
+        openTime: t.openTime,
+        // Jigsaw 扩展字段
+        mae: t.mae ?? data?.mae ?? data?.jigsawData?.mae,
+        mfe: t.mfe ?? data?.mfe ?? data?.jigsawData?.mfe,
+        fills: t.fills ?? data?.fills ?? data?.jigsawData?.fills,
+        source: t.source ?? data?.source,
+      };
     });
     
     const result = await chatWithAI(message, parsedTrades, chatHistory || []);
@@ -1129,7 +1181,18 @@ app.post('/ai/daily-summary', authRequired, async (req, res) => {
     
     const parsedTrades = trades.map(t => {
       const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
-      return { ...data, id: t.id, pnl: t.pnl, instrumentCode: t.instrumentCode, openTime: t.openTime };
+      return { 
+        ...data, 
+        id: t.id, 
+        pnl: t.pnl, 
+        instrumentCode: t.instrumentCode, 
+        openTime: t.openTime,
+        // Jigsaw 扩展字段
+        mae: t.mae ?? data?.mae ?? data?.jigsawData?.mae,
+        mfe: t.mfe ?? data?.mfe ?? data?.jigsawData?.mfe,
+        fills: t.fills ?? data?.fills ?? data?.jigsawData?.fills,
+        source: t.source ?? data?.source,
+      };
     });
     
     const result = await generateDailySummary(parsedTrades, date);
