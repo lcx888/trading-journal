@@ -154,24 +154,29 @@ server {
     listen 80;
     server_name 你的域名.com;
 
-    # 前端静态文件
-    location / {
-        root /var/www/html;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 代理
-    location /api/ {
-        rewrite ^/api/(.*) /$1 break;
+    # API 路由代理（必须在静态文件规则之前）
+    # 匹配所有 API 端点
+    location ~ ^/(auth|admin|instruments|records|trades|strategies|imports|reviews|migrate|ai|install)(/|$) {
         proxy_pass http://localhost:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
+    }
+
+    # 前端静态文件
+    location / {
+        root /var/www/html;
+        try_files $uri $uri/ /index.html;
     }
 }
 ```
+
+> **重要**：API 路由规则必须放在静态文件规则之前，否则所有请求都会被前端路由捕获！
 
 ```bash
 # 启用配置

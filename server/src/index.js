@@ -15,6 +15,7 @@ import morgan from 'morgan';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { execSync } from 'child_process';
+import fs from 'fs';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
@@ -62,11 +63,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 
-// 生产环境：提供前端静态文件
-const distPath = path.join(__dirname, '../../dist');
-app.use(express.static(distPath));
-
-// 安装向导路由
+// 安装向导路由（必须在静态文件之前）
 setupInstallRoutes(app);
 
 const signToken = (user, rememberMe = false) => jwt.sign(
@@ -1204,11 +1201,27 @@ app.post('/ai/daily-summary', authRequired, async (req, res) => {
   }
 });
 
-// SPA 路由支持：所有未匹配的路由返回 index.html
-app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, '../../dist/index.html');
-  res.sendFile(indexPath);
-});
+// ========== 静态文件 & SPA 支持（必须在所有 API 路由之后）==========
+const distPath = path.join(__dirname, '../../dist');
+if (fs.existsSync(distPath)) {
+  // 静态文件服务
+  app.use(express.static(distPath));
+  
+  // SPA 路由支持：所有未匹配的路由返回 index.html
+  app.get('*', (req, res) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).json({ message: 'Not found' });
+    }
+  });
+} else {
+  // 开发模式下没有 dist 目录
+  app.get('*', (req, res) => {
+    res.status(404).json({ message: 'API endpoint not found. Frontend should be served separately in development.' });
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);

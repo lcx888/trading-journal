@@ -19,22 +19,54 @@ export const apiRequest = async (path, options = {}) => {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  const res = await fetch(`${API_BASE}${path}`, {
+  
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
     ...options,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  
   if (!res.ok) {
     let message = '请求失败';
     try {
-      const err = await res.json();
-      if (err?.message) message = err.message;
+      const text = await res.text();
+      // 检测是否返回了 HTML 而不是 JSON（常见的部署配置错误）
+      if (text.startsWith('<!') || text.startsWith('<html')) {
+        console.error(`API 配置错误: ${url} 返回了 HTML 而不是 JSON。请检查服务器配置。`);
+        message = '服务器配置错误：API 返回了 HTML 页面。请检查后端服务是否正常运行，以及 Nginx/代理配置是否正确。';
+      } else {
+        try {
+          const err = JSON.parse(text);
+          if (err?.message) message = err.message;
+        } catch (e) {
+          message = text || '请求失败';
+        }
+      }
     } catch (e) {
       // ignore parse error
     }
     throw new Error(message);
   }
+  
   if (res.status === 204) return null;
+  
+  // 同样检查成功响应是否返回了 HTML
+  const contentType = res.headers.get('content-type');
+  if (contentType && !contentType.includes('application/json')) {
+    const text = await res.text();
+    if (text.startsWith('<!') || text.startsWith('<html')) {
+      console.error(`API 配置错误: ${url} 返回了 HTML 而不是 JSON`);
+      throw new Error('服务器配置错误：API 返回了 HTML 页面，请检查部署配置');
+    }
+    // 尝试解析为 JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('服务器返回了非 JSON 格式的响应');
+    }
+  }
+  
   return res.json();
 };
 

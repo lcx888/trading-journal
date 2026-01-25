@@ -505,13 +505,16 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     
     setAiLoading(true);
     try {
-      const result = await aiApi.analyze({
-        trades: analysis.trades,
-        summary: analysis.summary,
-        patterns: analysis.patterns,
-        problems: analysis.problems,
-        riskAnalysis: analysis.riskAnalysis,
-      });
+      // 使用与基础分析相同的筛选条件
+      const dateRange = filters.useAllTime ? null : [
+        filters.dateRange?.[0]?.format('YYYY-MM-DD'),
+        filters.dateRange?.[1]?.format('YYYY-MM-DD')
+      ];
+      
+      const result = await aiApi.analyze(
+        filters.recordId || 'all',
+        dateRange
+      );
       
       if (result.success) {
         setAiResult(result);
@@ -536,12 +539,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     setChatLoading(true);
     
     try {
-      const context = aiResult?.analysis || viewingHistory?.report || '';
-      const result = await aiApi.chat({
-        message: userMessage,
-        context: context,
-        history: chatMessages,
-      });
+      const result = await aiApi.chat(userMessage, chatMessages);
       
       if (result.success) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: result.reply }]);
@@ -648,91 +646,89 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     };
   };
 
-  // 加载动画组件
-  const LoadingOverlay = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(24, 26, 32, 0.9)' }}>
-      <div className="max-w-xl w-full mx-6 p-8 rounded-xl" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-        {/* 进度头部 */}
-        <div className="flex items-center gap-5 mb-8">
-          <div className="relative">
-            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="35" fill="none" stroke="var(--bg-tertiary)" strokeWidth="5" />
-              <circle 
-                cx="40" cy="40" r="35" 
-                fill="none" 
-                stroke="var(--color-brand)" 
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeDasharray={`${analysisProgress * 2.2} 220`}
-                className="transition-all duration-500"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xl font-bold font-mono" style={{ color: 'var(--color-brand)' }}>{analysisProgress}%</span>
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>AI 深度分析中</div>
-            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              已用时 {Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')} · 预计剩余 {Math.max(0, 80 - elapsedTime)}s
-            </div>
+  // 内嵌加载动画组件（替代全屏弹窗）
+  const InlineLoadingPanel = () => (
+    <div className="p-6">
+      {/* 进度头部 */}
+      <div className="flex items-center gap-5 mb-6">
+        <div className="relative">
+          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="35" fill="none" stroke="var(--bg-tertiary)" strokeWidth="5" />
+            <circle 
+              cx="40" cy="40" r="35" 
+              fill="none" 
+              stroke="var(--color-brand)" 
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={`${analysisProgress * 2.2} 220`}
+              className="transition-all duration-500"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-lg font-bold font-mono" style={{ color: 'var(--color-brand)' }}>{analysisProgress}%</span>
           </div>
         </div>
-        
-        {/* 步骤列表 */}
-        <div className="space-y-3">
-          {ANALYSIS_STEPS.map((step, index) => {
-            const StepIcon = step.Icon;
-            const isCompleted = index < currentStep;
-            const isCurrent = index === currentStep;
-            
-            return (
+        <div className="flex-1">
+          <div className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>AI 深度分析中</div>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            已用时 {Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')} · 预计剩余 {Math.max(0, 80 - elapsedTime)}s
+          </div>
+        </div>
+      </div>
+      
+      {/* 步骤列表 */}
+      <div className="space-y-2">
+        {ANALYSIS_STEPS.map((step, index) => {
+          const StepIcon = step.Icon;
+          const isCompleted = index < currentStep;
+          const isCurrent = index === currentStep;
+          
+          return (
+            <div 
+              key={step.key}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
+              style={{ 
+                background: isCurrent ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                border: isCurrent ? '1px solid var(--color-brand)' : '1px solid transparent',
+                opacity: index > currentStep ? 0.4 : 1
+              }}
+            >
               <div 
-                key={step.key}
-                className="flex items-center gap-4 px-4 py-3 rounded-lg transition-all"
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
                 style={{ 
-                  background: isCurrent ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
-                  border: isCurrent ? '1px solid var(--color-brand)' : '1px solid transparent',
-                  opacity: index > currentStep ? 0.4 : 1
+                  background: isCompleted ? 'var(--color-profit)' : isCurrent ? 'var(--color-brand)' : 'var(--bg-secondary)'
                 }}
               >
-                <div 
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ 
-                    background: isCompleted ? 'var(--color-profit)' : isCurrent ? 'var(--color-brand)' : 'var(--bg-secondary)'
-                  }}
-                >
-                  {isCompleted ? (
-                    <CheckCircle size={14} style={{ color: '#fff' }} />
-                  ) : (
-                    <StepIcon size={14} style={{ color: isCurrent ? 'var(--bg-primary)' : 'var(--text-secondary)' }} />
-                  )}
-                </div>
-                <span 
-                  className="text-sm font-medium flex-1"
-                  style={{ color: isCurrent ? 'var(--color-brand)' : isCompleted ? 'var(--color-profit)' : 'var(--text-secondary)' }}
-                >
-                  {step.label}
-                </span>
-                {isCurrent && (
-                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--color-brand)' }} />
-                )}
-                {isCompleted && (
-                  <span className="text-xs" style={{ color: 'var(--color-profit)' }}>完成</span>
+                {isCompleted ? (
+                  <CheckCircle size={13} style={{ color: '#fff' }} />
+                ) : (
+                  <StepIcon size={13} style={{ color: isCurrent ? 'var(--bg-primary)' : 'var(--text-secondary)' }} />
                 )}
               </div>
-            );
-          })}
-        </div>
-        
-        {/* 提示信息 */}
-        <div className="mt-6 p-4 rounded-lg" style={{ background: 'var(--color-brand-bg)' }}>
-          <div className="flex items-center gap-3">
-            <Lightbulb size={16} style={{ color: 'var(--color-brand)' }} />
-            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              AI 正在多维度分析您的交易数据，请耐心等待...
-            </span>
-          </div>
+              <span 
+                className="text-sm font-medium flex-1"
+                style={{ color: isCurrent ? 'var(--color-brand)' : isCompleted ? 'var(--color-profit)' : 'var(--text-secondary)' }}
+              >
+                {step.label}
+              </span>
+              {isCurrent && (
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--color-brand)' }} />
+              )}
+              {isCompleted && (
+                <span className="text-xs" style={{ color: 'var(--color-profit)' }}>完成</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* 提示信息 */}
+      <div className="mt-5 p-4 rounded-lg" style={{ background: 'var(--color-brand-bg)' }}>
+        <div className="flex items-center gap-3">
+          <Lightbulb size={16} style={{ color: 'var(--color-brand)' }} />
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            AI 正在多维度分析您的交易数据，请耐心等待...
+          </span>
         </div>
       </div>
     </div>
@@ -740,8 +736,6 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
 
   return (
     <div className="flex gap-6 min-h-full">
-      {/* 加载遮罩 */}
-      {(loading || aiLoading) && <LoadingOverlay />}
 
       {/* ========== 左侧历史记录面板（重新设计）========== */}
       <div className="w-72 flex-shrink-0">
@@ -1409,11 +1403,8 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
             </div>
             
             <div className="p-5">
-              {aiLoading ? (
-                <div className="py-6 text-center">
-                  <Spin size="large" />
-                  <p className="mt-4 text-sm" style={{ color: 'var(--text-secondary)' }}>AI 分析中...</p>
-                </div>
+              {(loading || aiLoading) ? (
+                <InlineLoadingPanel />
               ) : aiResult?.success ? (
                 (() => {
                   const { sections, insights } = parseAIReport(aiResult.analysis);
