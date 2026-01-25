@@ -1,3 +1,4 @@
+// 环境变量配置完成 v2
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -170,6 +170,14 @@ export const StorageService = {
         lossCount: 0,
         maxDrawdown: 0,
         profitFactor: 0,
+        totalProfit: 0,
+        totalLoss: 0,
+        avgProfitPerWinningTrade: 0,
+        avgLossPerLosingTrade: 0,
+        riskRewardRatio: 0,
+        maxWin: 0,
+        maxLoss: 0,
+        avgHoldingTime: '-',
         longStats: { count: 0, pnl: 0 },
         shortStats: { count: 0, pnl: 0 },
       };
@@ -182,6 +190,34 @@ export const StorageService = {
     const totalPnL = validTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
     const totalProfit = winTrades.reduce((sum, t) => sum + t.pnl, 0);
     const totalLoss = Math.abs(lossTrades.reduce((sum, t) => sum + t.pnl, 0));
+
+    // 平均盈利/亏损
+    const avgProfitPerWinningTrade = winTrades.length > 0 ? totalProfit / winTrades.length : 0;
+    const avgLossPerLosingTrade = lossTrades.length > 0 ? totalLoss / lossTrades.length : 0;
+
+    // 盈亏比
+    const riskRewardRatio = avgLossPerLosingTrade > 0 ? avgProfitPerWinningTrade / avgLossPerLosingTrade : 0;
+
+    // 最大单笔盈亏
+    const maxWin = winTrades.length > 0 ? Math.max(...winTrades.map(t => t.pnl)) : 0;
+    const maxLoss = lossTrades.length > 0 ? Math.min(...lossTrades.map(t => t.pnl)) : 0;
+
+    // 平均持仓时间
+    const tradesWithHoldingTime = validTrades.filter(t => t.holdingSeconds && t.holdingSeconds > 0);
+    let avgHoldingTime = '-';
+    if (tradesWithHoldingTime.length > 0) {
+      const avgSeconds = tradesWithHoldingTime.reduce((sum, t) => sum + t.holdingSeconds, 0) / tradesWithHoldingTime.length;
+      const hours = Math.floor(avgSeconds / 3600);
+      const minutes = Math.floor((avgSeconds % 3600) / 60);
+      const secs = Math.floor(avgSeconds % 60);
+      if (hours > 0) {
+        avgHoldingTime = `${hours}h ${minutes}m`;
+      } else if (minutes > 0) {
+        avgHoldingTime = `${minutes}m ${secs}s`;
+      } else {
+        avgHoldingTime = `${secs}s`;
+      }
+    }
 
     let maxDrawdown = 0;
     let peak = 0;
@@ -205,6 +241,14 @@ export const StorageService = {
       lossCount: lossTrades.length,
       maxDrawdown: Number(maxDrawdown.toFixed(2)),
       profitFactor: totalLoss > 0 ? Number((totalProfit / totalLoss).toFixed(2)) : totalProfit > 0 ? Infinity : 0,
+      totalProfit: Number(totalProfit.toFixed(2)),
+      totalLoss: Number(totalLoss.toFixed(2)),
+      avgProfitPerWinningTrade: Number(avgProfitPerWinningTrade.toFixed(2)),
+      avgLossPerLosingTrade: Number(avgLossPerLosingTrade.toFixed(2)),
+      riskRewardRatio: Number(riskRewardRatio.toFixed(2)),
+      maxWin: Number(maxWin.toFixed(2)),
+      maxLoss: Number(maxLoss.toFixed(2)),
+      avgHoldingTime,
       longStats: {
         count: longTrades.length,
         pnl: Number(longTrades.reduce((sum, t) => sum + (t.pnl || 0), 0).toFixed(2)),

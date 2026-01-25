@@ -1,27 +1,24 @@
 import { useState, useEffect } from 'react';
 import { 
-  Card, Form, Input, InputNumber, Button, Table, Space, 
-  message, Modal, Popconfirm, Divider, Statistic, Row, Col, Tag, Typography, Empty
+  Form, Input, InputNumber, Button, Table, Space, 
+  message, Modal, Popconfirm, Row, Col, Tag, Empty
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SaveOutlined,
   ExclamationCircleOutlined,
-  DatabaseOutlined,
   HistoryOutlined,
   ClockCircleOutlined,
   ToolOutlined,
   GlobalOutlined,
   SafetyCertificateOutlined,
   ArrowRightOutlined,
-  FileSearchOutlined,
   InfoCircleOutlined,
   LockOutlined,
   MailOutlined,
-  UserOutlined,
   WarningOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -29,19 +26,7 @@ import { isUSDaylightSavingTime, isEUDaylightSavingTime, formatCSTTime } from '.
 import { fixHoldingTimes } from '../utils/debugHoldingTime';
 import { changePassword, changeEmail, deleteAccount, resendVerification, getMe } from '../services/auth';
 
-const { Text } = Typography;
 const { TextArea } = Input;
-
-// TradingView Colors
-const COLORS = {
-  profit: '#26a69a',
-  loss: '#ef5350',
-  primary: '#2962ff',
-  text: '#131722',
-  textLight: '#787b86',
-  border: '#e0e3eb',
-  grid: '#f0f3fa'
-};
 
 const Settings = ({ onLogout }) => {
   const [instruments, setInstruments] = useState([]);
@@ -192,13 +177,27 @@ const Settings = ({ onLogout }) => {
 
   const handleClearAllData = () => {
     Modal.confirm({
-      title: '清除所有数据？',
-      icon: <ExclamationCircleOutlined className="text-red-500" />,
-      content: '将永久删除所有交易记录与导入历史，且无法恢复。',
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ 
+            width: 36, 
+            height: 36, 
+            borderRadius: 6, 
+            background: 'var(--color-loss-bg)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 18 }} />
+          </div>
+          <span style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600 }}>清除所有数据？</span>
+        </div>
+      ),
+      icon: null,
+      content: <span style={{ color: 'var(--text-secondary)', marginLeft: 48 }}>将永久删除所有交易记录与导入历史，且无法恢复。</span>,
       okText: '永久清除',
       okType: 'danger',
       cancelText: '取消',
-      className: 'trading-view-modal',
       onOk: async () => {
         await StorageService.clearAllTrades();
         message.success('本地数据已清空');
@@ -209,12 +208,26 @@ const Settings = ({ onLogout }) => {
 
   const handleFixHoldingTimes = async () => {
     Modal.confirm({
-      title: '修复数据结构',
-      icon: <ToolOutlined className="text-blue-500" />,
-      content: '是否基于成交时间重新计算所有交易的持仓时长？',
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ 
+            width: 36, 
+            height: 36, 
+            borderRadius: 6, 
+            background: 'var(--color-brand-bg)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <ToolOutlined style={{ color: 'var(--color-brand)', fontSize: 18 }} />
+          </div>
+          <span style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600 }}>修复数据结构</span>
+        </div>
+      ),
+      icon: null,
+      content: <span style={{ color: 'var(--text-secondary)', marginLeft: 48 }}>是否基于成交时间重新计算所有交易的持仓时长？</span>,
       okText: '执行修复',
       cancelText: '取消',
-      className: 'trading-view-modal',
       onOk: async () => {
         try {
           const result = await fixHoldingTimes();
@@ -231,47 +244,68 @@ const Settings = ({ onLogout }) => {
     });
   };
 
-
   const instrumentColumns = [
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">代码</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>代码</span>,
       dataIndex: 'code',
       key: 'code',
-      render: (c) => <Tag className="rounded bg-blue-50 text-blue-600 border-none font-bold text-[11px] px-2">{c}</Tag>,
+      render: (c) => (
+        <Tag style={{ 
+          background: 'var(--color-brand-bg)', 
+          color: 'var(--color-brand)', 
+          border: 'none', 
+          fontWeight: 600, 
+          fontSize: 11, 
+          padding: '2px 8px' 
+        }}>
+          {c}
+        </Tag>
+      ),
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">名称</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>名称</span>,
       dataIndex: 'name',
       key: 'name',
-      render: (n) => <span className="font-bold text-[#131722] text-xs">{n}</span>,
+      render: (n) => <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>{n}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">手续费</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>手续费</span>,
       dataIndex: 'feeRate',
       key: 'feeRate',
-      render: (r) => <span className="font-mono text-[11px]">${r}</span>,
+      render: (r) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>${r}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">每跳价值</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>每跳价值</span>,
       dataIndex: 'tickValue',
       key: 'tickValue',
-      render: (v) => <span className="font-mono text-[11px]">${v}</span>,
+      render: (v) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>${v}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">ATAS 匹配</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ATAS 匹配</span>,
       dataIndex: 'atasPattern',
       key: 'atasPattern',
-      render: (p) => <code className="text-[9px] bg-slate-50 text-slate-400 px-1 rounded">{p}</code>,
+      render: (p) => <code style={{ fontSize: 9, background: 'var(--bg-tertiary)', color: 'var(--text-tertiary)', padding: '2px 6px', borderRadius: 2 }}>{p}</code>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">操作</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>操作</span>,
       key: 'action',
       align: 'right',
       render: (_, r) => (
         <Space>
-          <Button type="text" size="small" icon={<EditOutlined />} className="text-slate-300 hover:text-blue-500" onClick={() => handleEditInstrument(r)} />
-          <Popconfirm title="删除品种？" onConfirm={() => handleDeleteInstrument(r.code)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} className="opacity-40 hover:opacity-100" />
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<EditOutlined />} 
+            style={{ color: 'var(--text-tertiary)' }} 
+            onClick={() => handleEditInstrument(r)} 
+          />
+          <Popconfirm 
+            title={<span style={{ color: 'var(--text-primary)' }}>删除品种？</span>} 
+            onConfirm={() => handleDeleteInstrument(r.code)}
+            okButtonProps={{ danger: true, size: 'small' }}
+            cancelButtonProps={{ size: 'small' }}
+          >
+            <Button type="text" size="small" icon={<DeleteOutlined />} style={{ color: 'var(--color-loss)', opacity: 0.6 }} />
           </Popconfirm>
         </Space>
       ),
@@ -280,32 +314,37 @@ const Settings = ({ onLogout }) => {
 
   const historyColumns = [
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">导入时间</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>导入时间</span>,
       dataIndex: 'importDate',
       key: 'importDate',
-      render: (d) => <div className="text-[11px] font-medium text-slate-500">{dayjs(d).format('MM/DD HH:mm')}</div>,
+      render: (d) => <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{dayjs(d).format('MM/DD HH:mm')}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">源文件</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>源文件</span>,
       dataIndex: 'filename',
       key: 'filename',
       ellipsis: true,
-      render: (f) => <span className="text-[11px] font-bold text-slate-700">{f}</span>,
+      render: (f) => <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{f}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">数量</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>数量</span>,
       dataIndex: 'tradesCount',
       key: 'tradesCount',
       align: 'center',
-      render: (c) => <div className="text-[11px] font-mono">{c}</div>,
+      render: (c) => <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{c}</span>,
     },
     {
-      title: <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">盈亏（美元）</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>盈亏</span>,
       dataIndex: 'totalPnL',
       key: 'totalPnL',
       align: 'right',
       render: (p) => (
-        <span className={`font-mono font-bold text-[11px] ${p >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+        <span style={{ 
+          fontFamily: 'var(--font-mono)', 
+          fontWeight: 600, 
+          fontSize: 11, 
+          color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' 
+        }}>
           {p >= 0 ? '+' : ''}{p?.toFixed(2)}
         </span>
       ),
@@ -316,18 +355,76 @@ const Settings = ({ onLogout }) => {
   const isUSDST = isUSDaylightSavingTime(now);
   const isEUDST = isEUDaylightSavingTime(now);
 
+  // 卡片样式
+  const cardStyle = {
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: 6,
+    padding: 24,
+  };
+
+  // 操作按钮样式
+  const ActionButton = ({ onClick, title, desc, danger, icon }) => (
+    <Button 
+      block 
+      onClick={onClick}
+      style={{ 
+        height: 56, 
+        textAlign: 'left', 
+        padding: '0 16px', 
+        borderRadius: 6, 
+        borderColor: danger ? 'var(--color-loss)' : 'var(--border-primary)', 
+        background: danger ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)',
+        color: 'var(--text-primary)'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: danger ? 'var(--color-loss)' : 'var(--text-primary)' }}>{title}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{desc}</div>
+        </div>
+        {icon || <ArrowRightOutlined style={{ color: 'var(--text-tertiary)' }} />}
+      </div>
+    </Button>
+  );
+
   return (
-    <div className="space-y-6 animate-in">
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={16} className="space-y-6">
-          {/* Instruments Config */}
-          <div className="modern-card bg-white p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2">
-                <GlobalOutlined className="text-blue-500" />
-                <span className="font-bold text-[#131722] tracking-tight">品种配置</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <Row gutter={24}>
+        <Col xs={24} lg={16} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 品种配置 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ 
+                  width: 32, 
+                  height: 32, 
+                  borderRadius: 4, 
+                  background: 'var(--color-brand-bg)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}>
+                  <GlobalOutlined style={{ color: 'var(--color-brand)' }} />
+                </div>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>品种配置</span>
               </div>
-              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddInstrument} className="font-bold text-[10px] uppercase shadow-none px-4">新增品种</Button>
+              <Button 
+                type="primary" 
+                size="small" 
+                icon={<PlusOutlined />} 
+                onClick={handleAddInstrument}
+                style={{ 
+                  background: 'var(--color-brand)', 
+                  borderColor: 'var(--color-brand)', 
+                  color: 'var(--bg-primary)', 
+                  fontWeight: 600, 
+                  fontSize: 11,
+                  borderRadius: 4
+                }}
+              >
+                新增品种
+              </Button>
             </div>
             <Table
               columns={instrumentColumns}
@@ -336,15 +433,25 @@ const Settings = ({ onLogout }) => {
               loading={loading}
               pagination={false}
               size="small"
-              className="modern-table"
+              className="binance-table"
             />
           </div>
 
-          {/* Import History */}
-          <div className="modern-card bg-white p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <HistoryOutlined className="text-[#26a69a]" />
-              <span className="font-bold text-[#131722] tracking-tight">导入记录</span>
+          {/* 导入记录 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 4, 
+                background: 'var(--color-profit-bg)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <HistoryOutlined style={{ color: 'var(--color-profit)' }} />
+              </div>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>导入记录</span>
             </div>
             <Table
               columns={historyColumns}
@@ -352,93 +459,144 @@ const Settings = ({ onLogout }) => {
               rowKey={(record) => `${record.importDate}-${record.filename}`}
               pagination={{ pageSize: 5, hideOnSinglePage: true }}
               size="small"
-              className="modern-table"
-              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无导入记录" /> }}
+              className="binance-table"
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: 'var(--text-tertiary)' }}>暂无导入记录</span>} /> }}
             />
           </div>
         </Col>
 
-        <Col xs={24} lg={8} className="space-y-6">
-          {/* Timezone Info Terminal Style */}
-          <div className="modern-card bg-[#131722] p-6 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-              <ClockCircleOutlined style={{ fontSize: '100px' }} />
+        <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 环境信息 */}
+          <div style={{ 
+            background: 'var(--bg-primary)', 
+            border: '1px solid var(--border-primary)', 
+            borderRadius: 6, 
+            padding: 24, 
+            position: 'relative', 
+            overflow: 'hidden' 
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, padding: 16, opacity: 0.05, pointerEvents: 'none' }}>
+              <ClockCircleOutlined style={{ fontSize: 100 }} />
             </div>
-            <div className="relative z-10">
-              <div className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">环境信息</div>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ color: 'var(--color-brand)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 16 }}>环境信息</div>
               
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 text-xs font-medium">核心时区</span>
-                  <span className="text-xs font-mono font-bold">UTC+8 (CST)</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid var(--border-primary)' }}>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>核心时区</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>UTC+8 (CST)</span>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 text-xs font-medium">本地时间</span>
-                  <span className="text-xs font-mono font-bold text-blue-400">{formatCSTTime(now, true)}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid var(--border-primary)' }}>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>本地时间</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-brand)' }}>{formatCSTTime(now, true)}</span>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                  <span className="text-slate-400 text-xs font-medium">美东夏令时</span>
-                  <Tag className={`rounded border-none text-[9px] font-black ${isUSDST ? 'bg-[#26a69a] text-white' : 'bg-slate-800 text-slate-500'}`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid var(--border-primary)' }}>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>美东夏令时</span>
+                  <Tag style={{ 
+                    background: isUSDST ? 'var(--color-profit-bg)' : 'var(--bg-tertiary)', 
+                    color: isUSDST ? 'var(--color-profit)' : 'var(--text-tertiary)', 
+                    border: 'none', 
+                    fontSize: 9, 
+                    fontWeight: 600 
+                  }}>
                     {isUSDST ? '生效' : '未生效'}
                   </Tag>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-xs font-medium">欧洲夏令时</span>
-                  <Tag className={`rounded border-none text-[9px] font-black ${isEUDST ? 'bg-[#26a69a] text-white' : 'bg-slate-800 text-slate-500'}`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>欧洲夏令时</span>
+                  <Tag style={{ 
+                    background: isEUDST ? 'var(--color-profit-bg)' : 'var(--bg-tertiary)', 
+                    color: isEUDST ? 'var(--color-profit)' : 'var(--text-tertiary)', 
+                    border: 'none', 
+                    fontSize: 9, 
+                    fontWeight: 600 
+                  }}>
                     {isEUDST ? '生效' : '未生效'}
                   </Tag>
                 </div>
               </div>
 
-              <div className="mt-6 p-3 bg-white/5 rounded-lg border border-white/10">
-                <div className="flex items-center gap-2 text-blue-400 text-[9px] font-bold uppercase mb-1">
+              <div style={{ marginTop: 24, padding: 12, background: 'var(--bg-tertiary)', borderRadius: 6, border: '1px solid var(--border-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-brand)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
                   <InfoCircleOutlined /> 自动校正
                 </div>
-                <div className="text-[10px] text-slate-400 leading-relaxed">
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
                   系统会将 ATAS（UTC+0）自动转换为本地 CST，并根据全球夏令时自动调整交易时段。
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Stats Widgets */}
-          <div className="modern-card bg-white p-5">
-            <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">数据库统计</div>
-            <div className="flex items-end justify-between">
+          {/* 数据库统计 */}
+          <div style={cardStyle}>
+            <div style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 16 }}>数据库统计</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <div>
-                <div className="text-2xl font-bold stat-value text-[#131722]">{dataStats.trades}</div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase">交易记录</div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{dataStats.trades}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>交易记录</div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold stat-value text-[#131722]">{dataStats.imports}</div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase">导入次数</div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{dataStats.imports}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>导入次数</div>
               </div>
             </div>
           </div>
 
           {/* 账户安全 */}
-          <div className="modern-card bg-white p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <LockOutlined className="text-blue-500" />
-              <span className="font-bold text-[#131722] tracking-tight">账户安全</span>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 4, 
+                background: 'var(--color-brand-bg)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <LockOutlined style={{ color: 'var(--color-brand)' }} />
+              </div>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>账户安全</span>
             </div>
             
             {/* 用户信息 */}
             {userInfo && (
-              <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+              <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ 
+                    width: 40, 
+                    height: 40, 
+                    background: 'var(--color-brand)', 
+                    borderRadius: '50%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    color: 'var(--bg-primary)', 
+                    fontWeight: 700 
+                  }}>
                     {userInfo.email?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-[#131722]">{userInfo.email}</div>
-                    <div className="flex items-center gap-2">
-                      {userInfo.emailVerified ? (
-                        <Tag color="success" className="text-[9px] m-0">已验证</Tag>
-                      ) : (
-                        <Tag color="warning" className="text-[9px] m-0">未验证</Tag>
-                      )}
-                      <Tag color="blue" className="text-[9px] m-0">{userInfo.role}</Tag>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{userInfo.email}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <Tag style={{ 
+                        background: userInfo.emailVerified ? 'var(--color-profit-bg)' : 'var(--color-brand-bg)', 
+                        color: userInfo.emailVerified ? 'var(--color-profit)' : 'var(--color-brand)', 
+                        border: 'none', 
+                        fontSize: 9, 
+                        margin: 0 
+                      }}>
+                        {userInfo.emailVerified ? '已验证' : '未验证'}
+                      </Tag>
+                      <Tag style={{ 
+                        background: 'var(--bg-tertiary)', 
+                        color: 'var(--text-secondary)', 
+                        border: '1px solid var(--border-primary)', 
+                        fontSize: 9, 
+                        margin: 0 
+                      }}>
+                        {userInfo.role}
+                      </Tag>
                     </div>
                   </div>
                 </div>
@@ -447,13 +605,22 @@ const Settings = ({ onLogout }) => {
 
             {/* 邮箱未验证提示 */}
             {userInfo && !userInfo.emailVerified && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <WarningOutlined className="text-yellow-500 mt-0.5" />
-                  <div className="flex-1">
-                    <div className="text-xs font-bold text-yellow-700">邮箱未验证</div>
-                    <div className="text-[10px] text-yellow-600 mb-2">请验证邮箱以确保账户安全</div>
-                    <Button size="small" loading={securityLoading} onClick={handleResendVerification}>
+              <div style={{ marginBottom: 16, padding: 12, background: 'var(--color-brand-bg)', border: '1px solid var(--border-primary)', borderRadius: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <WarningOutlined style={{ color: 'var(--color-brand)', marginTop: 2 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-brand)' }}>邮箱未验证</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8 }}>请验证邮箱以确保账户安全</div>
+                    <Button 
+                      size="small" 
+                      loading={securityLoading} 
+                      onClick={handleResendVerification}
+                      style={{ 
+                        borderColor: 'var(--color-brand)', 
+                        color: 'var(--color-brand)',
+                        borderRadius: 4
+                      }}
+                    >
                       重新发送验证邮件
                     </Button>
                   </div>
@@ -461,70 +628,57 @@ const Settings = ({ onLogout }) => {
               </div>
             )}
 
-            <div className="space-y-3">
-              <Button block className="h-10 text-left px-4 group hover:border-blue-400 rounded-lg transition-all" onClick={() => setPasswordModalVisible(true)}>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <div className="text-xs font-bold text-[#131722]">修改密码</div>
-                    <div className="text-[9px] text-slate-400 font-medium">更新账户登录密码</div>
-                  </div>
-                  <ArrowRightOutlined className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                </div>
-              </Button>
-              <Button block className="h-10 text-left px-4 group hover:border-blue-400 rounded-lg transition-all" onClick={() => setEmailModalVisible(true)}>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <div className="text-xs font-bold text-[#131722]">修改邮箱</div>
-                    <div className="text-[9px] text-slate-400 font-medium">更换账户绑定邮箱</div>
-                  </div>
-                  <ArrowRightOutlined className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                </div>
-              </Button>
-              <Button block danger className="h-10 text-left px-4 group rounded-lg" onClick={() => setDeleteModalVisible(true)}>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <div className="text-xs font-bold">注销账户</div>
-                    <div className="text-[9px] opacity-60 font-medium">永久删除账户和数据</div>
-                  </div>
-                  <DeleteOutlined className="opacity-40 group-hover:opacity-100 transition-all" />
-                </div>
-              </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <ActionButton onClick={() => setPasswordModalVisible(true)} title="修改密码" desc="更新账户登录密码" />
+              <ActionButton onClick={() => setEmailModalVisible(true)} title="修改邮箱" desc="更换账户绑定邮箱" />
+              <ActionButton onClick={() => setDeleteModalVisible(true)} title="注销账户" desc="永久删除账户和数据" danger icon={<DeleteOutlined style={{ color: 'var(--color-loss)', opacity: 0.6 }} />} />
             </div>
           </div>
 
-          {/* Maintenance Actions */}
-          <div className="modern-card bg-white p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <SafetyCertificateOutlined className="text-blue-500" />
-              <span className="font-bold text-[#131722] tracking-tight">系统维护</span>
+          {/* 系统维护 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 4, 
+                background: 'var(--color-brand-bg)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <SettingOutlined style={{ color: 'var(--color-brand)' }} />
+              </div>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>系统维护</span>
             </div>
-            <div className="space-y-3">
-              <Button block className="h-10 text-left px-4 group hover:border-blue-400 rounded-lg transition-all" onClick={handleFixHoldingTimes}>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <div className="text-xs font-bold text-[#131722]">修复持仓时长</div>
-                    <div className="text-[9px] text-slate-400 font-medium">重新计算持仓时间</div>
-                  </div>
-                  <ArrowRightOutlined className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                </div>
-              </Button>
-              <Button block danger className="h-10 text-left px-4 group rounded-lg" onClick={handleClearAllData}>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <div className="text-xs font-bold">数据清空</div>
-                    <div className="text-[9px] opacity-60 font-medium">清空服务器数据</div>
-                  </div>
-                  <DeleteOutlined className="opacity-40 group-hover:opacity-100 transition-all" />
-                </div>
-              </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <ActionButton onClick={handleFixHoldingTimes} title="修复持仓时长" desc="重新计算持仓时间" />
+              <ActionButton onClick={handleClearAllData} title="数据清空" desc="清空服务器数据" danger icon={<DeleteOutlined style={{ color: 'var(--color-loss)', opacity: 0.6 }} />} />
             </div>
           </div>
         </Col>
       </Row>
 
-      {/* Edit Modal */}
+      {/* 编辑品种弹窗 */}
       <Modal
-        title={<div className="flex items-center gap-2 py-2"><EditOutlined className="text-blue-500" /><span className="text-lg font-bold">{editingInstrument ? '更新品种' : '新增品种'}</span></div>}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <EditOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {editingInstrument ? '更新品种' : '新增品种'}
+            </span>
+          </div>
+        }
         open={editModalVisible}
         onOk={handleSaveInstrument}
         onCancel={() => setEditModalVisible(false)}
@@ -532,45 +686,127 @@ const Settings = ({ onLogout }) => {
         cancelText="取消"
         width={480}
         destroyOnClose
-        className="trading-view-modal"
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
       >
-        <Form form={form} layout="vertical" className="mt-6">
+        <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="code" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">品种代码</span>} rules={[{ required: true }]}>
-                <Input placeholder="例如：ES、NQ、GC" disabled={!!editingInstrument} className="font-bold font-mono" />
+              <Form.Item 
+                name="code" 
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>品种代码</span>} 
+                rules={[{ required: true }]}
+              >
+                <Input 
+                  placeholder="例如：ES、NQ、GC" 
+                  disabled={!!editingInstrument} 
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)', 
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    borderRadius: 4
+                  }} 
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="name" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">品种名称</span>} rules={[{ required: true }]}>
-                <Input placeholder="例如：标普500期货" className="font-medium" />
+              <Form.Item 
+                name="name" 
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>品种名称</span>} 
+                rules={[{ required: true }]}
+              >
+                <Input 
+                  placeholder="例如：标普500期货"
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)', 
+                    color: 'var(--text-primary)',
+                    borderRadius: 4
+                  }} 
+                />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="feeRate" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">手续费/边 ($)</span>} rules={[{ required: true }]}>
-                <InputNumber min={0} step={0.01} className="w-full font-mono" />
+              <Form.Item 
+                name="feeRate" 
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>手续费/边 ($)</span>} 
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="tickValue" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">每跳价值 ($)</span>} rules={[{ required: true }]}>
-                <InputNumber min={0} step={0.1} className="w-full font-mono" />
+              <Form.Item 
+                name="tickValue" 
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>每跳价值 ($)</span>} 
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="initialCapital" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">初始资金 ($)</span>} rules={[{ required: true }]}>
-            <InputNumber min={0} step={1000} className="w-full font-mono" />
+          <Form.Item 
+            name="initialCapital" 
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>初始资金 ($)</span>} 
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} step={1000} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="atasPattern" label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">ATAS 正则匹配</span>}>
-            <Input placeholder="例如：GC.*@NYMEX" className="font-mono text-xs" />
+          <Form.Item 
+            name="atasPattern" 
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ATAS 正则匹配</span>}
+          >
+            <Input 
+              placeholder="例如：GC.*@NYMEX"
+              style={{ 
+                background: 'var(--bg-tertiary)', 
+                borderColor: 'var(--border-primary)', 
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                borderRadius: 4
+              }} 
+            />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* 修改密码 Modal */}
+      {/* 修改密码弹窗 */}
       <Modal
-        title={<div className="flex items-center gap-2 py-2"><LockOutlined className="text-blue-500" /><span className="text-lg font-bold">修改密码</span></div>}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <LockOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>修改密码</span>
+          </div>
+        }
         open={passwordModalVisible}
         onOk={handleChangePassword}
         onCancel={() => { setPasswordModalVisible(false); passwordForm.resetFields(); }}
@@ -578,18 +814,34 @@ const Settings = ({ onLogout }) => {
         cancelText="取消"
         confirmLoading={securityLoading}
         destroyOnClose
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
       >
-        <Form form={passwordForm} layout="vertical" className="mt-4">
+        <Form form={passwordForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="currentPassword"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">当前密码</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>当前密码</span>}
             rules={[{ required: true, message: '请输入当前密码' }]}
           >
             <Input.Password placeholder="输入当前密码" />
           </Form.Item>
           <Form.Item
             name="newPassword"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">新密码</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>新密码</span>}
             rules={[
               { required: true, message: '请输入新密码' },
               { min: 6, message: '密码至少 6 位' }
@@ -599,7 +851,7 @@ const Settings = ({ onLogout }) => {
           </Form.Item>
           <Form.Item
             name="confirmPassword"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">确认新密码</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>确认新密码</span>}
             dependencies={['newPassword']}
             rules={[
               { required: true, message: '请确认新密码' },
@@ -618,9 +870,24 @@ const Settings = ({ onLogout }) => {
         </Form>
       </Modal>
 
-      {/* 修改邮箱 Modal */}
+      {/* 修改邮箱弹窗 */}
       <Modal
-        title={<div className="flex items-center gap-2 py-2"><MailOutlined className="text-blue-500" /><span className="text-lg font-bold">修改邮箱</span></div>}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <MailOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>修改邮箱</span>
+          </div>
+        }
         open={emailModalVisible}
         onOk={handleChangeEmail}
         onCancel={() => { setEmailModalVisible(false); emailForm.resetFields(); }}
@@ -628,34 +895,55 @@ const Settings = ({ onLogout }) => {
         cancelText="取消"
         confirmLoading={securityLoading}
         destroyOnClose
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
       >
-        <Form form={emailForm} layout="vertical" className="mt-4">
+        <Form form={emailForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="newEmail"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">新邮箱</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>新邮箱</span>}
             rules={[
               { required: true, message: '请输入新邮箱' },
               { type: 'email', message: '请输入有效的邮箱地址' }
             ]}
           >
-            <Input prefix={<MailOutlined className="text-gray-400" />} placeholder="name@example.com" />
+            <Input prefix={<MailOutlined style={{ color: 'var(--text-tertiary)' }} />} placeholder="name@example.com" />
           </Form.Item>
           <Form.Item
             name="password"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">当前密码</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>当前密码</span>}
             rules={[{ required: true, message: '请输入密码验证身份' }]}
           >
             <Input.Password placeholder="输入密码验证身份" />
           </Form.Item>
-          <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: 12, borderRadius: 6 }}>
             验证邮件将发送到新邮箱，点击邮件中的链接完成更换。
           </div>
         </Form>
       </Modal>
 
-      {/* 注销账户 Modal */}
+      {/* 注销账户弹窗 */}
       <Modal
-        title={<div className="flex items-center gap-2 py-2 text-red-500"><WarningOutlined /><span className="text-lg font-bold">注销账户</span></div>}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', color: 'var(--color-loss)' }}>
+            <WarningOutlined style={{ fontSize: 20 }} />
+            <span style={{ fontSize: 16, fontWeight: 600 }}>注销账户</span>
+          </div>
+        }
         open={deleteModalVisible}
         onOk={handleDeleteAccount}
         onCancel={() => { setDeleteModalVisible(false); deleteForm.resetFields(); }}
@@ -665,9 +953,9 @@ const Settings = ({ onLogout }) => {
         confirmLoading={securityLoading}
         destroyOnClose
       >
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <div className="font-bold text-red-600 mb-2">⚠️ 警告：此操作不可撤销</div>
-          <ul className="text-sm text-red-600 space-y-1 list-disc list-inside">
+        <div style={{ background: 'var(--color-loss-bg)', border: '1px solid var(--border-primary)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, color: 'var(--color-loss)', marginBottom: 8 }}>⚠️ 警告：此操作不可撤销</div>
+          <ul style={{ fontSize: 13, color: 'var(--color-loss)', margin: 0, paddingLeft: 20 }}>
             <li>所有交易数据将被永久删除</li>
             <li>所有账本和策略将被清除</li>
             <li>账户将无法恢复</li>
@@ -676,14 +964,14 @@ const Settings = ({ onLogout }) => {
         <Form form={deleteForm} layout="vertical">
           <Form.Item
             name="password"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">输入密码</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>输入密码</span>}
             rules={[{ required: true, message: '请输入密码' }]}
           >
             <Input.Password placeholder="输入密码确认身份" />
           </Form.Item>
           <Form.Item
             name="confirmText"
-            label={<span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">输入"确认注销"以确认</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>输入"确认注销"以确认</span>}
             rules={[
               { required: true, message: '请输入确认文字' },
               { pattern: /^确认注销$/, message: '请输入"确认注销"' }

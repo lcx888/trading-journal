@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Table, Button, Modal, Form, Input, Select, Tag, Space,
-  Popconfirm, message, Empty, Row, Col, Statistic, ColorPicker,
-  Typography, Badge, Tooltip
+  Table, Button, Modal, Form, Input, Select, Tag, Space,
+  Popconfirm, message, Row, Col, ColorPicker, Tooltip
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   BulbOutlined,
-  TagOutlined,
   BookOutlined,
   FireOutlined,
   ThunderboltOutlined,
@@ -20,23 +18,15 @@ import {
   ReloadOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 
-const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-// TradingView Style Colors
-const TV_COLORS = [
-  '#2962ff', '#26a69a', '#ef5350', '#ff9800', '#722ed1',
-  '#131722', '#787b86', '#e0e3eb', '#f0f3fa', '#ffffff'
-];
-
-// 预设颜色（TradingView 调色板扩展）
+// 预设颜色（币安风格调色板）
 const PRESET_COLORS = [
-  '#2962ff', '#26a69a', '#ef5350', '#ff9800', '#722ed1',
-  '#131722', '#00bcd4', '#4caf50', '#8bc34a', '#cddc39',
-  '#ffeb3b', '#ffc107', '#ff5722', '#795548', '#9e9e9e'
+  '#eab308', '#10b981', '#f43f5e', '#3b82f6', '#8B5CF6',
+  '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+  '#14B8A6', '#EAB308', '#EF4444', '#3B82F6', '#A855F7'
 ];
 
 // 策略分类
@@ -101,7 +91,7 @@ const TradingStrategies = () => {
       const values = await form.validateFields();
       const colorValue = typeof values.color === 'string' 
         ? values.color 
-        : values.color?.toHexString?.() || TV_COLORS[0];
+        : values.color?.toHexString?.() || PRESET_COLORS[0];
 
       if (editingStrategy) {
         await StorageService.updateStrategy(editingStrategy.id, {
@@ -144,20 +134,28 @@ const TradingStrategies = () => {
 
   const columns = [
     {
-      title: <span className="uppercase tracking-widest text-[10px] font-bold">策略模型</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>策略模型</span>,
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <div className="flex items-center gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div 
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm"
-            style={{ backgroundColor: record.color }}
+            style={{ 
+              width: 40, 
+              height: 40, 
+              borderRadius: 8, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              backgroundColor: record.color,
+              color: '#fff'
+            }}
           >
             {getCategoryIcon(record.category)}
           </div>
           <div>
-            <div className="text-[#131722] font-bold text-sm leading-tight">{name}</div>
-            <div className="text-[#787b86] text-[10px] font-bold uppercase tracking-widest mt-0.5">
+            <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>{name}</div>
+            <div style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>
               {record.category} 系统
             </div>
           </div>
@@ -165,70 +163,76 @@ const TradingStrategies = () => {
       ),
     },
     {
-      title: <span className="uppercase tracking-widest text-[10px] font-bold">标签预览</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>标签预览</span>,
       dataIndex: 'color',
       key: 'preview',
       width: 140,
       render: (color, record) => (
         <Tag 
-          color={color}
-          bordered={false}
-          className="px-3 py-1 text-[11px] font-bold rounded-full border-none"
+          style={{ 
+            backgroundColor: color, 
+            color: '#fff', 
+            border: 'none', 
+            borderRadius: 12, 
+            padding: '2px 12px',
+            fontSize: 11,
+            fontWeight: 600
+          }}
         >
           {record.name}
         </Tag>
       ),
     },
     {
-      title: <span className="uppercase tracking-widest text-[10px] font-bold">描述</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>描述</span>,
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (desc) => (
         <Tooltip title={desc}>
-          <span className="text-[#787b86] text-xs">
+          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
             {desc || '--'}
           </span>
         </Tooltip>
       ),
     },
     {
-      title: <span className="uppercase tracking-widest text-[10px] font-bold">使用次数</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>使用次数</span>,
       dataIndex: 'usageCount',
       key: 'usageCount',
       width: 100,
       align: 'center',
       sorter: (a, b) => (a.usageCount || 0) - (b.usageCount || 0),
       render: (count) => (
-        <div className="flex flex-col items-center">
-          <div className="text-[#131722] font-bold text-sm">{count || 0}</div>
-          <div className="text-[9px] text-[#787b86] font-bold uppercase tracking-tighter">次</div>
-        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+          {count || 0}
+        </span>
       ),
     },
     {
-      title: <span className="uppercase tracking-widest text-[10px] font-bold">操作</span>,
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>操作</span>,
       key: 'actions',
-      width: 120,
+      width: 100,
       align: 'right',
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="small">
           <Button 
             type="text" 
             size="small"
-            className="text-blue-500 hover:bg-blue-50"
+            style={{ color: 'var(--text-tertiary)' }}
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
           />
           <Popconfirm
-            title="删除策略？"
-            description="使用该策略的交易将移除标签。"
+            title={<span style={{ color: 'var(--text-primary)' }}>删除策略？</span>}
+            description={<span style={{ color: 'var(--text-secondary)' }}>使用该策略的交易将移除标签。</span>}
             onConfirm={() => handleDelete(record.id)}
             okText="删除"
             cancelText="取消"
-            className="modern-card"
+            okButtonProps={{ danger: true, size: 'small' }}
+            cancelButtonProps={{ size: 'small' }}
           >
-            <Button type="text" size="small" danger className="hover:bg-red-50" icon={<DeleteOutlined />} />
+            <Button type="text" size="small" icon={<DeleteOutlined />} style={{ color: 'var(--color-loss)', opacity: 0.6 }} />
           </Popconfirm>
         </Space>
       ),
@@ -240,76 +244,157 @@ const TradingStrategies = () => {
   const totalUsage = strategies.reduce((sum, s) => sum + (s.usageCount || 0), 0);
   const mostUsed = strategies.reduce((max, s) => (s.usageCount || 0) > (max?.usageCount || 0) ? s : max, null);
 
+  // 统计卡片组件
+  const StatCard = ({ label, value, icon, color, subLabel }) => (
+    <div style={{
+      background: 'var(--bg-secondary)',
+      border: '1px solid var(--border-primary)',
+      borderRadius: 6,
+      padding: 16,
+    }}>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
+      <div style={{ 
+        fontSize: 24, 
+        fontWeight: 700, 
+        fontFamily: 'var(--font-mono)', 
+        color: color || 'var(--text-primary)',
+        letterSpacing: '-0.5px'
+      }}>
+        {value}
+      </div>
+      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 500 }}>
+        {icon}
+        <span>{subLabel}</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-6 animate-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 顶部统计区 */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={16}>
         <Col xs={24} sm={8}>
-          <div className="modern-card p-5 bg-white">
-            <div className="text-[#787b86] text-[10px] font-bold uppercase tracking-widest mb-2">策略总数</div>
-            <div className="text-2xl font-bold stat-value text-[#131722]">{totalStrategies}</div>
-            <div className="mt-2 flex items-center text-[10px] font-bold text-blue-500 uppercase tracking-tighter">
-              <BulbOutlined className="mr-1" /> 活跃库
-            </div>
-          </div>
+          <StatCard 
+            label="策略总数" 
+            value={totalStrategies} 
+            icon={<BulbOutlined style={{ color: 'var(--color-brand)' }} />}
+            subLabel="活跃库"
+          />
         </Col>
         <Col xs={24} sm={8}>
-          <div className="modern-card p-5 bg-white">
-            <div className="text-[#787b86] text-[10px] font-bold uppercase tracking-widest mb-2">累计使用</div>
-            <div className="text-2xl font-bold stat-value text-[#131722]">{totalUsage}</div>
-            <div className="mt-2 flex items-center text-[10px] font-bold text-[#26a69a] uppercase tracking-tighter">
-              <BarChartOutlined className="mr-1" /> 数据样本
-            </div>
-          </div>
+          <StatCard 
+            label="累计使用" 
+            value={totalUsage}
+            icon={<BarChartOutlined style={{ color: 'var(--color-profit)' }} />}
+            subLabel="数据样本"
+            color="var(--color-profit)"
+          />
         </Col>
         <Col xs={24} sm={8}>
-          <div className="modern-card p-5 bg-white">
-            <div className="text-[#787b86] text-[10px] font-bold uppercase tracking-widest mb-2">最常用</div>
-            <div className="text-xl font-bold text-[#2962ff] truncate">
-              {mostUsed?.name || '暂无'}
-            </div>
-            <div className="mt-2 flex items-center text-[10px] font-bold text-amber-500 uppercase tracking-tighter">
-              <FireOutlined className="mr-1" /> 使用最高
-            </div>
-          </div>
+          <StatCard 
+            label="最常用" 
+            value={mostUsed?.name || '暂无'}
+            icon={<FireOutlined style={{ color: 'var(--color-brand)' }} />}
+            subLabel="使用最高"
+            color="var(--color-brand)"
+          />
         </Col>
       </Row>
 
       {/* 列表控制栏 */}
-      <div className="flex justify-between items-center px-4 py-2 bg-white rounded-xl border border-[#e0e3eb]">
-        <div className="flex items-center gap-2">
-          <BookOutlined className="text-blue-500" />
-          <span className="font-bold text-sm text-[#131722]">策略库</span>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        padding: '12px 16px',
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-primary)',
+        borderRadius: 6
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ 
+            width: 32, 
+            height: 32, 
+            borderRadius: 4, 
+            background: 'var(--color-brand-bg)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
+          </div>
+          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>策略库</span>
+          <span style={{ 
+            fontSize: 10, 
+            color: 'var(--text-tertiary)', 
+            background: 'var(--bg-tertiary)', 
+            padding: '2px 8px', 
+            borderRadius: 2 
+          }}>
+            {totalStrategies} 个策略
+          </span>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={handleCreate}
-          className="shadow-sm font-bold text-xs"
-          size="middle"
+          style={{ 
+            background: 'var(--color-brand)', 
+            borderColor: 'var(--color-brand)', 
+            color: 'var(--bg-primary)', 
+            fontWeight: 600, 
+            fontSize: 12,
+            borderRadius: 4,
+            height: 32
+          }}
         >
           新建策略
         </Button>
       </div>
 
       {/* 列表主体 */}
-      <div className="modern-card bg-white p-2">
+      <div style={{ 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 6,
+        overflow: 'hidden'
+      }}>
         <Table
           columns={columns}
           dataSource={strategies}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 8, hideOnSinglePage: true }}
-          className="modern-table"
+          className="binance-table"
           locale={{
             emptyText: (
-              <div className="py-20 flex flex-col items-center">
-                <div className="w-16 h-16 bg-[#f0f3fa] rounded-full flex items-center justify-center mb-4">
-                  <BulbOutlined className="text-2xl text-blue-300" />
+              <div style={{ padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ 
+                  width: 64, 
+                  height: 64, 
+                  background: 'var(--bg-tertiary)', 
+                  borderRadius: '50%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  marginBottom: 16
+                }}>
+                  <BulbOutlined style={{ fontSize: 24, color: 'var(--text-tertiary)' }} />
                 </div>
-                <div className="text-[#131722] font-bold">暂无策略</div>
-                <div className="text-[#787b86] text-xs mt-1 mb-4">创建第一个策略模型。</div>
-                <Button type="primary" size="middle" onClick={handleCreate} icon={<PlusOutlined />}>
+                <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 16, marginBottom: 8 }}>暂无策略</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 24 }}>创建第一个策略模型</div>
+                <Button 
+                  type="primary" 
+                  onClick={handleCreate} 
+                  icon={<PlusOutlined />}
+                  style={{ 
+                    background: 'var(--color-brand)', 
+                    borderColor: 'var(--color-brand)', 
+                    color: 'var(--bg-primary)', 
+                    fontWeight: 600,
+                    borderRadius: 4
+                  }}
+                >
                   立即创建
                 </Button>
               </div>
@@ -318,12 +403,23 @@ const TradingStrategies = () => {
         />
       </div>
 
-      {/* 说明区 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      {/* 策略分类展示 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 12 }}>
         {STRATEGY_CATEGORIES.map(cat => (
-          <div key={cat.value} className="modern-card bg-white p-3 text-center hover:bg-[#f8f9fd] transition-colors cursor-default">
-            <div className="text-blue-500 text-lg mb-1">{cat.icon}</div>
-            <div className="text-[10px] font-bold text-[#131722] uppercase tracking-tighter">{cat.label}</div>
+          <div 
+            key={cat.value} 
+            style={{ 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-primary)', 
+              borderRadius: 6, 
+              padding: 12, 
+              textAlign: 'center',
+              transition: 'all 0.2s',
+              cursor: 'default'
+            }}
+          >
+            <div style={{ color: 'var(--color-brand)', fontSize: 18, marginBottom: 4 }}>{cat.icon}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat.label}</div>
           </div>
         ))}
       </div>
@@ -331,11 +427,21 @@ const TradingStrategies = () => {
       {/* 策略表单弹窗 */}
       <Modal
         title={
-          <div className="flex items-center gap-2 py-2">
-            <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center">
-              <EditOutlined className="text-blue-500" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <ThunderboltOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
             </div>
-            <span className="text-lg font-bold">{editingStrategy ? '更新策略' : '新建策略模型'}</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {editingStrategy ? '更新策略' : '新建策略模型'}
+            </span>
           </div>
         }
         open={modalVisible}
@@ -346,23 +452,47 @@ const TradingStrategies = () => {
         destroyOnClose
         okText="保存"
         cancelText="取消"
-        className="trading-view-modal"
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
       >
-        <Form form={form} layout="vertical" className="mt-4 px-2">
+        <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
           <Row gutter={16}>
             <Col span={16}>
               <Form.Item
                 name="name"
-                label={<span className="text-[10px] font-bold uppercase text-[#787b86]">策略名称</span>}
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略名称</span>}
                 rules={[{ required: true, message: '必填' }]}
               >
-                <Input placeholder="例如：趋势跟随" maxLength={20} className="font-bold" />
+                <Input 
+                  placeholder="例如：趋势跟随" 
+                  maxLength={20} 
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)', 
+                    color: 'var(--text-primary)',
+                    borderRadius: 4
+                  }} 
+                />
               </Form.Item>
             </Col>
             <Col span={8}>
               <Form.Item
                 name="category"
-                label={<span className="text-[10px] font-bold uppercase text-[#787b86]">策略类型</span>}
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略类型</span>}
               >
                 <Select>
                   {STRATEGY_CATEGORIES.map(cat => (
@@ -377,36 +507,63 @@ const TradingStrategies = () => {
 
           <Form.Item
             name="color"
-            label={<span className="text-[10px] font-bold uppercase text-[#787b86]">颜色标识</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>颜色标识</span>}
           >
-            <div className="flex items-center gap-4 bg-[#f8f9fd] p-3 rounded-lg">
-              <ColorPicker presets={[{ label: 'TV 调色板', colors: PRESET_COLORS }]} />
-              <div className="text-[10px] font-medium text-[#787b86]">选择独特颜色，以便在交易记录中识别该策略。</div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 16, 
+              background: 'var(--bg-tertiary)', 
+              padding: 12, 
+              borderRadius: 6 
+            }}>
+              <ColorPicker presets={[{ label: '调色板', colors: PRESET_COLORS }]} />
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>选择独特颜色，以便在交易记录中识别该策略。</div>
             </div>
           </Form.Item>
 
           <Form.Item
             name="description"
-            label={<span className="text-[10px] font-bold uppercase text-[#787b86]">执行规则/逻辑</span>}
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>执行规则/逻辑</span>}
           >
             <TextArea 
               rows={4} 
               placeholder="描述入场条件、出场规则与风控..."
               maxLength={500}
               showCount
-              className="text-xs"
+              style={{ 
+                background: 'var(--bg-tertiary)', 
+                borderColor: 'var(--border-primary)', 
+                color: 'var(--text-primary)',
+                borderRadius: 4,
+                fontSize: 13
+              }}
             />
           </Form.Item>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-2">实时预览</div>
+          <div style={{ 
+            marginTop: 24, 
+            padding: 16, 
+            background: 'var(--color-brand-bg)', 
+            borderRadius: 8, 
+            border: '1px solid var(--border-primary)' 
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>实时预览</div>
             <Form.Item noStyle shouldUpdate>
               {() => {
                 const name = form.getFieldValue('name') || '策略名称';
                 const color = form.getFieldValue('color');
-                const colorValue = typeof color === 'string' ? color : color?.toHexString?.() || '#2962ff';
+                const colorValue = typeof color === 'string' ? color : color?.toHexString?.() || '#eab308';
                 return (
-                  <Tag color={colorValue} className="px-4 py-1 font-bold rounded-full border-none">
+                  <Tag style={{ 
+                    backgroundColor: colorValue, 
+                    color: '#fff', 
+                    border: 'none', 
+                    borderRadius: 12, 
+                    padding: '4px 16px',
+                    fontSize: 12,
+                    fontWeight: 600
+                  }}>
                     {name}
                   </Tag>
                 );

@@ -5,7 +5,7 @@ import { login, register, forgotPassword, resetPassword } from '../services/auth
 
 const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState(initialMode || 'login'); // 'login', 'register', 'forgot', 'reset'
+  const [mode, setMode] = useState(initialMode || 'login');
   const [rememberMe, setRememberMe] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [form] = Form.useForm();
@@ -70,7 +70,7 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
       case 'register': return '开始你的专业交易复盘之旅';
       case 'forgot': return '输入你的邮箱，我们将发送重置链接';
       case 'reset': return '设置你的新密码';
-      default: return '输入你的凭据以访问你的账户';
+      default: return '输入你的凭据以访问账户';
     }
   };
 
@@ -84,53 +84,61 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex" style={{ background: '#0a0a0c' }}>
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-black text-white flex-col justify-between p-12 relative overflow-hidden">
+      <div 
+        className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: '#0d0d10', borderRight: '1px solid rgba(255,255,255,0.05)' }}
+      >
         {/* Background decoration */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-72 h-72 border border-white/20 rounded-full"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 border border-white/20 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/3 w-48 h-48 border border-white/10 rounded-full"></div>
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-72 h-72 rounded-full" style={{ border: '1px solid rgba(234,179,8,0.1)' }}></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full" style={{ border: '1px solid rgba(234,179,8,0.05)' }}></div>
+          <div className="absolute top-1/2 left-1/3 w-48 h-48 rounded-full" style={{ border: '1px solid rgba(255,255,255,0.03)' }}></div>
+          {/* 金色光晕 */}
+          <div 
+            className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full blur-3xl"
+            style={{ background: 'rgba(234,179,8,0.08)' }}
+          ></div>
         </div>
         
         {/* Logo */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-black font-bold text-xl">M</div>
-            <span className="text-2xl font-bold tracking-tight">MetworthAI</span>
+            <img src="/logo.png" alt="Logo" className="w-11 h-11 rounded-xl object-cover" />
+            <span className="text-2xl font-bold tracking-tight text-white">MetworthAI</span>
           </div>
         </div>
 
         {/* Main content */}
         <div className="relative z-10 space-y-8">
-          <h1 className="text-5xl font-bold leading-tight">
-            用 AI 驱动<br />
+          <h1 className="text-5xl font-bold leading-tight text-white">
+            用 <span style={{ color: '#eab308' }}>AI</span> 驱动<br />
             你的交易复盘
           </h1>
-          <p className="text-gray-400 text-lg max-w-md leading-relaxed">
+          <p className="text-lg max-w-md leading-relaxed" style={{ color: '#9ca3af' }}>
             自动识别情绪化操作，分析策略漏洞，助你构建稳定盈利的交易系统。
           </p>
           
           {/* Stats */}
           <div className="flex gap-12 pt-8">
             <div>
-              <div className="text-3xl font-bold">10K+</div>
-              <div className="text-gray-500 text-sm mt-1">活跃交易员</div>
+              <div className="text-3xl font-bold font-mono" style={{ color: '#eab308' }}>10K+</div>
+              <div className="text-sm mt-1" style={{ color: '#6b7280' }}>活跃交易员</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">98%</div>
-              <div className="text-gray-500 text-sm mt-1">用户满意度</div>
+              <div className="text-3xl font-bold font-mono" style={{ color: '#10b981' }}>98%</div>
+              <div className="text-sm mt-1" style={{ color: '#6b7280' }}>用户满意度</div>
             </div>
             <div>
-              <div className="text-3xl font-bold">24/7</div>
-              <div className="text-gray-500 text-sm mt-1">技术支持</div>
+              <div className="text-3xl font-bold font-mono text-white">24/7</div>
+              <div className="text-sm mt-1" style={{ color: '#6b7280' }}>技术支持</div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 text-gray-500 text-sm">
+        <div className="relative z-10 text-sm" style={{ color: '#6b7280' }}>
           © 2026 Metworth Inc. All rights reserved.
         </div>
       </div>
@@ -141,7 +149,8 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
         <div className="lg:hidden mb-8">
           <button 
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
+            className="flex items-center gap-2 transition-colors"
+            style={{ color: '#9ca3af' }}
           >
             <ArrowLeftOutlined />
             <span>返回首页</span>
@@ -150,17 +159,17 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
 
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2 mb-12">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold">M</div>
-          <span className="text-xl font-bold tracking-tight text-gray-900">MetworthAI</span>
+          <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
+          <span className="text-xl font-bold tracking-tight text-white">MetworthAI</span>
         </div>
 
         <div className="w-full max-w-md mx-auto">
           {/* Header */}
           <div className="mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            <h2 className="text-3xl font-bold mb-3 text-white">
               {getTitle()}
             </h2>
-            <p className="text-gray-500">
+            <p style={{ color: '#9ca3af' }}>
               {getSubtitle()}
             </p>
           </div>
@@ -168,18 +177,21 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
           {/* Success message for forgot password */}
           {mode === 'forgot' && resetSuccess ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircleOutlined className="text-3xl text-green-500" />
+              <div 
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'rgba(16,185,129,0.1)' }}
+              >
+                <CheckCircleOutlined className="text-3xl" style={{ color: '#10b981' }} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">邮件已发送</h3>
-              <p className="text-gray-500 mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">邮件已发送</h3>
+              <p className="mb-6" style={{ color: '#9ca3af' }}>
                 如果该邮箱已注册，你将收到密码重置链接。<br />
                 请检查你的收件箱和垃圾邮件文件夹。
               </p>
               <Button 
                 type="link" 
                 onClick={() => setMode('login')}
-                className="text-black font-medium"
+                style={{ color: '#eab308', fontWeight: 500 }}
               >
                 返回登录
               </Button>
@@ -187,21 +199,25 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
           ) : (
             <>
               {/* Form */}
-              <Form form={form} layout="vertical" className="space-y-1">
+              <Form form={form} layout="vertical" className="auth-form">
                 {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
                   <Form.Item 
                     name="email" 
-                    label={<span className="text-gray-700 font-medium">邮箱地址</span>}
+                    label={<span className="auth-label">邮箱地址</span>}
                     rules={[
                       { required: true, message: '请输入邮箱' },
                       { type: 'email', message: '请输入有效的邮箱地址' }
                     ]}
                   >
                     <Input 
-                      prefix={<MailOutlined className="text-gray-400" />} 
+                      prefix={
+                        <div className="auth-input-icon">
+                          <MailOutlined />
+                        </div>
+                      } 
                       placeholder="name@example.com" 
                       size="large"
-                      className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                      className="auth-input"
                     />
                   </Form.Item>
                 )}
@@ -209,17 +225,21 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                 {(mode === 'login' || mode === 'register') && (
                   <Form.Item 
                     name="password" 
-                    label={<span className="text-gray-700 font-medium">密码</span>}
+                    label={<span className="auth-label">密码</span>}
                     rules={[
                       { required: true, message: '请输入密码' }, 
                       { min: 6, message: '密码至少 6 位' }
                     ]}
                   >
                     <Input.Password 
-                      prefix={<LockOutlined className="text-gray-400" />} 
+                      prefix={
+                        <div className="auth-input-icon">
+                          <LockOutlined />
+                        </div>
+                      } 
                       placeholder={mode === 'register' ? '至少 6 位字符' : '输入你的密码'}
                       size="large"
-                      className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                      className="auth-input"
                     />
                   </Form.Item>
                 )}
@@ -228,22 +248,26 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                   <>
                     <Form.Item 
                       name="password" 
-                      label={<span className="text-gray-700 font-medium">新密码</span>}
+                      label={<span className="auth-label">新密码</span>}
                       rules={[
                         { required: true, message: '请输入新密码' }, 
                         { min: 6, message: '密码至少 6 位' }
                       ]}
                     >
                       <Input.Password 
-                        prefix={<LockOutlined className="text-gray-400" />} 
+                        prefix={
+                          <div className="auth-input-icon">
+                            <LockOutlined />
+                          </div>
+                        } 
                         placeholder="至少 6 位字符"
                         size="large"
-                        className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                        className="auth-input"
                       />
                     </Form.Item>
                     <Form.Item 
                       name="confirmPassword" 
-                      label={<span className="text-gray-700 font-medium">确认密码</span>}
+                      label={<span className="auth-label">确认密码</span>}
                       dependencies={['password']}
                       rules={[
                         { required: true, message: '请确认密码' },
@@ -258,10 +282,14 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                       ]}
                     >
                       <Input.Password 
-                        prefix={<LockOutlined className="text-gray-400" />} 
+                        prefix={
+                          <div className="auth-input-icon">
+                            <LockOutlined />
+                          </div>
+                        } 
                         placeholder="再次输入密码"
                         size="large"
-                        className="rounded-lg border-gray-200 hover:border-gray-400 focus:border-black"
+                        className="auth-input"
                       />
                     </Form.Item>
                   </>
@@ -272,14 +300,15 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                     <Checkbox 
                       checked={rememberMe} 
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="text-gray-500"
+                      style={{ color: '#9ca3af' }}
                     >
-                      记住登录 30 天
+                      <span style={{ color: '#9ca3af' }}>记住登录 30 天</span>
                     </Checkbox>
                     <button 
                       type="button" 
                       onClick={goToForgot}
-                      className="text-sm text-gray-500 hover:text-black transition-colors"
+                      className="text-sm transition-colors hover:underline"
+                      style={{ color: '#eab308' }}
                     >
                       忘记密码？
                     </button>
@@ -292,7 +321,17 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                   size="large"
                   loading={loading} 
                   onClick={handleSubmit}
-                  className="h-12 bg-black hover:!bg-gray-800 border-none rounded-lg font-medium text-base shadow-lg shadow-gray-200 mt-4"
+                  style={{
+                    height: 48,
+                    background: '#eab308',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: '#0a0a0c',
+                    marginTop: 16,
+                    boxShadow: '0 4px 20px rgba(234,179,8,0.3)',
+                  }}
                 >
                   {getButtonText()}
                   <ArrowRightOutlined className="ml-2" />
@@ -301,9 +340,9 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
 
               {/* Divider */}
               <div className="flex items-center gap-4 my-8">
-                <div className="flex-1 h-px bg-gray-200"></div>
-                <span className="text-gray-400 text-sm">或</span>
-                <div className="flex-1 h-px bg-gray-200"></div>
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
+                <span className="text-sm" style={{ color: '#6b7280' }}>或</span>
+                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }}></div>
               </div>
 
               {/* Toggle mode */}
@@ -311,18 +350,20 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                 {mode === 'forgot' || mode === 'reset' ? (
                   <button 
                     onClick={() => setMode('login')}
-                    className="text-black font-medium hover:underline"
+                    className="font-medium hover:underline"
+                    style={{ color: '#eab308' }}
                   >
                     返回登录
                   </button>
                 ) : (
                   <>
-                    <span className="text-gray-500">
+                    <span style={{ color: '#9ca3af' }}>
                       {mode === 'login' ? '还没有账号？' : '已有账号？'}
                     </span>
                     <button 
                       onClick={toggleMode}
-                      className="ml-2 text-black font-medium hover:underline"
+                      className="ml-2 font-medium hover:underline"
+                      style={{ color: '#eab308' }}
                     >
                       {mode === 'login' ? '免费注册' : '立即登录'}
                     </button>
@@ -332,15 +373,162 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
 
               {/* Terms */}
               {mode === 'register' && (
-                <p className="text-center text-gray-400 text-xs mt-8 leading-relaxed">
+                <p className="text-center text-xs mt-8 leading-relaxed" style={{ color: '#6b7280' }}>
                   点击"创建账号"即表示你同意我们的<br />
-                  <a href="#" className="text-gray-600 hover:text-black">服务条款</a> 和 <a href="#" className="text-gray-600 hover:text-black">隐私政策</a>
+                  <a href="#" style={{ color: '#9ca3af' }} className="hover:underline">服务条款</a> 和 <a href="#" style={{ color: '#9ca3af' }} className="hover:underline">隐私政策</a>
                 </p>
               )}
             </>
           )}
         </div>
       </div>
+
+      {/* Custom styles for dark theme inputs */}
+      <style>{`
+        /* 标签样式 */
+        .auth-label {
+          color: #ffffff;
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        /* 图标容器 */
+        .auth-input-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 8px;
+          color: #6b7280;
+          font-size: 16px;
+          transition: all 0.2s ease;
+        }
+        
+        /* 输入框容器 */
+        .auth-input.ant-input-affix-wrapper,
+        .auth-input.ant-input {
+          background: #0d0d10 !important;
+          border: 2px solid rgba(255,255,255,0.06) !important;
+          border-radius: 12px !important;
+          padding: 8px 12px !important;
+          height: 56px !important;
+          transition: all 0.2s ease !important;
+        }
+        
+        .auth-input.ant-input-affix-wrapper:hover,
+        .auth-input.ant-input:hover {
+          border-color: rgba(234,179,8,0.3) !important;
+          background: #0f0f12 !important;
+        }
+        
+        .auth-input.ant-input-affix-wrapper:hover .auth-input-icon,
+        .auth-input.ant-input:hover .auth-input-icon {
+          color: #9ca3af;
+        }
+        
+        .auth-input.ant-input-affix-wrapper-focused,
+        .auth-input.ant-input:focus {
+          border-color: #eab308 !important;
+          box-shadow: none !important;
+          background: #0f0f12 !important;
+        }
+        
+        .auth-input.ant-input-affix-wrapper-focused .auth-input-icon {
+          color: #eab308;
+        }
+        
+        .auth-input.ant-input-affix-wrapper input,
+        .auth-input.ant-input {
+          background: transparent !important;
+          color: #ffffff !important;
+          font-size: 15px !important;
+          font-weight: 500 !important;
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+        }
+        
+        .auth-input.ant-input-affix-wrapper input::placeholder,
+        .auth-input.ant-input::placeholder {
+          color: #4b5563 !important;
+          font-weight: 400 !important;
+        }
+        
+        /* 密码显示/隐藏图标 */
+        .auth-input .ant-input-password-icon {
+          color: #6b7280 !important;
+          font-size: 16px !important;
+          padding: 8px;
+          border-radius: 6px;
+          transition: all 0.2s ease;
+        }
+        
+        .auth-input .ant-input-password-icon:hover {
+          color: #eab308 !important;
+          background: rgba(234,179,8,0.1);
+        }
+        
+        /* 复选框 */
+        .ant-checkbox-inner {
+          background: #0d0d10 !important;
+          border: 2px solid rgba(255,255,255,0.1) !important;
+          border-radius: 4px !important;
+          width: 18px !important;
+          height: 18px !important;
+        }
+        
+        .ant-checkbox:hover .ant-checkbox-inner {
+          border-color: rgba(234,179,8,0.5) !important;
+        }
+        
+        .ant-checkbox-checked .ant-checkbox-inner {
+          background: #eab308 !important;
+          border-color: #eab308 !important;
+        }
+        
+        .ant-checkbox-checked .ant-checkbox-inner::after {
+          border-color: #0a0a0c !important;
+          border-width: 2px !important;
+        }
+        
+        /* 表单项间距 */
+        .auth-form .ant-form-item {
+          margin-bottom: 20px !important;
+        }
+        
+        .auth-form .ant-form-item-label {
+          padding-bottom: 8px !important;
+        }
+        
+        /* 错误提示 */
+        .ant-form-item-explain-error {
+          color: #f43f5e !important;
+          font-size: 12px !important;
+          margin-top: 6px !important;
+        }
+        
+        /* 主按钮 */
+        .ant-btn-primary:hover {
+          background: #facc15 !important;
+          transform: translateY(-1px);
+          box-shadow: 0 6px 24px rgba(234,179,8,0.4) !important;
+        }
+        
+        .ant-btn-primary:active {
+          transform: translateY(0);
+        }
+        
+        /* 错误状态输入框 */
+        .ant-form-item-has-error .auth-input.ant-input-affix-wrapper,
+        .ant-form-item-has-error .auth-input.ant-input {
+          border-color: #f43f5e !important;
+        }
+        
+        .ant-form-item-has-error .auth-input-icon {
+          color: #f43f5e !important;
+        }
+      `}</style>
     </div>
   );
 };

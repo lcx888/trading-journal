@@ -1,21 +1,22 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ConfigProvider, Layout, Menu, Select, Tag, Spin, Button, Dropdown, Card } from 'antd';
+import { ConfigProvider, Layout, Menu, Select, Spin, Button, Dropdown, Tooltip } from 'antd';
 import {
   DashboardOutlined,
   FileAddOutlined,
   UnorderedListOutlined,
   SettingOutlined,
-  LineChartOutlined,
   RobotOutlined,
-  CalendarOutlined,
   FolderOutlined,
   FolderOpenOutlined,
   AppstoreOutlined,
-  BulbOutlined,
   ClockCircleOutlined,
-  UserOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
+  DatabaseOutlined,
+  ThunderboltOutlined,
+  BellOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
@@ -40,21 +41,77 @@ dayjs.locale('zh-cn');
 
 const { Header, Sider, Content } = Layout;
 
+// 生成用户头像 URL
+const getAvatarUrl = (email) => {
+  const seed = email || 'user';
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundColor=0d0d10`;
+};
+
+// 币安风格菜单
 const buildMenuItems = (user) => {
   const items = [
-    { key: 'dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-    { key: 'records', icon: <FolderOutlined />, label: '交易记录' },
-    { key: 'trades', icon: <UnorderedListOutlined />, label: '交易明细' },
-    { key: 'strategies', icon: <BulbOutlined />, label: '交易策略' },
-    { key: 'ai-analysis', icon: <RobotOutlined />, label: 'AI 复盘' },
-    { key: 'calendar', icon: <CalendarOutlined />, label: '交易日历' },
-    { key: 'import', icon: <FileAddOutlined />, label: '导入数据' },
-    { key: 'settings', icon: <SettingOutlined />, label: '设置' },
+    { 
+      key: 'dashboard', 
+      icon: <DashboardOutlined />, 
+      label: '总览',
+    },
+    { 
+      key: 'trades', 
+      icon: <UnorderedListOutlined />, 
+      label: '交易',
+    },
+    { 
+      key: 'ai-analysis', 
+      icon: <RobotOutlined />, 
+      label: (
+        <span className="flex items-center gap-2">
+          AI 教练
+          <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] rounded">PRO</span>
+        </span>
+      ),
+    },
+    { 
+      key: 'data', 
+      icon: <DatabaseOutlined />, 
+      label: '数据',
+      children: [
+        { key: 'records', icon: <FolderOutlined />, label: '账本管理' },
+        { key: 'import', icon: <FileAddOutlined />, label: '导入数据' },
+        { key: 'strategies', icon: <ThunderboltOutlined />, label: '策略库' },
+        { key: 'calendar', icon: <ClockCircleOutlined />, label: '交易日历' },
+      ]
+    },
+    { 
+      key: 'settings', 
+      icon: <SettingOutlined />, 
+      label: '设置',
+    },
   ];
+  
   if (user?.role === 'admin' || user?.role === 'superadmin') {
-    items.push({ key: 'admin', icon: <SafetyCertificateOutlined />, label: '管理员后台' });
+    items.push({ 
+      key: 'admin', 
+      icon: <SafetyCertificateOutlined />, 
+      label: '管理后台',
+    });
   }
   return items;
+};
+
+// 获取页面标题
+const getPageTitle = (key) => {
+  const titles = {
+    'dashboard': '总览',
+    'trades': '交易明细',
+    'ai-analysis': 'AI 交易教练',
+    'records': '账本管理',
+    'import': '导入数据',
+    'strategies': '策略库',
+    'calendar': '交易日历',
+    'settings': '设置',
+    'admin': '管理后台',
+  };
+  return titles[key] || '总览';
 };
 
 function App() {
@@ -70,14 +127,14 @@ function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [resetToken, setResetToken] = useState(null);
+  const [pageKey, setPageKey] = useState(0);
 
-  // 处理 URL 参数（邮箱验证、密码重置等）
+  // 处理 URL 参数
   useEffect(() => {
     const handleUrlParams = async () => {
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname;
       
-      // 验证邮箱
       if (path === '/verify-email' || params.get('token') && path.includes('verify')) {
         const token = params.get('token');
         if (token) {
@@ -91,7 +148,6 @@ function App() {
         }
       }
       
-      // 确认更改邮箱
       if (path === '/verify-email-change') {
         const token = params.get('token');
         if (token) {
@@ -105,7 +161,6 @@ function App() {
         }
       }
       
-      // 重置密码
       if (path === '/reset-password') {
         const token = params.get('token');
         if (token) {
@@ -157,7 +212,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // 只有在用户已认证时才加载账本列表
     if (authUser) {
       loadRecords();
     } else {
@@ -178,37 +232,69 @@ function App() {
     finally { setLoadingRecords(false); }
   };
 
+  const handleMenuClick = ({ key }) => {
+    setCurrentPage(key);
+    setPageKey(k => k + 1);
+  };
+
   const renderContent = () => {
+    const pageClass = "page-enter";
+    
     switch (currentPage) {
-      case 'dashboard': return <Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
-      case 'records': return <TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} />;
-      case 'trades': return <TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
-      case 'strategies': return <TradingStrategies key={refreshKey} />;
-      case 'ai-analysis': return <AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
-      case 'calendar': return <TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} />;
-      case 'import': return <ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} />;
-      case 'settings': return <Settings onLogout={handleLogout} />;
+      case 'dashboard': 
+        return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} /></div>;
+      case 'records': 
+        return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} /></div>;
+      case 'trades': 
+        return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+      case 'strategies': 
+        return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} /></div>;
+      case 'ai-analysis': 
+        return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+      case 'calendar': 
+        return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+      case 'import': 
+        return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} /></div>;
+      case 'settings': 
+        return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} /></div>;
       case 'admin':
         if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
-          return <Admin />;
+          return <div key={pageKey} className={pageClass}><Admin /></div>;
         }
         return (
-          <Card className="modern-card" bordered={false}>
-            <div className="text-[#131722] font-bold mb-2">无权限访问</div>
-            <div className="text-slate-500 text-sm">仅管理员可访问此页面。</div>
-          </Card>
+          <div key={pageKey} className={`${pageClass} card p-8`}>
+            <div className="text-[var(--text-primary)] font-bold mb-2">无权限访问</div>
+            <div className="text-[var(--text-secondary)] text-sm">仅管理员可访问此页面。</div>
+          </div>
         );
-      default: return <Dashboard />;
+      default: 
+        return <div key={pageKey} className={pageClass}><Dashboard onNavigateToImport={() => setCurrentPage('import')} /></div>;
     }
   };
 
   const menuItems = useMemo(() => buildMenuItems(authUser), [authUser]);
   const showRecordSelector = ['dashboard', 'trades', 'ai-analysis', 'calendar'].includes(currentPage);
 
+  const selectedKeys = useMemo(() => {
+    if (['records', 'import', 'strategies', 'calendar'].includes(currentPage)) {
+      return [currentPage];
+    }
+    return [currentPage];
+  }, [currentPage]);
+
+  const openKeys = useMemo(() => {
+    if (['records', 'import', 'strategies', 'calendar'].includes(currentPage)) {
+      return ['data'];
+    }
+    return [];
+  }, [currentPage]);
+
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f3fa]">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-primary)]">
+        <img src="/logo.png" alt="Logo" className="w-14 h-14 rounded-xl object-cover mb-6" />
         <Spin size="large" />
+        <div className="mt-4 text-[var(--text-secondary)] text-sm">正在加载...</div>
       </div>
     );
   }
@@ -231,82 +317,166 @@ function App() {
     return <Home onStart={() => setShowAuth(true)} />;
   }
 
+  const totalTrades = records.reduce((sum, r) => sum + (r.tradeCount || 0), 0);
+
   return (
     <ConfigProvider
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: '#2962ff',
-          colorSuccess: '#26a69a',
-          colorError: '#ef5350',
-          borderRadius: 8,
-          fontFamily: "'Inter', sans-serif",
-          colorBgLayout: '#f0f3fa',
+          colorPrimary: '#eab308',
+          colorSuccess: '#10b981',
+          colorError: '#f43f5e',
+          colorWarning: '#eab308',
+          colorInfo: '#3b82f6',
+          borderRadius: 4,
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif",
+          colorBgLayout: '#0a0a0c',
+          colorBgContainer: '#0d0d10',
+          colorBgElevated: '#0f0f12',
+          colorBorder: 'rgba(255, 255, 255, 0.05)',
+          colorBorderSecondary: 'rgba(255, 255, 255, 0.08)',
+          colorText: '#ffffff',
+          colorTextSecondary: '#9ca3af',
+          colorTextTertiary: '#6b7280',
+          colorTextQuaternary: '#4b5563',
         },
         components: {
-          Layout: { headerBg: '#ffffff', siderBg: '#ffffff' },
-          Menu: { itemSelectedBg: '#f0f3fa', itemSelectedColor: '#2962ff' },
-          Card: { borderRadiusLG: 12 },
+          Layout: { 
+            headerBg: '#0d0d10', 
+            siderBg: '#0d0d10',
+            bodyBg: '#0a0a0c',
+          },
+          Menu: { 
+            itemSelectedBg: 'rgba(234, 179, 8, 0.1)', 
+            itemSelectedColor: '#eab308',
+            itemHoverBg: '#141418',
+            itemColor: '#9ca3af',
+            subMenuItemBg: '#0d0d10',
+            darkItemBg: '#0d0d10',
+            darkItemSelectedBg: 'rgba(234, 179, 8, 0.1)',
+            darkItemSelectedColor: '#eab308',
+            darkItemHoverBg: '#141418',
+          },
+          Card: { 
+            colorBgContainer: '#0d0d10',
+            borderRadiusLG: 6,
+          },
+          Button: { 
+            borderRadius: 4,
+            primaryColor: '#0a0a0c',
+          },
+          Input: { 
+            borderRadius: 4,
+            colorBgContainer: '#0f0f12',
+          },
+          Select: { 
+            borderRadius: 4,
+            colorBgContainer: '#0f0f12',
+          },
+          Table: {
+            headerBg: '#0f0f12',
+            rowHoverBg: '#141418',
+            colorBgContainer: '#0d0d10',
+          },
         }
       }}
     >
       <Layout style={{ minHeight: '100vh' }}>
+        {/* 侧边栏 */}
         <Sider
           collapsible
           collapsed={collapsed}
           onCollapse={setCollapsed}
           width={240}
-          theme="light"
-          className="border-r border-[#e0e3eb]"
-          style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 100 }}
+          collapsedWidth={64}
+          trigger={null}
+          className="layout-sider"
+          style={{ 
+            position: 'fixed', 
+            left: 0, 
+            top: 0, 
+            bottom: 0, 
+            zIndex: 100,
+            background: '#0d0d10',
+            borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+          }}
         >
-          <div className="flex items-center px-6 h-16 border-b border-[#f0f3fa]">
-            <div className="w-8 h-8 bg-[#2962ff] rounded-lg flex items-center justify-center shadow-lg shadow-blue-200">
-              <LineChartOutlined className="text-white text-lg" />
-            </div>
+          {/* Logo */}
+          <div className="flex items-center px-4 h-16 border-b border-[var(--border-primary)]">
+            <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
             {!collapsed && (
               <div className="ml-3 overflow-hidden">
-                <div className="text-[#131722] font-bold text-sm truncate">Metworth AI</div>
-                <div className="text-[#787b86] text-[10px] font-medium tracking-tighter">TRADING JOURNAL</div>
+                <div className="text-[var(--text-primary)] font-semibold text-sm">Metworth</div>
+                <div className="text-[var(--text-tertiary)] text-[10px] font-medium uppercase tracking-wider">Trading Coach</div>
               </div>
             )}
           </div>
-          <Menu
-            mode="inline"
-            selectedKeys={[currentPage]}
-            items={menuItems}
-            onClick={({ key }) => setCurrentPage(key)}
-            className="border-none px-2 mt-4"
-          />
+          
+          {/* 菜单 */}
+          <div className="py-2">
+            <Menu
+              mode="inline"
+              selectedKeys={selectedKeys}
+              defaultOpenKeys={openKeys}
+              items={menuItems}
+              onClick={handleMenuClick}
+              style={{ 
+                background: 'transparent',
+                border: 'none',
+              }}
+            />
+          </div>
+          
+          {/* 底部折叠按钮 */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[var(--border-primary)]">
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className="w-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            />
+          </div>
         </Sider>
         
-        <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
-          <Header className="flex items-center justify-between sticky top-0 z-50 px-8 h-16 bg-white border-b border-[#e0e3eb]">
-            <div className="flex items-center gap-6">
-              <h1 className="text-lg font-bold text-[#131722] m-0">
-                {menuItems.find(item => item.key === currentPage)?.label}
+        {/* 主内容区 */}
+        <Layout style={{ marginLeft: collapsed ? 64 : 240, transition: 'margin 0.2s' }}>
+          {/* 顶部导航 */}
+          <Header 
+            className="layout-header flex items-center justify-between sticky top-0 z-50 px-6 h-16"
+            style={{
+              background: '#0d0d10',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+            }}
+          >
+            <div className="flex items-center gap-4">
+              {/* 页面标题 */}
+              <h1 className="text-base font-semibold text-[var(--text-primary)] m-0 flex items-center gap-2">
+                {getPageTitle(currentPage)}
+                {currentPage === 'ai-analysis' && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] rounded">
+                    AI
+                  </span>
+                )}
               </h1>
               
+              {/* 账本选择器 */}
               {showRecordSelector && (
-                <div className="flex items-center ml-6 h-9 bg-[#f0f3fa] rounded-lg border border-[#e0e3eb] hover:border-blue-300 transition-all group overflow-hidden">
-                  <div className="px-3 h-full flex items-center bg-[#e0e3eb] border-r border-[#d1d4dc] group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-                    <FolderOutlined className="text-[#787b86] group-hover:text-blue-500 text-xs" />
-                    <span className="ml-2 text-[#787b86] text-[10px] font-bold uppercase tracking-tighter group-hover:text-blue-600">账本</span>
-                  </div>
+                <div className="flex items-center ml-4">
                   <Select
                     value={activeRecordId}
                     onChange={setActiveRecordId}
-                    variant="borderless"
-                    className="min-w-[180px] font-bold text-xs"
-                    dropdownStyle={{ borderRadius: '8px', padding: '4px' }}
-                    suffixIcon={<FolderOpenOutlined className="text-blue-500 opacity-50 group-hover:opacity-100" />}
+                    className="min-w-[180px]"
+                    popupClassName="binance-dropdown"
+                    suffixIcon={<FolderOpenOutlined className="text-[var(--text-tertiary)]" />}
                     options={[
                       { 
                         value: 'all', 
                         label: (
                           <div className="flex items-center gap-2">
-                            <AppstoreOutlined className="text-[10px]" />
+                            <AppstoreOutlined className="text-[var(--color-brand)]" />
                             <span>全部账本</span>
+                            <span className="ml-auto text-[var(--text-tertiary)] text-xs font-mono">{totalTrades}</span>
                           </div>
                         )
                       },
@@ -315,7 +485,7 @@ function App() {
                         label: (
                           <div className="flex items-center justify-between w-full">
                             <span>{r.name}</span>
-                            <span className="text-[9px] px-1.5 rounded-full bg-slate-100 text-slate-400 font-mono italic">#{r.tradeCount || 0}</span>
+                            <span className="text-xs text-[var(--text-tertiary)] font-mono">{r.tradeCount || 0}</span>
                           </div>
                         )
                       }))
@@ -325,37 +495,80 @@ function App() {
               )}
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-[#787b86] text-xs font-bold bg-[#f0f3fa] px-4 py-2 rounded-lg">
-                <ClockCircleOutlined />
-                {dayjs().format('YYYY/MM/DD')}
+            {/* 右侧操作区 */}
+            <div className="flex items-center gap-2">
+              {/* 日期显示 */}
+              <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm px-3 py-1.5 bg-[var(--bg-tertiary)] rounded">
+                <ClockCircleOutlined className="text-xs" />
+                <span className="font-mono text-xs">{dayjs().format('YYYY-MM-DD')}</span>
               </div>
+              
+              {/* 通知 */}
+              <Tooltip title="通知" placement="bottom">
+                <Button 
+                  type="text" 
+                  icon={<BellOutlined />} 
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                />
+              </Tooltip>
+              
+              {/* 用户菜单 */}
               <Dropdown
                 menu={{
                   items: [
-                    { key: 'email', label: authUser.email, icon: <UserOutlined /> },
+                    { 
+                      key: 'email', 
+                      label: (
+                        <div className="py-1">
+                          <div className="font-medium text-[var(--text-primary)]">{authUser.email}</div>
+                          <div className="text-xs text-[var(--text-tertiary)]">
+                            {authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}
+                          </div>
+                        </div>
+                      ), 
+                      icon: <img src={getAvatarUrl(authUser.email)} alt="avatar" className="w-5 h-5 rounded-full" />,
+                      disabled: true,
+                    },
+                    { type: 'divider' },
+                    { 
+                      key: 'settings', 
+                      label: '账户设置', 
+                      icon: <SettingOutlined />,
+                      onClick: () => setCurrentPage('settings'),
+                    },
                     { type: 'divider' },
                     {
                       key: 'logout',
                       label: '退出登录',
                       icon: <LogoutOutlined />,
-                      onClick: () => {
-                        logout();
-                        setAuthUser(null);
-                      },
+                      danger: true,
+                      onClick: handleLogout,
                     },
                   ],
                 }}
+                placement="bottomRight"
               >
-                <Button className="text-xs font-bold" icon={<UserOutlined />}>
-                  {authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}
+                <Button 
+                  type="text"
+                  className="flex items-center gap-2 h-8 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                >
+                  <img 
+                    src={getAvatarUrl(authUser.email)} 
+                    alt="avatar" 
+                    className="w-7 h-7 rounded-full" 
+                  />
+                  <span className="text-sm">{authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}</span>
                 </Button>
               </Dropdown>
             </div>
           </Header>
           
-          <Content className="p-8">
-            <div className="max-w-[1440px] mx-auto animate-in">
+          {/* 内容区 */}
+          <Content 
+            className="layout-content p-6"
+            style={{ background: '#0a0a0c', minHeight: 'calc(100vh - 64px)' }}
+          >
+            <div className="max-w-[1400px] mx-auto">
               {renderContent()}
             </div>
           </Content>
