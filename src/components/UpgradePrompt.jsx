@@ -405,136 +405,139 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
 }
 
 /**
- * 侧边栏订阅卡片（紧凑版）
+ * 侧边栏订阅卡片（符合设计规范版）
  */
 export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) {
   const { plan, usage, status } = subscription || {};
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   
-  const planInfo = {
+  // 计划配置
+  const planConfig = {
     free: { 
       name: '免费版', 
-      fullName: 'Free 免费版',
-      color: 'text-gray-400',
-      gradient: 'from-gray-600 to-gray-700',
-      iconBg: 'bg-gray-600',
+      tag: 'FREE',
+      color: 'var(--text-secondary)',
+      accent: 'var(--border-primary)',
     },
     pro: { 
-      name: 'Pro',
-      fullName: 'Pro 专业版', 
-      color: 'text-amber-400',
-      gradient: 'from-amber-600 to-amber-700',
-      iconBg: 'bg-amber-600',
+      name: '专业版', 
+      tag: 'PRO',
+      color: 'var(--color-brand)',
+      accent: 'var(--color-brand)',
     },
     team: { 
-      name: 'Team',
-      fullName: 'Team 团队版', 
-      color: 'text-purple-400',
-      gradient: 'from-purple-600 to-purple-700',
-      iconBg: 'bg-purple-600',
+      name: '团队版', 
+      tag: 'TEAM',
+      color: '#a855f7',
+      accent: '#a855f7',
     },
   };
   
-  const currentPlan = planInfo[planName] || planInfo.free;
+  const current = planConfig[planName] || planConfig.free;
   
-  // 使用量
+  // 使用量数据
   const tradesUsed = usage?.tradesUsedThisMonth || 0;
   const tradesLimit = plan?.maxTradesPerMonth || 100;
   const aiUsed = usage?.aiAnalysisUsedThisMonth || 0;
   const aiLimit = plan?.maxAiAnalysisPerMonth || 3;
   
-  // 折叠状态：只显示图标
+  // 折叠状态
   if (collapsed) {
     return (
       <div 
-        className="mx-2 mb-2 cursor-pointer"
+        className="flex justify-center py-4 cursor-pointer group"
         onClick={onUpgrade}
       >
-        <div className={`w-10 h-10 rounded-lg ${currentPlan.iconBg} flex items-center justify-center mx-auto`}>
-          <CrownOutlined className="text-white text-lg" />
-        </div>
+        <Tooltip title={isFreePlan ? "升级 Pro" : "订阅详情"} placement="right">
+          <div className={`
+            w-10 h-10 rounded-lg flex items-center justify-center transition-all
+            ${isFreePlan ? 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] group-hover:bg-[var(--bg-hover)]' : 'bg-[var(--color-brand-bg)] text-[var(--color-brand)]'}
+          `}>
+            <CrownOutlined style={{ fontSize: '18px' }} />
+          </div>
+        </Tooltip>
       </div>
     );
   }
   
   return (
-    <div className="mx-3 mb-3 rounded-lg border border-gray-800 bg-gradient-to-br from-[#1a1a1e] to-[#0d0d10] overflow-hidden">
-      {/* Header */}
-      <div className={`px-3 py-2 bg-gradient-to-r ${currentPlan.gradient} flex items-center justify-between`}>
+    <div className="mx-3 mb-4 rounded-md border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden">
+      {/* Header - 更紧凑 */}
+      <div className="px-3 py-2 border-b border-[var(--border-primary)] flex items-center justify-between bg-[rgba(255,255,255,0.02)]">
         <div className="flex items-center gap-2">
-          <CrownOutlined className="text-white text-sm" />
-          <span className="text-white font-medium text-sm">{currentPlan.fullName}</span>
+          <div className={`w-1.5 h-3 rounded-full ${isFreePlan ? 'bg-[var(--text-tertiary)]' : 'bg-[var(--color-brand)]'}`} />
+          <span className="text-[var(--text-primary)] font-bold text-[11px] uppercase tracking-wider">
+            {current.name}
+          </span>
         </div>
-        {!isFreePlan && status === 'active' && (
-          <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">激活</span>
+        {!isFreePlan && (
+          <span className="text-[9px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] px-1 py-0.5 rounded-sm">
+            {current.tag}
+          </span>
         )}
       </div>
       
-      {/* Content */}
-      <div className="p-3 space-y-2">
-        {/* Usage Stats - Compact */}
-        <div className="space-y-2">
-          {/* Trades */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-gray-500 text-xs">本月交易</span>
-              <span className="text-gray-400 text-xs font-mono">
-                {tradesLimit === -1 ? `${tradesUsed}/∞` : `${tradesUsed}/${tradesLimit}`}
-              </span>
-            </div>
-            {tradesLimit !== -1 && (
-              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, (tradesUsed / tradesLimit) * 100)}%`,
-                    background: tradesUsed >= tradesLimit ? '#ef4444' : '#d97706',
-                  }}
-                />
-              </div>
-            )}
+      {/* Usage Content - 极简数据展示 */}
+      <div className="p-3 space-y-3">
+        {/* Trades Usage */}
+        <div className="space-y-1">
+          <div className="flex justify-between items-center text-[10px]">
+            <span className="text-[var(--text-secondary)]">本月交易</span>
+            <span className="text-[var(--text-primary)] font-mono">
+              {tradesLimit === -1 ? tradesUsed : `${tradesUsed}/${tradesLimit}`}
+            </span>
           </div>
-          
-          {/* AI Analysis */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-gray-500 text-xs">AI 分析</span>
-              <span className="text-gray-400 text-xs font-mono">
-                {aiLimit === -1 ? `${aiUsed}/∞` : `${aiUsed}/${aiLimit}`}
-              </span>
-            </div>
-            {aiLimit !== -1 && (
-              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, (aiUsed / aiLimit) * 100)}%`,
-                    background: aiUsed >= aiLimit ? '#ef4444' : '#3b82f6',
-                  }}
-                />
-              </div>
-            )}
+          <div className="h-1 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full transition-all duration-500"
+              style={{ 
+                width: tradesLimit === -1 ? '100%' : `${Math.min(100, (tradesUsed / tradesLimit) * 100)}%`,
+                backgroundColor: tradesLimit !== -1 && (tradesUsed / tradesLimit) > 0.8 ? 'var(--color-loss)' : 'var(--color-brand)'
+              }}
+            />
           </div>
         </div>
         
-        {/* CTA */}
+        {/* AI Usage */}
+        <div className="space-y-1">
+          <div className="flex justify-between items-center text-[10px]">
+            <span className="text-[var(--text-secondary)]">AI 分析</span>
+            <span className="text-[var(--text-primary)] font-mono">
+              {aiLimit === -1 ? aiUsed : `${aiUsed}/${aiLimit}`}
+            </span>
+          </div>
+          <div className="h-1 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full transition-all duration-500"
+              style={{ 
+                width: aiLimit === -1 ? '100%' : `${Math.min(100, (aiUsed / aiLimit) * 100)}%`,
+                backgroundColor: aiLimit !== -1 && (aiUsed / aiLimit) > 0.8 ? 'var(--color-loss)' : 'var(--color-info)'
+              }}
+            />
+          </div>
+        </div>
+        
+        {/* CTA Button - 币安风格主按钮 */}
         {isFreePlan && (
           <Button
             type="primary"
             block
             size="small"
-            icon={<RocketOutlined />}
             onClick={onUpgrade}
+            className="mt-1"
             style={{
-              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              height: '26px',
+              fontSize: '11px',
+              fontWeight: '600',
+              background: 'var(--color-brand)',
+              color: '#181A20',
               border: 'none',
-              fontWeight: 500,
-              fontSize: '12px',
-              height: '28px',
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: 'none',
             }}
           >
-            升级 Pro
+            立即升级
           </Button>
         )}
       </div>
