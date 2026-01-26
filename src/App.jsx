@@ -33,6 +33,7 @@ import TradingStrategies from './pages/TradingStrategies';
 import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
+import Docs from './pages/Docs';
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
@@ -128,6 +129,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login');
   const [resetToken, setResetToken] = useState(null);
   const [pageKey, setPageKey] = useState(0);
+  const [showDocs, setShowDocs] = useState(false);
 
   // 处理 URL 参数
   useEffect(() => {
@@ -306,6 +308,12 @@ function App() {
   };
 
   if (!authUser) {
+    if (showDocs) {
+      return <Docs 
+        onBack={() => setShowDocs(false)} 
+        onStart={() => { setShowDocs(false); setShowAuth(true); }}
+      />;
+    }
     if (showAuth) {
       return <Auth 
         onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
@@ -314,7 +322,7 @@ function App() {
         resetToken={resetToken}
       />;
     }
-    return <Home onStart={() => setShowAuth(true)} />;
+    return <Home onStart={() => setShowAuth(true)} onDocs={() => setShowDocs(true)} />;
   }
 
   const totalTrades = records.reduce((sum, r) => sum + (r.tradeCount || 0), 0);
