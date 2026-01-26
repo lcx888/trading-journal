@@ -355,12 +355,22 @@ const Admin = () => {
       render: (cycle) => <span style={{ color: 'var(--text-secondary)' }}>{cycle === 'yearly' ? '年付' : '月付'}</span>,
     },
     {
+      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>开始时间</span>,
+      dataIndex: 'currentPeriodStart',
+      key: 'currentPeriodStart',
+      render: (date) => (
+        <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+          {date ? dayjs(date).format('YYYY-MM-DD') : '-'}
+        </span>
+      ),
+    },
+    {
       title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>到期时间</span>,
       dataIndex: 'currentPeriodEnd',
       key: 'currentPeriodEnd',
       render: (date) => (
         <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          {dayjs(date).format('YYYY-MM-DD')}
+          {date ? dayjs(date).format('YYYY-MM-DD') : '-'}
         </span>
       ),
     },
