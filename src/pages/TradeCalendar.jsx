@@ -556,32 +556,33 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           style={{
             height: '100%',
             width: '100%',
-            padding: 4,
+            padding: 6,
             cursor: 'pointer',
             transition: 'all 0.2s',
             position: 'relative',
-            background: isProfit ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)',
+            background: isProfit 
+              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%)' 
+              : 'linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(244, 63, 94, 0.08) 100%)',
             borderRadius: 4,
-            border: `1px solid ${isProfit ? 'var(--color-profit)' : 'var(--color-loss)'}`,
-            borderWidth: '0 0 0 3px',
+            borderLeft: `3px solid ${isProfit ? 'var(--color-profit)' : 'var(--color-loss)'}`,
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
         >
+          {/* 连胜/连败标识 */}
           {showStreak && (
             <div style={{
               position: 'absolute',
-              top: 2,
-              right: 2,
-              fontSize: 10,
+              top: 4,
+              right: 4,
               display: 'flex',
               alignItems: 'center',
               gap: 2,
-              padding: '1px 4px',
+              padding: '2px 5px',
               borderRadius: 4,
-              background: streak.type === 'win' ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)',
+              background: streak.type === 'win' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)',
             }}>
               {streak.type === 'win' ? (
-                <FireOutlined style={{ color: 'var(--color-brand)', fontSize: 10 }} />
+                <FireOutlined style={{ color: '#f59e0b', fontSize: 10 }} />
               ) : (
                 <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 10 }} />
               )}
@@ -596,21 +597,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           )}
           
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+            {/* 顶部：交易数 + 复盘状态 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <span style={{ 
-                fontSize: 9, 
+                fontSize: 10, 
                 fontWeight: 600, 
-                padding: '1px 5px', 
-                borderRadius: 3, 
-                background: 'var(--bg-tertiary)', 
+                padding: '2px 6px', 
+                borderRadius: 4, 
+                background: 'rgba(255,255,255,0.08)', 
                 color: 'var(--text-secondary)',
-                border: '1px solid var(--border-primary)'
               }}>
                 {data.trades.length}笔
               </span>
               {savedReviews[key] && (
                 <span style={{ 
-                  fontSize: 9, 
+                  fontSize: 10, 
                   color: savedReviews[key].type === 'ai' ? 'var(--color-brand)' : 'var(--text-tertiary)'
                 }}>
                   {savedReviews[key].type === 'ai' ? <RobotOutlined /> : <CheckCircleOutlined />}
@@ -618,43 +619,47 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               )}
             </div>
             
+            {/* 中部：盈亏金额 - 大字突出 */}
             <div style={{ 
-              fontSize: 13, 
-              fontWeight: 700, 
+              fontSize: 16, 
+              fontWeight: 800, 
               fontFamily: 'var(--font-mono)',
               textAlign: 'center', 
-              color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
-              margin: '4px 0'
+              color: isProfit ? '#34d399' : '#fb7185',
+              textShadow: isProfit ? '0 0 20px rgba(16, 185, 129, 0.4)' : '0 0 20px rgba(244, 63, 94, 0.4)',
+              margin: '6px 0',
+              letterSpacing: '-0.5px'
             }}>
               {isProfit ? '+' : ''}{Math.abs(data.totalPnL) >= 1000 ? `${(data.totalPnL / 1000).toFixed(1)}k` : data.totalPnL.toFixed(0)}
             </div>
             
+            {/* 底部：胜率条 + 胜负比 */}
             <div>
               <div style={{ 
                 width: '100%', 
-                height: 3, 
-                background: 'var(--bg-primary)', 
+                height: 4, 
+                background: 'rgba(255,255,255,0.1)', 
                 borderRadius: 2, 
                 overflow: 'hidden',
-                border: '1px solid var(--border-primary)'
               }}>
                 <div style={{ 
                   height: '100%', 
                   background: 'var(--color-profit)', 
                   width: `${winRate}%`, 
-                  transition: 'width 0.3s' 
+                  transition: 'width 0.3s',
+                  boxShadow: '0 0 6px rgba(16, 185, 129, 0.5)'
                 }} />
               </div>
               <div style={{ 
-                fontSize: 9, 
-                color: 'var(--text-tertiary)', 
+                fontSize: 10, 
                 textAlign: 'center',
-                marginTop: 2,
-                fontFamily: 'var(--font-mono)'
+                marginTop: 3,
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600
               }}>
-                <span style={{ color: 'var(--color-profit)' }}>{data.winCount}</span>
-                <span style={{ color: 'var(--text-tertiary)' }}>:</span>
-                <span style={{ color: 'var(--color-loss)' }}>{data.lossCount}</span>
+                <span style={{ color: '#34d399' }}>{data.winCount}</span>
+                <span style={{ color: 'var(--text-tertiary)', margin: '0 2px' }}>:</span>
+                <span style={{ color: '#fb7185' }}>{data.lossCount}</span>
               </div>
             </div>
           </div>
