@@ -634,57 +634,132 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* Modal */
+/* Modal - 深色主题 */
+.ant-modal-mask {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
 .ant-modal-content {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border-primary) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-modal) !important;
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  padding: 0 !important;
 }
 
 .ant-modal-header {
   background: transparent !important;
-  border-bottom: 1px solid var(--border-primary) !important;
+  border-bottom: 1px solid #262626 !important;
+  padding: 16px 24px !important;
+  margin: 0 !important;
 }
 
 .ant-modal-title {
-  color: var(--text-primary) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
 }
 
 .ant-modal-close {
-  color: var(--text-secondary) !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: #737373 !important;
+  background: transparent !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
 }
 
 .ant-modal-close:hover {
-  color: var(--text-primary) !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .ant-modal-body {
-  color: var(--text-primary) !important;
+  padding: 24px !important;
+  color: #e5e5e5 !important;
 }
 
 .ant-modal-footer {
-  border-top: 1px solid var(--border-primary) !important;
+  background: transparent !important;
+  border-top: 1px solid #262626 !important;
+  padding: 16px 24px !important;
+  margin: 0 !important;
+}
+
+.ant-modal-footer .ant-btn {
+  height: 36px !important;
+  padding: 0 20px !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+.ant-modal-footer .ant-btn-default {
+  background: #1f1f1f !important;
+  border-color: #333 !important;
+  color: #a3a3a3 !important;
+}
+
+.ant-modal-footer .ant-btn-default:hover {
+  background: #292929 !important;
+  border-color: #404040 !important;
+  color: #fff !important;
+}
+
+.ant-modal-footer .ant-btn-primary {
+  background: #d97706 !important;
+  border-color: #d97706 !important;
+  color: #000 !important;
+}
+
+.ant-modal-footer .ant-btn-primary:hover {
+  background: #b45309 !important;
+  border-color: #b45309 !important;
 }
 
 /* Modal.confirm 确认弹窗 */
 .ant-modal-confirm .ant-modal-content {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border-primary) !important;
+  background: #141414 !important;
+  border: 1px solid #262626 !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+}
+
+.ant-modal-confirm .ant-modal-body {
   padding: 24px !important;
 }
 
+.ant-modal-confirm .ant-modal-confirm-body {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ant-modal-confirm .ant-modal-confirm-body > .anticon {
+  color: #d97706 !important;
+  font-size: 22px !important;
+  margin-bottom: 16px !important;
+}
+
 .ant-modal-confirm .ant-modal-confirm-title {
-  color: var(--text-primary) !important;
+  color: #fff !important;
   font-weight: 600 !important;
+  font-size: 16px !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-content {
-  color: var(--text-secondary) !important;
+  color: #a3a3a3 !important;
+  font-size: 14px !important;
+  margin-top: 8px !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns {
   margin-top: 24px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn {
@@ -692,40 +767,41 @@ body {
   padding: 0 20px !important;
   border-radius: 6px !important;
   font-weight: 500 !important;
+  font-size: 14px !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-default {
-  background: var(--bg-tertiary) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-secondary) !important;
+  background: #1f1f1f !important;
+  border-color: #333 !important;
+  color: #a3a3a3 !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-default:hover {
-  background: var(--bg-hover) !important;
-  border-color: var(--border-primary) !important;
-  color: var(--text-primary) !important;
+  background: #292929 !important;
+  border-color: #404040 !important;
+  color: #fff !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-primary {
-  background: var(--color-brand) !important;
-  border-color: var(--color-brand) !important;
-  color: var(--bg-primary) !important;
+  background: #d97706 !important;
+  border-color: #d97706 !important;
+  color: #000 !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-primary:hover {
-  background: var(--color-brand-hover) !important;
-  border-color: var(--color-brand-hover) !important;
+  background: #b45309 !important;
+  border-color: #b45309 !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-dangerous {
-  background: var(--color-loss) !important;
-  border-color: var(--color-loss) !important;
+  background: #f43f5e !important;
+  border-color: #f43f5e !important;
   color: #fff !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-dangerous:hover {
-  background: #FF5A6E !important;
-  border-color: #FF5A6E !important;
+  background: #e11d48 !important;
+  border-color: #e11d48 !important;
 }
 
 /* Dropdown */
