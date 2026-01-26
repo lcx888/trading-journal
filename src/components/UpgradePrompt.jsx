@@ -1,8 +1,8 @@
 /**
  * 升级提示组件 - 用于功能限制时的软墙拦截
  */
-import { Modal, Button, Tag, Progress } from 'antd';
-import { CrownOutlined, CheckCircleOutlined, LockOutlined, ThunderboltOutlined, RocketOutlined } from '@ant-design/icons';
+import { Modal, Button, Tag, Progress, Tooltip } from 'antd';
+import { CrownOutlined, CheckCircleOutlined, LockOutlined, ThunderboltOutlined, RocketOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 
 // 功能描述映射
 const FEATURE_INFO = {
@@ -405,36 +405,12 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
 }
 
 /**
- * 侧边栏订阅卡片（符合设计规范版）
+ * 侧边栏底部区域（订阅状态 + 折叠按钮一体化设计）
  */
-export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) {
-  const { plan, usage, status } = subscription || {};
+export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleCollapse }) {
+  const { plan, usage } = subscription || {};
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
-  
-  // 计划配置
-  const planConfig = {
-    free: { 
-      name: '免费版', 
-      tag: 'FREE',
-      color: 'var(--text-secondary)',
-      accent: 'var(--border-primary)',
-    },
-    pro: { 
-      name: '专业版', 
-      tag: 'PRO',
-      color: 'var(--color-brand)',
-      accent: 'var(--color-brand)',
-    },
-    team: { 
-      name: '团队版', 
-      tag: 'TEAM',
-      color: '#a855f7',
-      accent: '#a855f7',
-    },
-  };
-  
-  const current = planConfig[planName] || planConfig.free;
   
   // 使用量数据
   const tradesUsed = usage?.tradesUsedThisMonth || 0;
@@ -442,19 +418,149 @@ export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) 
   const aiUsed = usage?.aiAnalysisUsedThisMonth || 0;
   const aiLimit = plan?.maxAiAnalysisPerMonth || 3;
   
-  // 折叠状态
+  // 计算使用百分比
+  const tradesPercent = tradesLimit === -1 ? 0 : Math.min(100, (tradesUsed / tradesLimit) * 100);
+  const aiPercent = aiLimit === -1 ? 0 : Math.min(100, (aiUsed / aiLimit) * 100);
+  const isNearLimit = tradesPercent > 80 || aiPercent > 80;
+  
+  // 折叠状态 - 极简设计
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center py-2 gap-2">
+        {/* 订阅状态图标 */}
+        <Tooltip 
+          title={
+            <div className="text-xs">
+              <div className="font-semibold mb-1">{isFreePlan ? '免费版' : '专业版'}</div>
+              <div>交易: {tradesUsed}/{tradesLimit === -1 ? '∞' : tradesLimit}</div>
+              <div>AI: {aiUsed}/{aiLimit === -1 ? '∞' : aiLimit}</div>
+            </div>
+          } 
+          placement="right"
+        >
+          <div 
+            className={`
+              w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer transition-all
+              ${isFreePlan 
+                ? 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]' 
+                : 'bg-[var(--color-brand-bg)] text-[var(--color-brand)]'
+              }
+              ${isNearLimit && !isFreePlan ? 'ring-1 ring-[var(--color-loss)]' : ''}
+            `}
+            onClick={onUpgrade}
+          >
+            <CrownOutlined style={{ fontSize: 16 }} />
+          </div>
+        </Tooltip>
+        
+        {/* 折叠按钮 */}
+        <Tooltip title="展开菜单" placement="right">
+          <div 
+            className="w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-all"
+            onClick={onToggleCollapse}
+          >
+            <MenuUnfoldOutlined style={{ fontSize: 14 }} />
+          </div>
+        </Tooltip>
+      </div>
+    );
+  }
+  
+  // 展开状态
+  return (
+    <div className="px-3 py-3">
+      {/* 订阅状态行 */}
+      <div 
+        className={`
+          flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all mb-2
+          ${isFreePlan 
+            ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)]' 
+            : 'bg-[var(--color-brand-bg)] hover:bg-[rgba(240,185,11,0.15)]'
+          }
+        `}
+        onClick={onUpgrade}
+      >
+        {/* 图标 */}
+        <div className={`
+          w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0
+          ${isFreePlan ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)]' : 'bg-[var(--color-brand)] text-[#181A20]'}
+        `}>
+          <CrownOutlined style={{ fontSize: 14 }} />
+        </div>
+        
+        {/* 信息区 */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : 'text-[var(--color-brand)]'}`}>
+              {isFreePlan ? '免费版' : '专业版'}
+            </span>
+            {!isFreePlan && (
+              <span className="text-[9px] font-bold text-[var(--color-brand)]">PRO</span>
+            )}
+          </div>
+          
+          {/* 使用量指示器 - 简洁版 */}
+          <div className="flex items-center gap-3 mt-1">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-[var(--text-tertiary)]">交易</span>
+              <span className={`text-[10px] font-mono ${tradesPercent > 80 ? 'text-[var(--color-loss)]' : 'text-[var(--text-secondary)]'}`}>
+                {tradesUsed}{tradesLimit !== -1 && `/${tradesLimit}`}
+              </span>
+            </div>
+            <div className="w-px h-2.5 bg-[var(--border-primary)]" />
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-[var(--text-tertiary)]">AI</span>
+              <span className={`text-[10px] font-mono ${aiPercent > 80 ? 'text-[var(--color-loss)]' : 'text-[var(--text-secondary)]'}`}>
+                {aiUsed}{aiLimit !== -1 && `/${aiLimit}`}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        {/* 箭头 */}
+        <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+      
+      {/* 折叠按钮 - 更低调 */}
+      <div 
+        className="flex items-center justify-center py-1.5 cursor-pointer text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+        onClick={onToggleCollapse}
+      >
+        <MenuFoldOutlined style={{ fontSize: 12 }} />
+        <span className="text-[10px] ml-1.5">收起菜单</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 侧边栏订阅卡片（保留原版用于其他地方调用）
+ */
+export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) {
+  // 直接复用 SidebarFooter 的折叠状态显示
+  const { plan, usage } = subscription || {};
+  const planName = plan?.name || 'free';
+  const isFreePlan = planName === 'free';
+  
+  const tradesUsed = usage?.tradesUsedThisMonth || 0;
+  const tradesLimit = plan?.maxTradesPerMonth || 100;
+  const aiUsed = usage?.aiAnalysisUsedThisMonth || 0;
+  const aiLimit = plan?.maxAiAnalysisPerMonth || 3;
+  
   if (collapsed) {
     return (
       <div 
-        className="flex justify-center py-4 cursor-pointer group"
+        className="flex justify-center py-3 cursor-pointer group"
         onClick={onUpgrade}
       >
         <Tooltip title={isFreePlan ? "升级 Pro" : "订阅详情"} placement="right">
           <div className={`
-            w-10 h-10 rounded-lg flex items-center justify-center transition-all
+            w-9 h-9 rounded-lg flex items-center justify-center transition-all
             ${isFreePlan ? 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] group-hover:bg-[var(--bg-hover)]' : 'bg-[var(--color-brand-bg)] text-[var(--color-brand)]'}
           `}>
-            <CrownOutlined style={{ fontSize: '18px' }} />
+            <CrownOutlined style={{ fontSize: 16 }} />
           </div>
         </Tooltip>
       </div>
@@ -462,85 +568,43 @@ export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) 
   }
   
   return (
-    <div className="mx-3 mb-4 rounded-md border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden">
-      {/* Header - 更紧凑 */}
-      <div className="px-3 py-2 border-b border-[var(--border-primary)] flex items-center justify-between bg-[rgba(255,255,255,0.02)]">
-        <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-3 rounded-full ${isFreePlan ? 'bg-[var(--text-tertiary)]' : 'bg-[var(--color-brand)]'}`} />
-          <span className="text-[var(--text-primary)] font-bold text-[11px] uppercase tracking-wider">
-            {current.name}
-          </span>
-        </div>
-        {!isFreePlan && (
-          <span className="text-[9px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] px-1 py-0.5 rounded-sm">
-            {current.tag}
-          </span>
-        )}
+    <div 
+      className={`
+        mx-3 mb-2 flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all
+        ${isFreePlan 
+          ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)]' 
+          : 'bg-[var(--color-brand-bg)] hover:bg-[rgba(240,185,11,0.15)]'
+        }
+      `}
+      onClick={onUpgrade}
+    >
+      <div className={`
+        w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0
+        ${isFreePlan ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)]' : 'bg-[var(--color-brand)] text-[#181A20]'}
+      `}>
+        <CrownOutlined style={{ fontSize: 14 }} />
       </div>
       
-      {/* Usage Content - 极简数据展示 */}
-      <div className="p-3 space-y-3">
-        {/* Trades Usage */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center text-[10px]">
-            <span className="text-[var(--text-secondary)]">本月交易</span>
-            <span className="text-[var(--text-primary)] font-mono">
-              {tradesLimit === -1 ? tradesUsed : `${tradesUsed}/${tradesLimit}`}
-            </span>
-          </div>
-          <div className="h-1 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-            <div 
-              className="h-full rounded-full transition-all duration-500"
-              style={{ 
-                width: tradesLimit === -1 ? '100%' : `${Math.min(100, (tradesUsed / tradesLimit) * 100)}%`,
-                backgroundColor: tradesLimit !== -1 && (tradesUsed / tradesLimit) > 0.8 ? 'var(--color-loss)' : 'var(--color-brand)'
-              }}
-            />
-          </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : 'text-[var(--color-brand)]'}`}>
+            {isFreePlan ? '免费版' : '专业版'}
+          </span>
         </div>
-        
-        {/* AI Usage */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center text-[10px]">
-            <span className="text-[var(--text-secondary)]">AI 分析</span>
-            <span className="text-[var(--text-primary)] font-mono">
-              {aiLimit === -1 ? aiUsed : `${aiUsed}/${aiLimit}`}
-            </span>
-          </div>
-          <div className="h-1 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-            <div 
-              className="h-full rounded-full transition-all duration-500"
-              style={{ 
-                width: aiLimit === -1 ? '100%' : `${Math.min(100, (aiUsed / aiLimit) * 100)}%`,
-                backgroundColor: aiLimit !== -1 && (aiUsed / aiLimit) > 0.8 ? 'var(--color-loss)' : 'var(--color-info)'
-              }}
-            />
-          </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            交易 {tradesUsed}/{tradesLimit === -1 ? '∞' : tradesLimit}
+          </span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">·</span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">
+            AI {aiUsed}/{aiLimit === -1 ? '∞' : aiLimit}
+          </span>
         </div>
-        
-        {/* CTA Button - 币安风格主按钮 */}
-        {isFreePlan && (
-          <Button
-            type="primary"
-            block
-            size="small"
-            onClick={onUpgrade}
-            className="mt-1"
-            style={{
-              height: '26px',
-              fontSize: '11px',
-              fontWeight: '600',
-              background: 'var(--color-brand)',
-              color: '#181A20',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              boxShadow: 'none',
-            }}
-          >
-            立即升级
-          </Button>
-        )}
       </div>
+      
+      <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
     </div>
   );
 }

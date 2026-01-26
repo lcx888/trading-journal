@@ -40,7 +40,7 @@ import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
 import { getSubscriptionStatus, getPlanDisplayInfo, clearSubscriptionCache } from './services/subscription';
-import { UpgradeModal, SidebarSubscriptionCard } from './components/UpgradePrompt';
+import { UpgradeModal, SidebarFooter } from './components/UpgradePrompt';
 
 dayjs.locale('zh-cn');
 
@@ -472,43 +472,14 @@ function App() {
             />
           </div>
           
-          {/* 底部区域：订阅卡片 + 折叠按钮 */}
-          <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--border-primary)]">
-            {/* 订阅卡片 */}
-            {subscription && (
-              <div className="pt-3">
-                <SidebarSubscriptionCard
-                  subscription={subscription}
-                  collapsed={collapsed}
-                  onUpgrade={goToPricing}
-                />
-              </div>
-            )}
-            
-            {/* 无订阅时显示简单升级入口 */}
-            {!subscription && (
-              <div 
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[#141418] ${currentPage === 'pricing' ? 'bg-[rgba(234,179,8,0.1)]' : ''}`}
-                onClick={() => { setCurrentPage('pricing'); setPageKey(k => k + 1); }}
-              >
-                <CrownOutlined className={`text-base ${currentPage === 'pricing' ? 'text-[#eab308]' : 'text-[#9ca3af]'}`} />
-                {!collapsed && (
-                  <span className={`text-sm ${currentPage === 'pricing' ? 'text-[#eab308]' : 'text-[#9ca3af]'}`}>
-                    订阅升级
-                  </span>
-                )}
-              </div>
-            )}
-            
-            {/* 折叠按钮 */}
-            <div className="p-3 border-t border-[var(--border-primary)]">
-              <Button
-                type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setCollapsed(!collapsed)}
-                className="w-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              />
-            </div>
+          {/* 底部区域：订阅状态 + 折叠按钮一体化 */}
+          <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--border-primary)] bg-[var(--bg-primary)]">
+            <SidebarFooter
+              subscription={subscription}
+              collapsed={collapsed}
+              onUpgrade={goToPricing}
+              onToggleCollapse={() => setCollapsed(!collapsed)}
+            />
           </div>
         </Sider>
         
