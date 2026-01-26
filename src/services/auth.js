@@ -9,10 +9,26 @@ export const login = async (email, password, rememberMe = false) => {
   return result.user;
 };
 
-export const register = async (email, password) => {
+// 发送注册验证码
+export const sendVerificationCode = async (email) => {
+  return await apiRequest('/auth/send-code', {
+    method: 'POST',
+    body: { email },
+  });
+};
+
+// 验证验证码
+export const verifyCode = async (email, code) => {
+  return await apiRequest('/auth/verify-code', {
+    method: 'POST',
+    body: { email, code },
+  });
+};
+
+export const register = async (email, password, code) => {
   const result = await apiRequest('/auth/register', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, code },
   });
   setAuthToken(result.token);
   return { ...result.user, message: result.message };

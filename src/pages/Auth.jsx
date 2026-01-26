@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Form, Input, Button, message, Checkbox } from 'antd';
-import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { login, register, forgotPassword, resetPassword } from '../services/auth';
+import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined, CheckCircleOutlined, SafetyOutlined } from '@ant-design/icons';
+import { login, register, forgotPassword, resetPassword, sendVerificationCode, verifyCode } from '../services/auth';
 
 const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   const [loading, setLoading] = useState(false);
@@ -9,6 +9,85 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [form] = Form.useForm();
+  
+  // 注册分步状态
+  const [registerStep, setRegisterStep] = useState(1); // 1: 邮箱, 2: 验证码, 3: 密码
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  // 倒计时
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  // 发送验证码
+  const handleSendCode = async () => {
+    try {
+      const values = await form.validateFields(['email']);
+      setLoading(true);
+      await sendVerificationCode(values.email);
+      setRegisterEmail(values.email);
+      setRegisterStep(2);
+      setCountdown(60);
+      message.success('验证码已发送到您的邮箱');
+    } catch (e) {
+      message.error(e.message || '发送失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 验证验证码
+  const handleVerifyCode = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      message.error('请输入6位验证码');
+      return;
+    }
+    try {
+      setLoading(true);
+      await verifyCode(registerEmail, verificationCode);
+      setRegisterStep(3);
+      message.success('验证成功，请设置密码');
+    } catch (e) {
+      message.error(e.message || '验证失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 完成注册
+  const handleCompleteRegister = async () => {
+    try {
+      const values = await form.validateFields(['password', 'confirmPassword']);
+      setLoading(true);
+      const result = await register(registerEmail, values.password, verificationCode);
+      message.success(result.message || '注册成功');
+      onAuth?.(result);
+    } catch (e) {
+      message.error(e.message || '注册失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 重新发送验证码
+  const handleResendCode = async () => {
+    if (countdown > 0) return;
+    try {
+      setLoading(true);
+      await sendVerificationCode(registerEmail);
+      setCountdown(60);
+      message.success('验证码已重新发送');
+    } catch (e) {
+      message.error(e.message || '发送失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -16,9 +95,17 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
       setLoading(true);
       
       if (mode === 'register') {
-        const result = await register(values.email, values.password);
-        message.success(result.message || '注册成功');
-        onAuth?.(result);
+        // 注册流程根据步骤处理
+        if (registerStep === 1) {
+          await handleSendCode();
+          return;
+        } else if (registerStep === 2) {
+          await handleVerifyCode();
+          return;
+        } else if (registerStep === 3) {
+          await handleCompleteRegister();
+          return;
+        }
       } else if (mode === 'login') {
         const user = await login(values.email, values.password, rememberMe);
         message.success('登录成功');
@@ -47,6 +134,10 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
       setMode(mode === 'login' ? 'register' : 'login');
     }
     setResetSuccess(false);
+    setRegisterStep(1);
+    setRegisterEmail('');
+    setVerificationCode('');
+    setCountdown(0);
     form.resetFields();
   };
 
@@ -57,8 +148,15 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   };
 
   const getTitle = () => {
+    if (mode === 'register') {
+      switch (registerStep) {
+        case 1: return '创建账号';
+        case 2: return '验证邮箱';
+        case 3: return '设置密码';
+        default: return '创建账号';
+      }
+    }
     switch (mode) {
-      case 'register': return '创建账号';
       case 'forgot': return '忘记密码';
       case 'reset': return '重置密码';
       default: return '欢迎回来';
@@ -66,8 +164,15 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   };
 
   const getSubtitle = () => {
+    if (mode === 'register') {
+      switch (registerStep) {
+        case 1: return '输入邮箱获取验证码';
+        case 2: return `验证码已发送至 ${registerEmail}`;
+        case 3: return '设置你的登录密码';
+        default: return '开始你的专业交易复盘之旅';
+      }
+    }
     switch (mode) {
-      case 'register': return '开始你的专业交易复盘之旅';
       case 'forgot': return '输入你的邮箱，我们将发送重置链接';
       case 'reset': return '设置你的新密码';
       default: return '输入你的凭据以访问账户';
@@ -75,8 +180,15 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
   };
 
   const getButtonText = () => {
+    if (mode === 'register') {
+      switch (registerStep) {
+        case 1: return '发送验证码';
+        case 2: return '验证';
+        case 3: return '完成注册';
+        default: return '下一步';
+      }
+    }
     switch (mode) {
-      case 'register': return '创建账号';
       case 'forgot': return '发送重置链接';
       case 'reset': return '重置密码';
       default: return '登录';
@@ -200,7 +312,8 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
             <>
               {/* Form */}
               <Form form={form} layout="vertical" className="auth-form">
-                {(mode === 'login' || mode === 'register' || mode === 'forgot') && (
+                {/* 登录模式：邮箱输入 */}
+                {(mode === 'login' || mode === 'forgot') && (
                   <Form.Item 
                     name="email" 
                     label={<span className="auth-label">邮箱地址</span>}
@@ -221,8 +334,126 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                     />
                   </Form.Item>
                 )}
+
+                {/* 注册步骤1：邮箱输入 */}
+                {mode === 'register' && registerStep === 1 && (
+                  <Form.Item 
+                    name="email" 
+                    label={<span className="auth-label">邮箱地址</span>}
+                    rules={[
+                      { required: true, message: '请输入邮箱' },
+                      { type: 'email', message: '请输入有效的邮箱地址' }
+                    ]}
+                  >
+                    <Input 
+                      prefix={
+                        <div className="auth-input-icon">
+                          <MailOutlined />
+                        </div>
+                      } 
+                      placeholder="name@example.com" 
+                      size="large"
+                      className="auth-input"
+                    />
+                  </Form.Item>
+                )}
+
+                {/* 注册步骤2：验证码输入 */}
+                {mode === 'register' && registerStep === 2 && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-6">
+                      <div 
+                        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                        style={{ background: 'rgba(234,179,8,0.1)' }}
+                      >
+                        <SafetyOutlined className="text-3xl" style={{ color: '#eab308' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="auth-label block mb-2">验证码</label>
+                      <Input 
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="输入6位验证码"
+                        size="large"
+                        maxLength={6}
+                        className="auth-input"
+                        style={{ 
+                          textAlign: 'center', 
+                          letterSpacing: '8px', 
+                          fontSize: '24px',
+                          fontFamily: 'monospace',
+                        }}
+                      />
+                    </div>
+                    <div className="text-center mt-4">
+                      <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={countdown > 0}
+                        className="text-sm transition-colors"
+                        style={{ color: countdown > 0 ? '#6b7280' : '#eab308' }}
+                      >
+                        {countdown > 0 ? `${countdown}秒后可重新发送` : '重新发送验证码'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 注册步骤3：设置密码 */}
+                {mode === 'register' && registerStep === 3 && (
+                  <>
+                    <Form.Item 
+                      name="password" 
+                      label={<span className="auth-label">设置密码</span>}
+                      rules={[
+                        { required: true, message: '请输入密码' }, 
+                        { min: 6, message: '密码至少 6 位' }
+                      ]}
+                    >
+                      <Input.Password 
+                        prefix={
+                          <div className="auth-input-icon">
+                            <LockOutlined />
+                          </div>
+                        } 
+                        placeholder="至少 6 位字符"
+                        size="large"
+                        className="auth-input"
+                      />
+                    </Form.Item>
+                    <Form.Item 
+                      name="confirmPassword" 
+                      label={<span className="auth-label">确认密码</span>}
+                      dependencies={['password']}
+                      rules={[
+                        { required: true, message: '请确认密码' },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value || getFieldValue('password') === value) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error('两次密码不一致'));
+                          },
+                        }),
+                      ]}
+                    >
+                      <Input.Password 
+                        prefix={
+                          <div className="auth-input-icon">
+                            <LockOutlined />
+                          </div>
+                        } 
+                        placeholder="再次输入密码"
+                        size="large"
+                        className="auth-input"
+                      />
+                    </Form.Item>
+                  </>
+                )}
                 
-                {(mode === 'login' || mode === 'register') && (
+                {/* 登录模式：密码输入 */}
+                {mode === 'login' && (
                   <Form.Item 
                     name="password" 
                     label={<span className="auth-label">密码</span>}
@@ -237,7 +468,7 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                           <LockOutlined />
                         </div>
                       } 
-                      placeholder={mode === 'register' ? '至少 6 位字符' : '输入你的密码'}
+                      placeholder="输入你的密码"
                       size="large"
                       className="auth-input"
                     />
@@ -315,12 +546,41 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                   </div>
                 )}
 
+                {/* 注册模式返回按钮 */}
+                {mode === 'register' && registerStep > 1 && (
+                  <Button 
+                    block 
+                    size="large"
+                    onClick={() => {
+                      if (registerStep === 2) {
+                        setRegisterStep(1);
+                        setVerificationCode('');
+                      } else if (registerStep === 3) {
+                        setRegisterStep(2);
+                      }
+                    }}
+                    style={{
+                      height: 48,
+                      background: 'transparent',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: '#9ca3af',
+                      marginTop: 16,
+                    }}
+                  >
+                    <ArrowLeftOutlined className="mr-2" />
+                    返回上一步
+                  </Button>
+                )}
+
                 <Button 
                   type="primary" 
                   block 
                   size="large"
                   loading={loading} 
-                  onClick={handleSubmit}
+                  onClick={mode === 'register' && registerStep === 2 ? handleVerifyCode : handleSubmit}
                   style={{
                     height: 48,
                     background: '#eab308',
@@ -355,6 +615,10 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
                   >
                     返回登录
                   </button>
+                ) : mode === 'register' && registerStep > 1 ? (
+                  <span style={{ color: '#6b7280', fontSize: 14 }}>
+                    步骤 {registerStep}/3
+                  </span>
                 ) : (
                   <>
                     <span style={{ color: '#9ca3af' }}>
@@ -372,9 +636,9 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
               </div>
 
               {/* Terms */}
-              {mode === 'register' && (
+              {mode === 'register' && registerStep === 3 && (
                 <p className="text-center text-xs mt-8 leading-relaxed" style={{ color: '#6b7280' }}>
-                  点击"创建账号"即表示你同意我们的<br />
+                  点击"完成注册"即表示你同意我们的<br />
                   <a href="#" style={{ color: '#9ca3af' }} className="hover:underline">服务条款</a> 和 <a href="#" style={{ color: '#9ca3af' }} className="hover:underline">隐私政策</a>
                 </p>
               )}

@@ -20,7 +20,10 @@ import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
 import { setupInstallRoutes, isInstalled } from './install.js';
-import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken } from './email.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken, generateVerificationCode, sendRegistrationCodeEmail } from './email.js';
+
+// 内存存储注册验证码（生产环境建议使用 Redis）
+const registrationCodes = new Map(); // email -> { code, expiresAt, attempts }
 import { analyzeTradesWithAI, analyzeSingleTrade, chatWithAI, generateDailySummary } from './deepseek.js';
 
 // 在启动时运行数据库迁移（仅生产环境或数据库不存在时）
@@ -129,10 +132,114 @@ const refreshRecordStats = async (userId, recordId) => {
 };
 
 // ========== Auth ==========
+
+// 发送注册验证码
+app.post('/auth/send-code', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: '请输入邮箱' });
+    }
+    
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ message: '邮箱格式不正确' });
+    }
+
+    // 检查邮箱是否已注册
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      return res.status(409).json({ message: '该邮箱已注册，请直接登录' });
+    }
+
+    // 检查是否频繁发送（60秒内只能发送一次）
+    const existingCode = registrationCodes.get(normalizedEmail);
+    if (existingCode && existingCode.sentAt && Date.now() - existingCode.sentAt < 60000) {
+      const remainingSeconds = Math.ceil((60000 - (Date.now() - existingCode.sentAt)) / 1000);
+      return res.status(429).json({ message: `请 ${remainingSeconds} 秒后再试` });
+    }
+
+    // 生成验证码
+    const code = generateVerificationCode();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10分钟有效
+    
+    // 存储验证码
+    registrationCodes.set(normalizedEmail, {
+      code,
+      expiresAt,
+      sentAt: Date.now(),
+      attempts: 0,
+    });
+
+    // 发送邮件
+    const result = await sendRegistrationCodeEmail(normalizedEmail, code);
+    
+    if (result.testMode) {
+      // 测试模式下返回验证码（仅开发环境）
+      console.log(`[测试模式] 验证码: ${code}`);
+    }
+
+    return res.json({ 
+      message: '验证码已发送，请查收邮件',
+      testMode: result.testMode || false,
+    });
+  } catch (error) {
+    console.error('发送验证码失败:', error);
+    return res.status(500).json({ message: '发送验证码失败，请稍后重试' });
+  }
+});
+
+// 验证验证码
+app.post('/auth/verify-code', async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res.status(400).json({ message: '邮箱和验证码必填' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const storedData = registrationCodes.get(normalizedEmail);
+
+    if (!storedData) {
+      return res.status(400).json({ message: '请先获取验证码' });
+    }
+
+    // 检查尝试次数（最多5次）
+    if (storedData.attempts >= 5) {
+      registrationCodes.delete(normalizedEmail);
+      return res.status(400).json({ message: '验证码错误次数过多，请重新获取' });
+    }
+
+    // 检查是否过期
+    if (Date.now() > storedData.expiresAt) {
+      registrationCodes.delete(normalizedEmail);
+      return res.status(400).json({ message: '验证码已过期，请重新获取' });
+    }
+
+    // 验证码校验
+    if (storedData.code !== code) {
+      storedData.attempts++;
+      return res.status(400).json({ message: '验证码错误' });
+    }
+
+    // 验证成功，标记为已验证
+    storedData.verified = true;
+    
+    return res.json({ message: '验证成功', verified: true });
+  } catch (error) {
+    console.error('验证失败:', error);
+    return res.status(500).json({ message: '验证失败' });
+  }
+});
+
+// 注册（需要先验证邮箱）
 app.post('/auth/register', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, code } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ message: '邮箱和密码必填' });
+  }
+  if (!code) {
+    return res.status(400).json({ message: '请输入验证码' });
   }
   if (typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ message: '密码至少 6 位' });
@@ -140,6 +247,24 @@ app.post('/auth/register', async (req, res) => {
   const normalizedEmail = String(email).trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ message: '邮箱格式不正确' });
+  }
+
+  // 验证验证码
+  const storedData = registrationCodes.get(normalizedEmail);
+  if (!storedData) {
+    return res.status(400).json({ message: '请先获取验证码' });
+  }
+  if (Date.now() > storedData.expiresAt) {
+    registrationCodes.delete(normalizedEmail);
+    return res.status(400).json({ message: '验证码已过期，请重新获取' });
+  }
+  if (storedData.code !== code) {
+    storedData.attempts = (storedData.attempts || 0) + 1;
+    if (storedData.attempts >= 5) {
+      registrationCodes.delete(normalizedEmail);
+      return res.status(400).json({ message: '验证码错误次数过多，请重新获取' });
+    }
+    return res.status(400).json({ message: '验证码错误' });
   }
 
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -151,35 +276,28 @@ app.post('/auth/register', async (req, res) => {
   const role = totalUsers === 0 ? 'admin' : 'user';
   const passwordHash = await bcrypt.hash(password, 10);
   
-  // 生成验证令牌
-  const verifyToken = generateToken();
-  const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时
-  
   const user = await prisma.user.create({
     data: { 
       email: normalizedEmail, 
       passwordHash, 
       role, 
       status: 'active',
-      emailVerified: false,
-      verifyToken,
-      verifyExpires,
+      emailVerified: true, // 邮箱已通过验证码验证
     },
   });
+
+  // 清除验证码
+  registrationCodes.delete(normalizedEmail);
 
   await prisma.instrument.createMany({
     data: DEFAULT_INSTRUMENTS.map(inst => ({ ...inst, userId: user.id })),
   });
 
-  // 发送验证邮件
-  const baseUrl = getBaseUrl(req);
-  await sendVerificationEmail(normalizedEmail, verifyToken, baseUrl);
-
   const token = signToken(user);
   return res.json({ 
     token, 
     user: { id: user.id, email: user.email, role: user.role, status: user.status, emailVerified: user.emailVerified },
-    message: '注册成功！验证邮件已发送，请查收。'
+    message: '注册成功！'
   });
 });
 
