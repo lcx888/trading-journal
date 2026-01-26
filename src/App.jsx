@@ -434,7 +434,7 @@ function App() {
           width={240}
           collapsedWidth={64}
           trigger={null}
-          className="layout-sider flex flex-col"
+          className="layout-sider"
           style={{ 
             position: 'fixed', 
             left: 0, 
@@ -443,8 +443,6 @@ function App() {
             zIndex: 100,
             background: '#0d0d10',
             borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-            display: 'flex',
-            flexDirection: 'column'
           }}
         >
           {/* Logo */}
@@ -459,7 +457,7 @@ function App() {
           </div>
           
           {/* 菜单 */}
-          <div className="flex-1 overflow-y-auto py-2">
+          <div className="py-2">
             <Menu
               mode="inline"
               selectedKeys={selectedKeys}
@@ -473,30 +471,30 @@ function App() {
             />
           </div>
           
-          {/* 订阅升级按钮 - 放置在菜单下方 */}
-          <div className="px-3 mb-2">
-            <Button
-              type="text"
-              icon={<CrownOutlined style={{ color: '#eab308' }} />}
-              onClick={() => setCurrentPage('pricing')}
-              className={`w-full flex items-center justify-start h-10 px-4 rounded-md transition-colors ${
-                currentPage === 'pricing' 
-                  ? 'bg-[rgba(234,179,8,0.1)] text-[#eab308]' 
-                  : 'text-[var(--text-secondary)] hover:bg-[#141418] hover:text-[var(--text-primary)]'
-              }`}
+          {/* 底部区域：订阅升级 + 折叠按钮 */}
+          <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--border-primary)]">
+            {/* 订阅升级按钮 */}
+            <div 
+              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[#141418] ${currentPage === 'pricing' ? 'bg-[rgba(234,179,8,0.1)]' : ''}`}
+              onClick={() => { setCurrentPage('pricing'); setPageKey(k => k + 1); }}
             >
-              {!collapsed && <span className="ml-2 font-medium">订阅升级</span>}
-            </Button>
-          </div>
-          
-          {/* 底部折叠按钮 */}
-          <div className="p-4 border-t border-[var(--border-primary)]">
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              className="w-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            />
+              <CrownOutlined className={`text-base ${currentPage === 'pricing' ? 'text-[#eab308]' : 'text-[#9ca3af]'}`} />
+              {!collapsed && (
+                <span className={`text-sm ${currentPage === 'pricing' ? 'text-[#eab308]' : 'text-[#9ca3af]'}`}>
+                  订阅升级
+                </span>
+              )}
+            </div>
+            
+            {/* 折叠按钮 */}
+            <div className="p-3 border-t border-[var(--border-primary)]">
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                className="w-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              />
+            </div>
           </div>
         </Sider>
         

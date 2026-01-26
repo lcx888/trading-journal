@@ -1144,73 +1144,73 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         <div 
           className="grid gap-4"
           style={{ gridTemplateColumns: hasJigsawData ? 'repeat(7, 1fr)' : 'repeat(4, 1fr)' }}
-        >
-          {/* 交易笔数 */}
-          <div className="text-center">
-            <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交易笔数</div>
-            <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
-              {stats.total}
-            </div>
+      >
+        {/* 交易笔数 */}
+        <div className="text-center">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交易笔数</div>
+          <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+            {stats.total}
           </div>
+        </div>
 
-          {/* 净盈亏 */}
-          <div className="text-center">
-            <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>净盈亏</div>
-            <div 
-              className="text-2xl font-mono font-bold"
-              style={{ color: stats.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
-            >
-              {stats.pnl >= 0 ? '+' : ''}{stats.pnl.toFixed(2)}
-            </div>
+        {/* 净盈亏 */}
+        <div className="text-center">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>净盈亏</div>
+          <div 
+            className="text-2xl font-mono font-bold"
+            style={{ color: stats.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+          >
+            {stats.pnl >= 0 ? '+' : ''}{stats.pnl.toFixed(2)}
           </div>
+        </div>
 
-          {/* 胜率 */}
-          <div className="text-center">
-            <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
-            <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
-              {stats.total > 0 ? (stats.wins / stats.total * 100).toFixed(1) : 0}%
-            </div>
+        {/* 胜率 */}
+        <div className="text-center">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
+          <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+            {stats.total > 0 ? (stats.wins / stats.total * 100).toFixed(1) : 0}%
           </div>
+        </div>
 
-          {/* 盈亏比 */}
-          <div className="text-center">
-            <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>盈/亏</div>
-            <div className="text-xl font-mono font-bold">
-              <span style={{ color: 'var(--color-profit)' }}>{stats.wins}</span>
-              <span style={{ color: 'var(--text-tertiary)' }}> / </span>
-              <span style={{ color: 'var(--color-loss)' }}>{stats.losses}</span>
-            </div>
+        {/* 盈亏比 */}
+        <div className="text-center">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>盈/亏</div>
+          <div className="text-xl font-mono font-bold">
+            <span style={{ color: 'var(--color-profit)' }}>{stats.wins}</span>
+            <span style={{ color: 'var(--text-tertiary)' }}> / </span>
+            <span style={{ color: 'var(--color-loss)' }}>{stats.losses}</span>
           </div>
+        </div>
 
-          {/* Jigsaw 专属统计 */}
-          {hasJigsawData && jigsawStats && (
-            <>
-              <div className="text-center">
-                <Tooltip title="Maximum Adverse Excursion - 平均最大不利偏移">
-                  <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    平均 MAE <InfoCircleOutlined className="ml-1" />
-                  </div>
-                </Tooltip>
-                <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-loss)' }}>
-                  -${jigsawStats.avgMAE.toFixed(0)}
+        {/* Jigsaw 专属统计 */}
+        {hasJigsawData && jigsawStats && (
+          <>
+            <div className="text-center">
+              <Tooltip title="Maximum Adverse Excursion - 平均最大不利偏移">
+                <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                  平均 MAE <InfoCircleOutlined className="ml-1" />
                 </div>
+              </Tooltip>
+              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-loss)' }}>
+                -${jigsawStats.avgMAE.toFixed(0)}
               </div>
+            </div>
 
-              <div className="text-center">
-                <Tooltip title="Maximum Favorable Excursion - 平均最大有利偏移">
-                  <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    平均 MFE <InfoCircleOutlined className="ml-1" />
-                  </div>
-                </Tooltip>
-                <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-profit)' }}>
-                  +${jigsawStats.avgMFE.toFixed(0)}
+            <div className="text-center">
+              <Tooltip title="Maximum Favorable Excursion - 平均最大有利偏移">
+                <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                  平均 MFE <InfoCircleOutlined className="ml-1" />
                 </div>
+              </Tooltip>
+              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-profit)' }}>
+                +${jigsawStats.avgMFE.toFixed(0)}
               </div>
+            </div>
 
-              <div className="text-center">
-                <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>总成交次数</div>
-                <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-brand)' }}>
-                  {jigsawStats.totalFills}
+            <div className="text-center">
+              <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>总成交次数</div>
+              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-brand)' }}>
+                {jigsawStats.totalFills}
                 </div>
               </div>
             </>
@@ -1405,30 +1405,30 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           return (
             <>
               {/* 交易基础信息 */}
-              <div 
-                className="mb-4 p-3 rounded-lg flex items-center justify-between"
-                style={{ background: 'var(--bg-tertiary)' }}
+          <div 
+            className="mb-4 p-3 rounded-lg flex items-center justify-between"
+            style={{ background: 'var(--bg-tertiary)' }}
+          >
+            <div className="flex items-center gap-3">
+              <span 
+                className="font-mono font-bold px-2 py-1 rounded"
+                style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
               >
-                <div className="flex items-center gap-3">
-                  <span 
-                    className="font-mono font-bold px-2 py-1 rounded"
-                    style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-                  >
-                    {editingTrade.instrumentCode}
-                  </span>
-                  <span style={{ color: editingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                    {editingTrade.direction === 'LONG' ? '多' : '空'}
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {dayjs(editingTrade.openTime).format('YYYY-MM-DD HH:mm')}
-                  </span>
-                </div>
-                <div 
-                  className="font-mono font-bold text-lg"
-                  style={{ color: editingTrade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
-                >
-                  {editingTrade.pnl >= 0 ? '+' : ''}{editingTrade.pnl?.toFixed(2)}
-                </div>
+                {editingTrade.instrumentCode}
+              </span>
+              <span style={{ color: editingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                {editingTrade.direction === 'LONG' ? '多' : '空'}
+              </span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {dayjs(editingTrade.openTime).format('YYYY-MM-DD HH:mm')}
+              </span>
+            </div>
+            <div 
+              className="font-mono font-bold text-lg"
+              style={{ color: editingTrade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+            >
+              {editingTrade.pnl >= 0 ? '+' : ''}{editingTrade.pnl?.toFixed(2)}
+            </div>
               </div>
 
               {/* 波动区间可视化 */}
@@ -1442,8 +1442,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                     <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>交易波动区间</span>
                   </div>
                   <TradeRangeBar mae={mae} mfe={mfe} pnl={editingTrade.pnl} maeUSD={maeUSD} mfeUSD={mfeUSD} />
-                </div>
-              )}
+          </div>
+        )}
 
               {/* 高级分析指标网格 */}
               {(maeUSD || mfeUSD) && (
