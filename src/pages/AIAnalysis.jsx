@@ -115,6 +115,25 @@ const REPORT_SECTION_ICONS = {
   '总结': FileText
 };
 
+// 清理 Markdown 格式符号（用于预览文本）
+const stripMarkdown = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')  // 移除粗体 **text**
+    .replace(/\*([^*]+)\*/g, '$1')       // 移除斜体 *text*
+    .replace(/__([^_]+)__/g, '$1')       // 移除粗体 __text__
+    .replace(/_([^_]+)_/g, '$1')         // 移除斜体 _text_
+    .replace(/~~([^~]+)~~/g, '$1')       // 移除删除线
+    .replace(/`([^`]+)`/g, '$1')         // 移除行内代码
+    .replace(/^#+\s*/gm, '')             // 移除标题符号
+    .replace(/^[-*+]\s*/gm, '')          // 移除列表符号
+    .replace(/^\d+\.\s*/gm, '')          // 移除有序列表
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 移除链接，保留文字
+    .replace(/\n+/g, ' ')                // 换行转空格
+    .replace(/\s+/g, ' ')                // 多空格合并
+    .trim();
+};
+
 // 解析 AI 报告内容为结构化数据
 const parseAIReport = (markdown) => {
   if (!markdown) return { sections: [], summary: null, insights: [] };
@@ -227,7 +246,7 @@ const ReportSection = ({ section, defaultExpanded = false }) => {
           <div>
             <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{section.title}</div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              {section.content?.substring(0, 40)}...
+              {stripMarkdown(section.content)?.substring(0, 50)}...
             </div>
           </div>
         </div>
