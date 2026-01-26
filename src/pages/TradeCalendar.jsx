@@ -555,7 +555,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         <div 
           style={{
             position: 'absolute',
-            inset: '2px', // 留出一点边距，增加呼吸感
+            top: '22px', // 为顶部的日期留出空间
+            bottom: '2px',
+            left: '2px',
+            right: '2px',
             cursor: 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             background: isProfit 
@@ -1172,10 +1175,15 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           border-color: var(--color-brand) !important;
         }
         .binance-calendar .ant-picker-calendar-date-value {
-          padding: 4px 8px;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text-secondary);
+          position: absolute !important;
+          top: 4px !important;
+          left: 6px !important;
+          font-size: 11px !important;
+          font-weight: 700 !important;
+          color: var(--text-secondary) !important;
+          z-index: 2 !important; /* 确保在毛玻璃格子之上 */
+          pointer-events: none !important;
+          font-family: var(--font-mono) !important;
         }
         .binance-calendar .ant-picker-cell-today .ant-picker-calendar-date-value {
           color: var(--color-brand) !important;
