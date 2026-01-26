@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Modal, Table, Tag, Row, Col,
-  Button, Spin, Input, Popover, Empty
+  Button, Spin, Input, Popover, Empty, Drawer, Rate, Select
 } from 'antd';
 import {
   CalendarOutlined,
@@ -23,6 +23,13 @@ import {
   RiseOutlined,
   FallOutlined,
   EditOutlined,
+  SaveOutlined,
+  BulbOutlined,
+  HeartOutlined,
+  ThunderboltOutlined,
+  TrophyOutlined,
+  WarningOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -215,12 +222,27 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [aiReviewVisible, setAiReviewVisible] = useState(false);
+  const [reviewDrawerVisible, setReviewDrawerVisible] = useState(false);
   const [reviewStats, setReviewStats] = useState(null);
   const [reviewQuestions, setReviewQuestions] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [userInput, setUserInput] = useState('');
   const [savedReviews, setSavedReviews] = useState({});
+  
+  // 结构化复盘表单状态
+  const [reviewForm, setReviewForm] = useState({
+    marketCondition: '',      // 市场环境
+    emotionBefore: 3,         // 开盘前情绪 1-5
+    emotionDuring: 3,         // 交易中情绪 1-5
+    emotionAfter: 3,          // 收盘后情绪 1-5
+    followedPlan: null,       // 是否按计划执行
+    bestDecision: '',         // 最佳决策
+    worstDecision: '',        // 最差决策
+    lessonsLearned: '',       // 经验教训
+    improvementPlan: '',      // 改进计划
+    tags: [],                 // 标签
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadTrades();
@@ -342,21 +364,75 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     return weeks;
   }, [trades, currentMonth]);
 
-  const startAiReview = (date) => {
-    const dayTrades = tradesByDate[date].trades;
+  const startReview = (date) => {
+    const dayTrades = tradesByDate[date]?.trades || [];
     const stats = analyzeTradeData(dayTrades);
     setReviewStats(stats);
-    const qs = generateReviewQuestions(stats);
-    setReviewQuestions(qs);
-    setChatHistory([{
-      role: 'ai', type: 'welcome',
-      content: `👋 开始复盘 ${dayjs(date).format('M月D日')} 的交易记录。`
-    }, {
-      role: 'ai', type: 'question', content: qs[0].question, placeholder: qs[0].placeholder
-    }]);
     setSelectedDate(date);
-    setAiReviewVisible(true);
+    
+    // 加载已保存的复盘数据（如果有）
+    const existingReview = savedReviews[date];
+    if (existingReview) {
+      setReviewForm(existingReview);
+    } else {
+      // 重置表单
+      setReviewForm({
+        marketCondition: '',
+        emotionBefore: 3,
+        emotionDuring: 3,
+        emotionAfter: 3,
+        followedPlan: null,
+        bestDecision: '',
+        worstDecision: '',
+        lessonsLearned: '',
+        improvementPlan: '',
+        tags: [],
+      });
+    }
+    
+    setReviewDrawerVisible(true);
   };
+  
+  // 保存复盘
+  const saveReview = async () => {
+    setIsSaving(true);
+    try {
+      // 保存到本地状态
+      const newSavedReviews = {
+        ...savedReviews,
+        [selectedDate]: { ...reviewForm, savedAt: new Date().toISOString() }
+      };
+      setSavedReviews(newSavedReviews);
+      
+      // 保存到本地存储
+      StorageService.saveReviews(newSavedReviews);
+      
+      // 显示成功提示
+      setTimeout(() => {
+        setIsSaving(false);
+        setReviewDrawerVisible(false);
+      }, 500);
+    } catch (error) {
+      console.error('保存复盘失败:', error);
+      setIsSaving(false);
+    }
+  };
+  
+  // 复盘标签选项
+  const REVIEW_TAGS = [
+    { value: 'trend_follow', label: '顺势交易', color: '#10B981' },
+    { value: 'counter_trend', label: '逆势交易', color: '#F43F5E' },
+    { value: 'breakout', label: '突破交易', color: '#3B82F6' },
+    { value: 'scalping', label: '短线剥头皮', color: '#8B5CF6' },
+    { value: 'overtrading', label: '过度交易', color: '#EF4444' },
+    { value: 'revenge_trade', label: '报复交易', color: '#DC2626' },
+    { value: 'fomo', label: 'FOMO追涨', color: '#F97316' },
+    { value: 'patient', label: '耐心等待', color: '#22C55E' },
+    { value: 'discipline', label: '纪律执行', color: '#14B8A6' },
+    { value: 'early_exit', label: '过早离场', color: '#FBBF24' },
+    { value: 'late_exit', label: '过晚离场', color: '#F59E0B' },
+    { value: 'perfect_entry', label: '完美入场', color: '#10B981' },
+  ];
 
   const dateCellRender = (date) => {
     const key = date.format('YYYY-MM-DD');
@@ -383,7 +459,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               date={key}
               savedReview={savedReviews[key]}
               onViewDetail={() => { setSelectedDate(key); setModalVisible(true); }}
-              onQuickReview={() => startAiReview(key)}
+              onQuickReview={() => startReview(key)}
             />
           )
         }
@@ -1102,7 +1178,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   <Button 
                     type="primary" 
                     icon={<EditOutlined />} 
-                    onClick={() => { setModalVisible(false); startAiReview(selectedDate); }}
+                    onClick={() => { setModalVisible(false); startReview(selectedDate); }}
                     style={{ 
                       background: 'var(--color-brand)', 
                       border: 'none', 
@@ -1120,73 +1196,402 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         })()}
       </Modal>
 
-      {/* 手动复盘对话弹窗 */}
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <EditOutlined style={{ color: 'var(--color-brand)' }} />
-            <span>手动复盘</span>
-          </div>
-        }
-        open={aiReviewVisible}
-        onCancel={() => setAiReviewVisible(false)}
-        footer={null}
-        width={500}
+      {/* 复盘抽屉面板 - 专业版 */}
+      <Drawer
+        title={null}
+        placement="right"
+        width={520}
+        open={reviewDrawerVisible}
+        onClose={() => setReviewDrawerVisible(false)}
+        closable={false}
+        styles={{
+          header: { display: 'none' },
+          body: { padding: 0, background: 'var(--bg-primary)' },
+          wrapper: { background: 'transparent' }
+        }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', height: 400 }}>
+        {selectedDate && reviewStats && (
           <div style={{ 
-            flex: 1, 
-            overflowY: 'auto', 
             display: 'flex', 
             flexDirection: 'column', 
-            gap: 12, 
-            padding: 12, 
-            background: 'var(--bg-tertiary)', 
-            borderRadius: 6,
-            border: '1px solid var(--border-primary)'
+            height: '100vh',
+            background: 'var(--bg-primary)'
           }}>
-            {chatHistory.map((m, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: m.role === 'ai' ? 'flex-start' : 'flex-end' }}>
-                <div style={{ 
-                  padding: 10, 
-                  borderRadius: 8, 
-                  maxWidth: '85%', 
-                  fontSize: 13,
-                  whiteSpace: 'pre-wrap',
-                  background: m.role === 'ai' ? 'var(--bg-secondary)' : 'var(--color-brand)', 
-                  color: m.role === 'ai' ? 'var(--text-primary)' : '#fff',
-                  border: m.role === 'ai' ? '1px solid var(--border-primary)' : 'none'
-                }}>
-                  {m.content}
+            {/* 头部 */}
+            <div style={{ 
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--border-primary)',
+              background: reviewStats.totalPnL >= 0 
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%)'
+                : 'linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, transparent 100%)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 4 }}>交易复盘</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {dayjs(selectedDate).format('M月D日')} {dayjs(selectedDate).format('dddd')}
+                  </div>
+                </div>
+                <Button 
+                  type="text" 
+                  icon={<CloseOutlined />} 
+                  onClick={() => setReviewDrawerVisible(false)}
+                  style={{ color: 'var(--text-tertiary)' }}
+                />
+              </div>
+              
+              {/* 当日摘要 */}
+              <div style={{ 
+                display: 'flex', 
+                gap: 20, 
+                marginTop: 16,
+                padding: '12px 16px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: 8,
+                border: '1px solid var(--border-primary)'
+              }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>盈亏</div>
+                  <div style={{ 
+                    fontSize: 18, 
+                    fontWeight: 700, 
+                    fontFamily: 'var(--font-mono)',
+                    color: reviewStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                  }}>
+                    {reviewStats.totalPnL >= 0 ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>交易</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {reviewStats.totalTrades}笔
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜率</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {reviewStats.winRate.toFixed(0)}%
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜/负</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>
+                    <span style={{ color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+                    <span style={{ color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* 复盘表单 - 可滚动区域 */}
+            <div style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 20
+            }}>
+              {/* 市场环境 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
+                  市场环境
+                </div>
+                <Input.TextArea
+                  placeholder="描述今日市场状况：趋势、波动性、重要事件..."
+                  value={reviewForm.marketCondition}
+                  onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)',
+                    borderRadius: 8
+                  }}
+                />
+              </div>
+
+              {/* 情绪状态 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <HeartOutlined style={{ color: '#F43F5E' }} />
+                  情绪状态
+                </div>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(3, 1fr)', 
+                  gap: 12,
+                  background: 'var(--bg-tertiary)',
+                  padding: 16,
+                  borderRadius: 8,
+                  border: '1px solid var(--border-primary)'
+                }}>
+                  {[
+                    { key: 'emotionBefore', label: '开盘前' },
+                    { key: 'emotionDuring', label: '交易中' },
+                    { key: 'emotionAfter', label: '收盘后' }
+                  ].map(item => (
+                    <div key={item.key} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 6 }}>{item.label}</div>
+                      <Rate 
+                        value={reviewForm[item.key]}
+                        onChange={v => setReviewForm({...reviewForm, [item.key]: v})}
+                        style={{ fontSize: 16 }}
+                        character={<HeartOutlined />}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 执行情况 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <CheckCircleOutlined style={{ color: '#10B981' }} />
+                  是否按计划执行？
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[
+                    { value: 'yes', label: '完全执行', color: '#10B981' },
+                    { value: 'partial', label: '部分执行', color: '#FBBF24' },
+                    { value: 'no', label: '偏离计划', color: '#F43F5E' }
+                  ].map(opt => (
+                    <Button
+                      key={opt.value}
+                      onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 8,
+                        fontWeight: 600,
+                        fontSize: 12,
+                        background: reviewForm.followedPlan === opt.value ? opt.color : 'var(--bg-tertiary)',
+                        borderColor: reviewForm.followedPlan === opt.value ? opt.color : 'var(--border-primary)',
+                        color: reviewForm.followedPlan === opt.value ? '#fff' : 'var(--text-secondary)'
+                      }}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 最佳/最差决策 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ 
+                    fontSize: 12, 
+                    fontWeight: 700, 
+                    color: 'var(--color-profit)', 
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}>
+                    <TrophyOutlined />
+                    最佳决策
+                  </div>
+                  <Input.TextArea
+                    placeholder="今天做对了什么？"
+                    value={reviewForm.bestDecision}
+                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
+                    autoSize={{ minRows: 2, maxRows: 3 }}
+                    style={{ 
+                      background: 'var(--bg-tertiary)', 
+                      borderColor: 'var(--border-primary)',
+                      borderRadius: 8
+                    }}
+                  />
+                </div>
+                <div>
+                  <div style={{ 
+                    fontSize: 12, 
+                    fontWeight: 700, 
+                    color: 'var(--color-loss)', 
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}>
+                    <WarningOutlined />
+                    最差决策
+                  </div>
+                  <Input.TextArea
+                    placeholder="今天做错了什么？"
+                    value={reviewForm.worstDecision}
+                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
+                    autoSize={{ minRows: 2, maxRows: 3 }}
+                    style={{ 
+                      background: 'var(--bg-tertiary)', 
+                      borderColor: 'var(--border-primary)',
+                      borderRadius: 8
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 经验教训 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <BulbOutlined style={{ color: '#FBBF24' }} />
+                  经验教训
+                </div>
+                <Input.TextArea
+                  placeholder="从今天的交易中学到了什么？"
+                  value={reviewForm.lessonsLearned}
+                  onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)',
+                    borderRadius: 8
+                  }}
+                />
+              </div>
+
+              {/* 改进计划 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <RiseOutlined style={{ color: '#3B82F6' }} />
+                  明日改进
+                </div>
+                <Input.TextArea
+                  placeholder="明天要改进的具体行动..."
+                  value={reviewForm.improvementPlan}
+                  onChange={e => setReviewForm({...reviewForm, improvementPlan: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 3 }}
+                  style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    borderColor: 'var(--border-primary)',
+                    borderRadius: 8
+                  }}
+                />
+              </div>
+
+              {/* 交易标签 */}
+              <div>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: 8
+                }}>
+                  交易标签
+                </div>
+                <Select
+                  mode="multiple"
+                  placeholder="选择适用的标签"
+                  value={reviewForm.tags}
+                  onChange={tags => setReviewForm({...reviewForm, tags})}
+                  style={{ width: '100%' }}
+                  options={REVIEW_TAGS}
+                  tagRender={({ label, value, closable, onClose }) => {
+                    const tag = REVIEW_TAGS.find(t => t.value === value);
+                    return (
+                      <Tag 
+                        color={tag?.color} 
+                        closable={closable} 
+                        onClose={onClose}
+                        style={{ marginRight: 4, borderRadius: 4 }}
+                      >
+                        {label}
+                      </Tag>
+                    );
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 底部操作栏 */}
+            <div style={{ 
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border-primary)',
+              background: 'var(--bg-secondary)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {savedReviews[selectedDate] ? (
+                  <span style={{ color: 'var(--color-profit)' }}>
+                    <CheckCircleOutlined /> 已保存于 {dayjs(savedReviews[selectedDate].savedAt).format('HH:mm')}
+                  </span>
+                ) : (
+                  <span>未保存</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button 
+                  onClick={() => setReviewDrawerVisible(false)}
+                  style={{ 
+                    borderRadius: 8,
+                    background: 'var(--bg-tertiary)',
+                    borderColor: 'var(--border-primary)',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  取消
+                </Button>
+                <Button 
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  loading={isSaving}
+                  onClick={saveReview}
+                  style={{ 
+                    borderRadius: 8,
+                    background: 'var(--color-brand)',
+                    borderColor: 'var(--color-brand)',
+                    fontWeight: 600
+                  }}
+                >
+                  保存复盘
+                </Button>
+              </div>
+            </div>
           </div>
-          <div style={{ paddingTop: 12, display: 'flex', gap: 8 }}>
-            <TextArea 
-              placeholder="输入回答..." 
-              autoSize={{ minRows: 1, maxRows: 3 }} 
-              value={userInput} 
-              onChange={e => setUserInput(e.target.value)} 
-              style={{ borderRadius: 6, background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)' }} 
-            />
-            <Button 
-              type="primary" 
-              icon={<SendOutlined />} 
-              onClick={() => {
-                if (!userInput.trim()) return;
-                const newHistory = [...chatHistory, { role: 'user', content: userInput }];
-                setChatHistory(newHistory);
-                setUserInput('');
-                setTimeout(() => {
-                  setChatHistory([...newHistory, { role: 'ai', content: '已记录，请继续。' }]);
-                }, 500);
-              }} 
-              style={{ borderRadius: 6, height: 'auto', background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }} 
-            />
-          </div>
-        </div>
-      </Modal>
+        )}
+      </Drawer>
 
       <style>{`
         @keyframes pulse {
