@@ -1201,6 +1201,425 @@ app.post('/ai/daily-summary', authRequired, async (req, res) => {
   }
 });
 
+// ========== Subscription Plans ==========
+// 初始化默认订阅计划
+async function initSubscriptionPlans() {
+  const existingPlans = await prisma.subscriptionPlan.count();
+  if (existingPlans > 0) return;
+
+  const defaultPlans = [
+    {
+      name: 'free',
+      displayName: 'Free 免费版',
+      description: '适合入门交易者，体验核心功能',
+      priceMonthly: 0,
+      priceYearly: 0,
+      maxRecords: 1,
+      maxTradesPerMonth: 100,
+      maxHistoryDays: 30,
+      maxAiAnalysisPerMonth: 3,
+      maxTeamMembers: 1,
+      hasSmartDiagnosis: false,
+      hasMonteCarlo: false,
+      hasOptimalStopLoss: false,
+      hasExpectancy: false,
+      hasBehaviorTags: false,
+      hasExport: false,
+      hasApi: false,
+      hasPrioritySupport: false,
+      sortOrder: 0,
+    },
+    {
+      name: 'pro',
+      displayName: 'Pro 专业版',
+      description: '面向活跃交易者，完整 AI 诊断功能',
+      priceMonthly: 19,
+      priceYearly: 149,
+      maxRecords: -1, // 无限
+      maxTradesPerMonth: -1,
+      maxHistoryDays: -1,
+      maxAiAnalysisPerMonth: -1,
+      maxTeamMembers: 1,
+      hasSmartDiagnosis: true,
+      hasMonteCarlo: true,
+      hasOptimalStopLoss: true,
+      hasExpectancy: true,
+      hasBehaviorTags: true,
+      hasExport: true,
+      hasApi: false,
+      hasPrioritySupport: true,
+      sortOrder: 1,
+    },
+    {
+      name: 'team',
+      displayName: 'Team 团队版',
+      description: '面向交易团队和机构，多人协作',
+      priceMonthly: 49,
+      priceYearly: 399,
+      maxRecords: -1,
+      maxTradesPerMonth: -1,
+      maxHistoryDays: -1,
+      maxAiAnalysisPerMonth: -1,
+      maxTeamMembers: 5,
+      hasSmartDiagnosis: true,
+      hasMonteCarlo: true,
+      hasOptimalStopLoss: true,
+      hasExpectancy: true,
+      hasBehaviorTags: true,
+      hasExport: true,
+      hasApi: true,
+      hasPrioritySupport: true,
+      sortOrder: 2,
+    },
+  ];
+
+  for (const plan of defaultPlans) {
+    await prisma.subscriptionPlan.create({ data: plan });
+  }
+  console.log('Default subscription plans created');
+}
+
+// 初始化订阅计划（启动时执行）
+initSubscriptionPlans().catch(console.error);
+
+// 获取所有订阅计划
+app.get('/subscription/plans', async (req, res) => {
+  try {
+    const plans = await prisma.subscriptionPlan.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    return res.json(plans);
+  } catch (error) {
+    console.error('获取订阅计划失败:', error);
+    return res.status(500).json({ message: '获取订阅计划失败' });
+  }
+});
+
+// 获取当前用户订阅状态
+app.get('/subscription/current', authRequired, async (req, res) => {
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+      include: { plan: true },
+    });
+
+    if (!subscription) {
+      // 未订阅，返回免费计划权限
+      const freePlan = await prisma.subscriptionPlan.findUnique({
+        where: { name: 'free' },
+      });
+      return res.json({
+        hasSubscription: false,
+        plan: freePlan,
+        status: 'free',
+        usage: {
+          tradesUsedThisMonth: 0,
+          aiAnalysisUsedThisMonth: 0,
+        },
+      });
+    }
+
+    // 检查订阅是否过期
+    const now = new Date();
+    const isExpired = subscription.currentPeriodEnd < now;
+    const isActive = subscription.status === 'active' && !isExpired;
+
+    return res.json({
+      hasSubscription: true,
+      subscription: {
+        id: subscription.id,
+        status: isActive ? 'active' : (isExpired ? 'expired' : subscription.status),
+        billingCycle: subscription.billingCycle,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        cancelledAt: subscription.cancelledAt,
+      },
+      plan: subscription.plan,
+      usage: {
+        tradesUsedThisMonth: subscription.tradesUsedThisMonth,
+        aiAnalysisUsedThisMonth: subscription.aiAnalysisUsedThisMonth,
+      },
+    });
+  } catch (error) {
+    console.error('获取订阅状态失败:', error);
+    return res.status(500).json({ message: '获取订阅状态失败' });
+  }
+});
+
+// 创建订阅（管理员手动或用户支付后调用）
+app.post('/subscription/create', authRequired, async (req, res) => {
+  try {
+    const { planName, billingCycle = 'monthly', userId } = req.body;
+    const targetUserId = req.user.role === 'admin' && userId ? userId : req.user.id;
+
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { name: planName },
+    });
+
+    if (!plan) {
+      return res.status(400).json({ message: '订阅计划不存在' });
+    }
+
+    // 检查是否已有订阅
+    const existing = await prisma.subscription.findUnique({
+      where: { userId: targetUserId },
+    });
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (billingCycle === 'yearly') {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+
+    if (existing) {
+      // 更新现有订阅
+      const updated = await prisma.subscription.update({
+        where: { userId: targetUserId },
+        data: {
+          planId: plan.id,
+          billingCycle,
+          status: 'active',
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+          cancelledAt: null,
+          tradesUsedThisMonth: 0,
+          aiAnalysisUsedThisMonth: 0,
+        },
+        include: { plan: true },
+      });
+
+      // 记录历史
+      await prisma.subscriptionHistory.create({
+        data: {
+          userId: targetUserId,
+          planId: plan.id,
+          action: 'upgraded',
+          fromPlan: existing.planId,
+          toPlan: plan.id,
+          amount: billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly,
+        },
+      });
+
+      return res.json({ success: true, subscription: updated });
+    }
+
+    // 创建新订阅
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: targetUserId,
+        planId: plan.id,
+        billingCycle,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      },
+      include: { plan: true },
+    });
+
+    // 记录历史
+    await prisma.subscriptionHistory.create({
+      data: {
+        userId: targetUserId,
+        planId: plan.id,
+        action: 'created',
+        toPlan: plan.id,
+        amount: billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly,
+      },
+    });
+
+    return res.json({ success: true, subscription });
+  } catch (error) {
+    console.error('创建订阅失败:', error);
+    return res.status(500).json({ message: '创建订阅失败' });
+  }
+});
+
+// 取消订阅
+app.post('/subscription/cancel', authRequired, async (req, res) => {
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!subscription) {
+      return res.status(400).json({ message: '未找到订阅' });
+    }
+
+    const updated = await prisma.subscription.update({
+      where: { userId: req.user.id },
+      data: {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+      },
+    });
+
+    // 记录历史
+    await prisma.subscriptionHistory.create({
+      data: {
+        userId: req.user.id,
+        planId: subscription.planId,
+        action: 'cancelled',
+      },
+    });
+
+    return res.json({ success: true, message: '订阅已取消，将在当前周期结束后失效' });
+  } catch (error) {
+    console.error('取消订阅失败:', error);
+    return res.status(500).json({ message: '取消订阅失败' });
+  }
+});
+
+// 更新使用量（内部调用）
+app.post('/subscription/usage', authRequired, async (req, res) => {
+  try {
+    const { type } = req.body; // 'trade' 或 'aiAnalysis'
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!subscription) {
+      return res.json({ success: true }); // 免费用户不记录
+    }
+
+    const updateData = {};
+    if (type === 'trade') {
+      updateData.tradesUsedThisMonth = subscription.tradesUsedThisMonth + 1;
+    } else if (type === 'aiAnalysis') {
+      updateData.aiAnalysisUsedThisMonth = subscription.aiAnalysisUsedThisMonth + 1;
+    }
+
+    await prisma.subscription.update({
+      where: { userId: req.user.id },
+      data: updateData,
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('更新使用量失败:', error);
+    return res.status(500).json({ message: '更新使用量失败' });
+  }
+});
+
+// ========== Admin Subscription Management ==========
+// 管理员获取所有订阅
+app.get('/admin/subscriptions', authRequired, adminRequired, async (req, res) => {
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      include: {
+        user: { select: { id: true, email: true, role: true } },
+        plan: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.json(subscriptions);
+  } catch (error) {
+    console.error('获取订阅列表失败:', error);
+    return res.status(500).json({ message: '获取订阅列表失败' });
+  }
+});
+
+// 管理员修改用户订阅
+app.patch('/admin/subscriptions/:userId', authRequired, adminRequired, async (req, res) => {
+  try {
+    const { planName, status, billingCycle, extendDays } = req.body;
+    const { userId } = req.params;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    if (!subscription) {
+      return res.status(404).json({ message: '订阅不存在' });
+    }
+
+    const updateData = {};
+
+    if (planName) {
+      const plan = await prisma.subscriptionPlan.findUnique({ where: { name: planName } });
+      if (plan) updateData.planId = plan.id;
+    }
+
+    if (status) updateData.status = status;
+    if (billingCycle) updateData.billingCycle = billingCycle;
+
+    if (extendDays) {
+      const newEnd = new Date(subscription.currentPeriodEnd);
+      newEnd.setDate(newEnd.getDate() + parseInt(extendDays));
+      updateData.currentPeriodEnd = newEnd;
+    }
+
+    const updated = await prisma.subscription.update({
+      where: { userId },
+      data: updateData,
+      include: { plan: true, user: { select: { id: true, email: true } } },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('修改订阅失败:', error);
+    return res.status(500).json({ message: '修改订阅失败' });
+  }
+});
+
+// 管理员删除订阅
+app.delete('/admin/subscriptions/:userId', authRequired, adminRequired, async (req, res) => {
+  try {
+    await prisma.subscription.delete({
+      where: { userId: req.params.userId },
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('删除订阅失败:', error);
+    return res.status(500).json({ message: '删除订阅失败' });
+  }
+});
+
+// 管理员获取订阅历史
+app.get('/admin/subscription-history', authRequired, adminRequired, async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const where = userId ? { userId: String(userId) } : {};
+    const history = await prisma.subscriptionHistory.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return res.json(history);
+  } catch (error) {
+    console.error('获取订阅历史失败:', error);
+    return res.status(500).json({ message: '获取订阅历史失败' });
+  }
+});
+
+// 管理员管理订阅计划
+app.get('/admin/plans', authRequired, adminRequired, async (req, res) => {
+  try {
+    const plans = await prisma.subscriptionPlan.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+    return res.json(plans);
+  } catch (error) {
+    console.error('获取订阅计划失败:', error);
+    return res.status(500).json({ message: '获取订阅计划失败' });
+  }
+});
+
+app.patch('/admin/plans/:id', authRequired, adminRequired, async (req, res) => {
+  try {
+    const updated = await prisma.subscriptionPlan.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    return res.json(updated);
+  } catch (error) {
+    console.error('更新订阅计划失败:', error);
+    return res.status(500).json({ message: '更新订阅计划失败' });
+  }
+});
+
 // ========== 静态文件 & SPA 支持（必须在所有 API 路由之后）==========
 const distPath = path.join(__dirname, '../../dist');
 if (fs.existsSync(distPath)) {

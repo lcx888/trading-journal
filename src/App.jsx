@@ -35,7 +35,7 @@ import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
 import Docs from './pages/Docs';
-import Subscription from './pages/Subscription';
+import Pricing from './pages/Pricing';
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
@@ -85,9 +85,9 @@ const buildMenuItems = (user) => {
       ]
     },
     { 
-      key: 'subscription', 
+      key: 'pricing', 
       icon: <CrownOutlined />, 
-      label: '订阅',
+      label: '订阅升级',
     },
     { 
       key: 'settings', 
@@ -116,7 +116,7 @@ const getPageTitle = (key) => {
     'import': '导入数据',
     'strategies': '策略库',
     'calendar': '交易日历',
-    'subscription': '订阅管理',
+    'pricing': '订阅升级',
     'settings': '设置',
     'admin': '管理后台',
   };
@@ -265,10 +265,10 @@ function App() {
         return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
       case 'import': 
         return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} /></div>;
-      case 'subscription': 
-        return <div key={pageKey} className={pageClass}><Subscription /></div>;
       case 'settings': 
         return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} /></div>;
+      case 'pricing':
+        return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => setCurrentPage(page)} /></div>;
       case 'admin':
         if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
           return <div key={pageKey} className={pageClass}><Admin /></div>;

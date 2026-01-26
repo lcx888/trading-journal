@@ -21,22 +21,103 @@ model User {
   rememberToken  String?
   lastLoginAt    DateTime?
   lastLoginIp    String?
-  // 订阅相关
-  subscriptionPlan String @default("free")  // free, basic, pro, enterprise
-  subscriptionStatus String @default("active")  // active, canceled, expired, trial
-  subscriptionExpiresAt DateTime?
-  subscriptionCanceledAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  instruments  Instrument[]
-  records      Record[]
-  trades       Trade[]
-  strategies   Strategy[]
-  imports      ImportRecord[]
-  reviews      Review[]
-  aiAnalyses   AIAnalysis[]
-  subscriptions Subscription[]
+  instruments   Instrument[]
+  records       Record[]
+  trades        Trade[]
+  strategies    Strategy[]
+  imports       ImportRecord[]
+  reviews       Review[]
+  aiAnalyses    AIAnalysis[]
+  subscription  Subscription?
+}
+
+// 订阅计划
+model SubscriptionPlan {
+  id              String   @id @default(uuid())
+  name            String   @unique          // free, pro, team
+  displayName     String                    // 显示名称
+  description     String?                   // 描述
+  priceMonthly    Float    @default(0)      // 月费（美元）
+  priceYearly     Float    @default(0)      // 年费（美元）
+  
+  // 功能限制
+  maxRecords      Int      @default(1)      // 最大账本数
+  maxTradesPerMonth Int    @default(100)    // 每月最大交易数
+  maxHistoryDays  Int      @default(30)     // 历史数据保留天数
+  maxAiAnalysisPerMonth Int @default(3)     // 每月 AI 分析次数
+  maxTeamMembers  Int      @default(1)      // 团队成员数
+  
+  // 功能开关
+  hasSmartDiagnosis   Boolean @default(false)  // 智能诊断
+  hasMonteCarlo       Boolean @default(false)  // 蒙特卡洛模拟
+  hasOptimalStopLoss  Boolean @default(false)  // 最优止损分析
+  hasExpectancy       Boolean @default(false)  // 期望值分布
+  hasBehaviorTags     Boolean @default(false)  // 行为归因标签
+  hasExport           Boolean @default(false)  // 数据导出
+  hasApi              Boolean @default(false)  // API 接口
+  hasPrioritySupport  Boolean @default(false)  // 优先支持
+  
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions   Subscription[]
+}
+
+// 用户订阅
+model Subscription {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  planId          String
+  
+  status          String   @default("active")  // active, cancelled, expired, trial
+  billingCycle    String   @default("monthly") // monthly, yearly
+  
+  // 计费信息
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  
+  // 使用统计（当月）
+  tradesUsedThisMonth   Int @default(0)
+  aiAnalysisUsedThisMonth Int @default(0)
+  
+  // 支付信息（预留 Stripe）
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User              @relation(fields: [userId], references: [id])
+  plan SubscriptionPlan  @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+// 订阅历史/支付记录
+model SubscriptionHistory {
+  id              String   @id @default(uuid())
+  userId          String
+  planId          String
+  action          String                  // created, upgraded, downgraded, renewed, cancelled
+  fromPlan        String?
+  toPlan          String?
+  amount          Float    @default(0)
+  currency        String   @default("USD")
+  paymentMethod   String?
+  paymentId       String?                 // Stripe payment ID
+  note            String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Instrument {
@@ -154,7 +235,7 @@ model Review {
 model AIAnalysis {
   id             String   @id @default(uuid())
   userId         String
-  recordId        String?
+  recordId       String?
   recordName     String?
   title          String
   summary        String
@@ -183,29 +264,4 @@ model AIAnalysis {
 
   @@index([userId])
   @@index([createdAt])
-}
-
-model Subscription {
-  id              String   @id @default(uuid())
-  userId          String
-  plan            String   // free, basic, pro, enterprise
-  status          String   // active, canceled, expired, trial
-  billingCycle    String   // monthly, yearly
-  amount          Float    // 金额（分）
-  currency        String   @default("CNY")
-  startDate       DateTime
-  endDate         DateTime?
-  canceledAt      DateTime?
-  cancelReason    String?
-  paymentMethod   String?  // stripe, alipay, wechat
-  paymentId       String?  // 第三方支付ID
-  trialEndsAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@index([status])
-  @@index([plan])
 }
