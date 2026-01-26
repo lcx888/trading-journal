@@ -26,7 +26,7 @@ import { getPlans, getSubscriptionStatus, cancelSubscription } from '../services
 // ============================================================
 const THEME = {
   colors: {
-    primary: '#d97706',
+    primary: '#e8b4b8',
     bg: '#0a0a0a',
     cardBg: '#141414',
     cardBorder: '#262626',

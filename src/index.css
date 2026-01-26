@@ -754,16 +754,16 @@ body {
 .ant-modal-footer .ant-btn-primary,
 .ant-modal-confirm-btns .ant-btn-primary,
 .ant-modal-confirm-btns .ant-btn-variant-solid {
-  background: #d97706 !important;
-  border-color: #d97706 !important;
-  color: #000 !important;
+  background: #e8b4b8 !important;
+  border-color: #e8b4b8 !important;
+  color: #1a1a1e !important;
 }
 
 .ant-modal-footer .ant-btn-primary:hover,
 .ant-modal-confirm-btns .ant-btn-primary:hover,
 .ant-modal-confirm-btns .ant-btn-variant-solid:hover {
-  background: #b45309 !important;
-  border-color: #b45309 !important;
+  background: #c9a0a0 !important;
+  border-color: #c9a0a0 !important;
 }
 
 /* ============================================================
@@ -832,7 +832,7 @@ body {
 
 /* 确认弹窗图标 */
 .ant-modal-confirm .ant-modal-confirm-body > .anticon {
-  color: #d97706 !important;
+  color: #e8b4b8 !important;
   font-size: 22px !important;
 }
 
