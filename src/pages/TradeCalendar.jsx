@@ -45,16 +45,16 @@ const getTradingMonth = (openTime) => {
 };
 
 const analyzeTradeData = (dayTrades) => {
-  if (!dayTrades || dayTrades.length === 0) return null;
-  const totalPnL = dayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const winTrades = dayTrades.filter(t => t.pnl > 0);
-  const lossTrades = dayTrades.filter(t => t.pnl < 0);
-  const winRate = dayTrades.length > 0 ? (winTrades.length / dayTrades.length * 100) : 0;
+  const trades = dayTrades || [];
+  const totalPnL = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const winTrades = trades.filter(t => t.pnl > 0);
+  const lossTrades = trades.filter(t => t.pnl < 0);
+  const winRate = trades.length > 0 ? (winTrades.length / trades.length * 100) : 0;
   const maxWinTrade = winTrades.length > 0 ? winTrades.reduce((max, t) => t.pnl > max.pnl ? t : max) : null;
   const maxLossTrade = lossTrades.length > 0 ? lossTrades.reduce((min, t) => t.pnl < min.pnl ? t : min) : null;
 
   return {
-    totalTrades: dayTrades.length,
+    totalTrades: trades.length,
     totalPnL,
     winRate,
     winCount: winTrades.length,
