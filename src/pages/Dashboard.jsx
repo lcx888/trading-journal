@@ -23,7 +23,7 @@ import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import AnimatedNumber from '../components/AnimatedNumber';
 import EmptyState from '../components/EmptyState';
-import { SubscriptionCard } from '../components/UpgradePrompt';
+// SubscriptionCard 已移至侧边栏
 
 const { RangePicker } = DatePicker;
 
@@ -623,15 +623,6 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
         </div>
         
         <div className="flex flex-col gap-4">
-          {/* 订阅状态卡片 */}
-          {subscription && (
-            <SubscriptionCard 
-              subscription={subscription} 
-              onUpgrade={onUpgrade}
-              onManage={onUpgrade}
-            />
-          )}
-          
           <div className="card p-4 flex-1">
             <div className="flex items-center gap-2 mb-3">
               <ClockCircleOutlined className="text-[var(--color-brand)] text-sm" />

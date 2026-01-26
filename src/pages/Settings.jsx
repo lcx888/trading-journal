@@ -555,7 +555,7 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                 alignItems: 'center', 
                 justifyContent: 'center' 
               }}>
-                <CrownOutlined style={{ color: '#e8b4b8' }} />
+                <CrownOutlined style={{ color: '#d97706' }} />
               </div>
               <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>订阅管理</span>
             </div>
@@ -576,8 +576,8 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                 },
                 pro: { 
                   displayName: 'Pro 专业版', 
-                  color: '#e8b4b8',
-                  bgColor: 'rgba(232, 180, 184, 0.1)',
+                  color: '#d97706',
+                  bgColor: 'rgba(217, 119, 6, 0.1)',
                   features: ['无限账本', '无限交易', '无限 AI 分析', '智能诊断系统'],
                 },
                 team: { 
@@ -633,7 +633,7 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                             <div style={{ 
                               width: `${Math.min(100, ((usage.tradesUsedThisMonth || 0) / (plan.maxTradesPerMonth || 100)) * 100)}%`, 
                               height: '100%', 
-                              background: '#e8b4b8',
+                              background: '#d97706',
                               borderRadius: 2,
                             }} />
                           </div>
@@ -687,7 +687,7 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                         onClick={onUpgrade}
                         style={{
                           flex: 1,
-                          background: 'linear-gradient(135deg, #e8b4b8 0%, #c9a0a0 100%)',
+                          background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
                           border: 'none',
                           height: 40,
                           fontWeight: 600,

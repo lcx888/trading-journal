@@ -2496,7 +2496,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                               <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div className="p-4 rounded-lg bg-[var(--bg-tertiary)]">
                                   <div className="text-xs text-[var(--text-tertiary)] mb-1">综合评分</div>
-                                  <div className="text-2xl font-bold text-rose-300">--</div>
+                                  <div className="text-2xl font-bold text-amber-400">--</div>
                                 </div>
                                 <div className="p-4 rounded-lg bg-[var(--bg-tertiary)]">
                                   <div className="text-xs text-[var(--text-tertiary)] mb-1">需改进项</div>

@@ -98,7 +98,7 @@ export function UpgradeModal({
       <div className="p-8">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-rose-400/20 to-rose-500/10 flex items-center justify-center text-4xl">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center text-4xl">
             {featureInfo.icon}
           </div>
           <h2 className="text-xl font-bold text-white mb-2">{featureInfo.title}</h2>
@@ -110,12 +110,12 @@ export function UpgradeModal({
           <div className="mb-6 p-4 rounded-xl bg-[#1a1a1e] border border-gray-800">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-400 text-sm">本月使用量</span>
-              <span className="text-rose-300 font-mono text-sm">{usage.used} / {usage.limit}</span>
+              <span className="text-amber-400 font-mono text-sm">{usage.used} / {usage.limit}</span>
             </div>
             <Progress 
               percent={(usage.used / usage.limit) * 100} 
               showInfo={false}
-              strokeColor="#e8b4b8"
+              strokeColor="#d97706"
               trailColor="#374151"
               size="small"
             />
@@ -125,7 +125,7 @@ export function UpgradeModal({
         {/* Pro Features */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <CrownOutlined className="text-rose-300" />
+            <CrownOutlined className="text-amber-400" />
             <span className="text-white font-medium">升级 Pro 解锁</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -147,7 +147,7 @@ export function UpgradeModal({
             icon={<ThunderboltOutlined />}
             onClick={onUpgrade}
             style={{
-              background: 'linear-gradient(135deg, #e8b4b8 0%, #c9a0a0 100%)',
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
               border: 'none',
               height: '48px',
               fontWeight: 600,
@@ -190,8 +190,8 @@ export function FeatureLock({
       {/* 锁定覆盖层 */}
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0d0d10]/80 backdrop-blur-sm rounded-lg">
         <div className="text-center p-6">
-          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-rose-400/10 flex items-center justify-center">
-            <LockOutlined className="text-2xl text-rose-300" />
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <LockOutlined className="text-2xl text-amber-400" />
           </div>
           <h3 className="text-white font-semibold mb-2">{featureInfo.title}</h3>
           <p className="text-gray-400 text-sm mb-4 max-w-xs">{featureInfo.description}</p>
@@ -200,7 +200,7 @@ export function FeatureLock({
             icon={<CrownOutlined />}
             onClick={onUpgrade}
             style={{
-              background: 'linear-gradient(135deg, #e8b4b8 0%, #c9a0a0 100%)',
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
               border: 'none',
             }}
           >
@@ -222,7 +222,7 @@ export function ProBadge({ size = 'small' }) {
   };
   
   return (
-    <span className={`${sizeClasses[size]} font-bold bg-rose-400/20 text-rose-300 rounded`}>
+    <span className={`${sizeClasses[size]} font-bold bg-amber-500/20 text-amber-400 rounded`}>
       PRO
     </span>
   );
@@ -234,7 +234,7 @@ export function ProBadge({ size = 'small' }) {
 export function SubscriptionBadge({ plan, usage, onClick }) {
   const planColors = {
     free: { bg: '#374151', text: '#9ca3af', label: 'Free' },
-    pro: { bg: '#e8b4b8', text: '#1a1a1e', label: 'Pro' },
+    pro: { bg: '#d97706', text: '#ffffff', label: 'Pro' },
     team: { bg: '#7c3aed', text: '#ffffff', label: 'Team' },
   };
   
@@ -267,12 +267,11 @@ export function SubscriptionBadge({ plan, usage, onClick }) {
           size="small"
           icon={<RocketOutlined />}
           style={{
-            background: 'linear-gradient(135deg, #e8b4b8 0%, #c9a0a0 100%)',
+            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
             border: 'none',
             fontSize: '12px',
             height: '26px',
             fontWeight: 500,
-            color: '#1a1a1e',
           }}
         >
           升级
@@ -298,8 +297,8 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
     },
     pro: { 
       name: 'Pro 专业版', 
-      color: 'text-rose-300',
-      gradient: 'from-rose-400 to-rose-500',
+      color: 'text-amber-400',
+      gradient: 'from-amber-600 to-amber-700',
     },
     team: { 
       name: 'Team 团队版', 
@@ -345,7 +344,7 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
               <Progress 
                 percent={Math.min(100, (tradesUsed / tradesLimit) * 100)} 
                 showInfo={false}
-                strokeColor={tradesUsed >= tradesLimit ? '#ef4444' : '#e8b4b8'}
+                strokeColor={tradesUsed >= tradesLimit ? '#ef4444' : '#d97706'}
                 trailColor="#374151"
                 size="small"
               />
@@ -380,7 +379,7 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
             icon={<RocketOutlined />}
             onClick={onUpgrade}
             style={{
-              background: 'linear-gradient(135deg, #e8b4b8 0%, #c9a0a0 100%)',
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
               border: 'none',
               fontWeight: 500,
             }}
@@ -405,10 +404,149 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
   );
 }
 
+/**
+ * 侧边栏订阅卡片（紧凑版）
+ */
+export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) {
+  const { plan, usage, status } = subscription || {};
+  const planName = plan?.name || 'free';
+  const isFreePlan = planName === 'free';
+  
+  const planInfo = {
+    free: { 
+      name: '免费版', 
+      fullName: 'Free 免费版',
+      color: 'text-gray-400',
+      gradient: 'from-gray-600 to-gray-700',
+      iconBg: 'bg-gray-600',
+    },
+    pro: { 
+      name: 'Pro',
+      fullName: 'Pro 专业版', 
+      color: 'text-amber-400',
+      gradient: 'from-amber-600 to-amber-700',
+      iconBg: 'bg-amber-600',
+    },
+    team: { 
+      name: 'Team',
+      fullName: 'Team 团队版', 
+      color: 'text-purple-400',
+      gradient: 'from-purple-600 to-purple-700',
+      iconBg: 'bg-purple-600',
+    },
+  };
+  
+  const currentPlan = planInfo[planName] || planInfo.free;
+  
+  // 使用量
+  const tradesUsed = usage?.tradesUsedThisMonth || 0;
+  const tradesLimit = plan?.maxTradesPerMonth || 100;
+  const aiUsed = usage?.aiAnalysisUsedThisMonth || 0;
+  const aiLimit = plan?.maxAiAnalysisPerMonth || 3;
+  
+  // 折叠状态：只显示图标
+  if (collapsed) {
+    return (
+      <div 
+        className="mx-2 mb-2 cursor-pointer"
+        onClick={onUpgrade}
+      >
+        <div className={`w-10 h-10 rounded-lg ${currentPlan.iconBg} flex items-center justify-center mx-auto`}>
+          <CrownOutlined className="text-white text-lg" />
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="mx-3 mb-3 rounded-lg border border-gray-800 bg-gradient-to-br from-[#1a1a1e] to-[#0d0d10] overflow-hidden">
+      {/* Header */}
+      <div className={`px-3 py-2 bg-gradient-to-r ${currentPlan.gradient} flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <CrownOutlined className="text-white text-sm" />
+          <span className="text-white font-medium text-sm">{currentPlan.fullName}</span>
+        </div>
+        {!isFreePlan && status === 'active' && (
+          <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">激活</span>
+        )}
+      </div>
+      
+      {/* Content */}
+      <div className="p-3 space-y-2">
+        {/* Usage Stats - Compact */}
+        <div className="space-y-2">
+          {/* Trades */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-gray-500 text-xs">本月交易</span>
+              <span className="text-gray-400 text-xs font-mono">
+                {tradesLimit === -1 ? `${tradesUsed}/∞` : `${tradesUsed}/${tradesLimit}`}
+              </span>
+            </div>
+            {tradesLimit !== -1 && (
+              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (tradesUsed / tradesLimit) * 100)}%`,
+                    background: tradesUsed >= tradesLimit ? '#ef4444' : '#d97706',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* AI Analysis */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-gray-500 text-xs">AI 分析</span>
+              <span className="text-gray-400 text-xs font-mono">
+                {aiLimit === -1 ? `${aiUsed}/∞` : `${aiUsed}/${aiLimit}`}
+              </span>
+            </div>
+            {aiLimit !== -1 && (
+              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (aiUsed / aiLimit) * 100)}%`,
+                    background: aiUsed >= aiLimit ? '#ef4444' : '#3b82f6',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* CTA */}
+        {isFreePlan && (
+          <Button
+            type="primary"
+            block
+            size="small"
+            icon={<RocketOutlined />}
+            onClick={onUpgrade}
+            style={{
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              border: 'none',
+              fontWeight: 500,
+              fontSize: '12px',
+              height: '28px',
+            }}
+          >
+            升级 Pro
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default {
   UpgradeModal,
   FeatureLock,
   ProBadge,
   SubscriptionBadge,
   SubscriptionCard,
+  SidebarSubscriptionCard,
 };

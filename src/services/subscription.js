@@ -169,8 +169,8 @@ export function getPlanDisplayInfo(planName) {
     pro: {
       name: 'Pro',
       displayName: '专业版',
-      color: '#e8b4b8',
-      bgColor: '#fce4e6',
+      color: '#d97706',
+      bgColor: '#fef3c7',
       icon: '⭐',
     },
     team: {
