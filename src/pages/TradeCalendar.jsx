@@ -131,7 +131,7 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
           fontFamily: 'var(--font-mono)',
           color: stats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
         }}>
-          {stats.totalPnL >= 0 ? '+' : ''}{stats.totalPnL.toFixed(0)}
+          {stats.totalPnL >= 0 ? '+' : ''}${Math.abs(stats.totalPnL).toFixed(0)}
         </div>
       </div>
       
@@ -473,7 +473,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             fontFamily: 'var(--font-mono)',
             color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
           }}>
-            {isProfit ? '+' : ''}{data.totalPnL.toFixed(0)}
+            {isProfit ? '+' : '-'}${Math.abs(data.totalPnL).toFixed(0)}
           </div>
         </div>
       </Popover>
@@ -547,7 +547,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                 fontFamily: 'var(--font-mono)',
                 color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
               }}>
-                {monthStats.totalPnL >= 0 ? '+' : ''}{monthStats.totalPnL.toLocaleString()}
+                {monthStats.totalPnL >= 0 ? '+' : '-'}${Math.abs(monthStats.totalPnL).toLocaleString()}
               </span>
               <TrendIndicator current={monthStats.totalPnL} previous={prevMonthStats.totalPnL} />
             </div>
@@ -612,9 +612,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       </div>
 
       {/* 主区域：日历 + 周统计侧边栏 */}
-      <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
         {/* 日历 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {monthStats.totalTrades === 0 ? (
             /* 空状态 */
             <div style={{ 
@@ -643,7 +643,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
               borderRadius: 6, 
-              overflow: 'hidden'
+              overflow: 'hidden',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column'
             }}>
               <Calendar
                 value={currentMonth}
@@ -743,7 +746,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                     color: week.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)',
                     marginBottom: 8
                   }}>
-                    {week.totalPnL >= 0 ? '+' : ''}{week.totalPnL.toFixed(0)}
+                    {week.totalPnL >= 0 ? '+' : '-'}${Math.abs(week.totalPnL).toFixed(0)}
                   </div>
 
                   {/* 周数据 */}
@@ -782,7 +785,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                 fontFamily: 'var(--font-mono)',
                 color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
               }}>
-                {monthStats.totalPnL >= 0 ? '+' : ''}{monthStats.totalPnL.toLocaleString()}
+                {monthStats.totalPnL >= 0 ? '+' : '-'}${Math.abs(monthStats.totalPnL).toLocaleString()}
               </div>
             </div>
           )}
@@ -818,7 +821,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                     fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     color: tradesByDate[selectedDate].totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
                   }}>
-                    {tradesByDate[selectedDate].totalPnL >= 0 ? '+' : ''}{tradesByDate[selectedDate].totalPnL.toFixed(2)}
+                    {tradesByDate[selectedDate].totalPnL >= 0 ? '+' : '-'}${Math.abs(tradesByDate[selectedDate].totalPnL).toFixed(2)}
                   </div>
                 </div>
               </Col>
@@ -902,7 +905,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   width: 100,
                   render: p => (
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                      {p >= 0 ? '+' : ''}{p.toFixed(2)}
+                      {p >= 0 ? '+' : '-'}${Math.abs(p).toFixed(2)}
                     </span>
                   )
                 }
@@ -1062,6 +1065,49 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         .minimal-calendar .ant-picker-cell-disabled .ant-picker-cell-inner {
           background: var(--bg-primary) !important;
           border-color: transparent !important;
+        }
+        
+        /* 日历容器填满高度 */
+        .minimal-calendar {
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .minimal-calendar .ant-picker-panel {
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .minimal-calendar .ant-picker-date-panel {
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .minimal-calendar .ant-picker-body {
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .minimal-calendar .ant-picker-content {
+          flex: 1 !important;
+          height: 100% !important;
+        }
+        .minimal-calendar .ant-picker-content tbody {
+          display: flex !important;
+          flex-direction: column !important;
+          height: 100% !important;
+        }
+        .minimal-calendar .ant-picker-content tbody tr {
+          flex: 1 !important;
+          display: flex !important;
+        }
+        .minimal-calendar .ant-picker-content tbody td {
+          flex: 1 !important;
+          height: auto !important;
+        }
+        .minimal-calendar .ant-picker-cell-inner {
+          min-height: 80px !important;
+          height: 100% !important;
         }
       `}</style>
     </div>
