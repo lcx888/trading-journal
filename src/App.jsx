@@ -87,11 +87,6 @@ const buildMenuItems = (user) => {
       ]
     },
     { 
-      key: 'pricing', 
-      icon: <CrownOutlined />, 
-      label: '订阅升级',
-    },
-    { 
       key: 'settings', 
       icon: <SettingOutlined />, 
       label: '设置',
@@ -439,7 +434,7 @@ function App() {
           width={240}
           collapsedWidth={64}
           trigger={null}
-          className="layout-sider"
+          className="layout-sider flex flex-col"
           style={{ 
             position: 'fixed', 
             left: 0, 
@@ -448,6 +443,8 @@ function App() {
             zIndex: 100,
             background: '#0d0d10',
             borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
           {/* Logo */}
@@ -462,7 +459,7 @@ function App() {
           </div>
           
           {/* 菜单 */}
-          <div className="py-2">
+          <div className="flex-1 overflow-y-auto py-2">
             <Menu
               mode="inline"
               selectedKeys={selectedKeys}
@@ -476,8 +473,24 @@ function App() {
             />
           </div>
           
+          {/* 订阅升级按钮 - 放置在菜单下方 */}
+          <div className="px-3 mb-2">
+            <Button
+              type="text"
+              icon={<CrownOutlined style={{ color: '#eab308' }} />}
+              onClick={() => setCurrentPage('pricing')}
+              className={`w-full flex items-center justify-start h-10 px-4 rounded-md transition-colors ${
+                currentPage === 'pricing' 
+                  ? 'bg-[rgba(234,179,8,0.1)] text-[#eab308]' 
+                  : 'text-[var(--text-secondary)] hover:bg-[#141418] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {!collapsed && <span className="ml-2 font-medium">订阅升级</span>}
+            </Button>
+          </div>
+          
           {/* 底部折叠按钮 */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[var(--border-primary)]">
+          <div className="p-4 border-t border-[var(--border-primary)]">
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
