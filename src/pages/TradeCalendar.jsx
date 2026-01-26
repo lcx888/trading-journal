@@ -19,6 +19,7 @@ import {
   FallOutlined,
   EditOutlined,
   SaveOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
