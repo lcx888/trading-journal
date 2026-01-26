@@ -554,22 +554,20 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       >
         <div 
           style={{
-            height: '100%',
-            width: '100%',
+            position: 'absolute',
+            inset: 0, // 填满整个父级格子
             padding: '8px 10px',
             cursor: 'pointer',
             transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative',
             background: isProfit 
-              ? 'rgba(16, 185, 129, 0.06)' 
-              : 'rgba(244, 63, 94, 0.06)',
-            borderRadius: 6,
-            border: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
+              ? 'var(--color-profit)' 
+              : 'var(--color-loss)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: 4
+            gap: 4,
+            zIndex: 1
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
           className="calendar-cell-inner"
@@ -583,10 +581,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             gap: 4
           }}>
             {showStreak && (
-              streak.type === 'win' ? <FireOutlined style={{ color: 'var(--color-brand)', fontSize: 10 }} /> : <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 10 }} />
+              streak.type === 'win' ? <FireOutlined style={{ color: '#fff', fontSize: 10 }} /> : <WarningOutlined style={{ color: '#fff', fontSize: 10 }} />
             )}
             {savedReviews[key] && (
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-brand)' }} />
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />
             )}
           </div>
 
@@ -595,7 +593,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             fontSize: 18, 
             fontWeight: 800, 
             fontFamily: 'var(--font-mono)',
-            color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+            color: '#fff',
             lineHeight: 1,
             letterSpacing: '-0.5px'
           }}>
@@ -608,25 +606,13 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             alignItems: 'center', 
             gap: 6,
             fontSize: 10,
-            color: 'var(--text-tertiary)',
-            fontWeight: 500
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontWeight: 600
           }}>
             <span>{data.trades.length}T</span>
             <span style={{ opacity: 0.3 }}>|</span>
-            <span style={{ color: winRate > 50 ? 'var(--text-secondary)' : 'inherit' }}>{winRate}%</span>
+            <span>{winRate}%</span>
           </div>
-
-          {/* 底部装饰条 - 仅作为视觉反馈 */}
-          <div style={{ 
-            position: 'absolute',
-            bottom: 0,
-            left: '15%',
-            right: '15%',
-            height: 2,
-            background: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
-            opacity: 0.4,
-            borderRadius: '2px 2px 0 0'
-          }} />
         </div>
       </Popover>
     );
@@ -1150,6 +1136,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           min-height: 90px !important;
           background: var(--bg-tertiary) !important;
           transition: all 0.2s !important;
+          position: relative !important; /* 确保子元素绝对定位正确 */
+          overflow: hidden !important; /* 确保背景色不溢出圆角 */
         }
         .binance-calendar .ant-picker-cell-inner:hover {
           background: var(--bg-secondary) !important;
