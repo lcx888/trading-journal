@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Modal, Table, Tag, Row, Col,
-  Button, Spin, Input
+  Button, Spin, Input, Tooltip, Progress
 } from 'antd';
 import {
   CalendarOutlined,
@@ -13,6 +13,9 @@ import {
   EditOutlined,
   TrophyOutlined,
   WarningOutlined,
+  LineChartOutlined,
+  CheckCircleOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import ReactECharts from 'echarts-for-react';
@@ -192,7 +195,16 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       series: [{
         type: 'line', data, smooth: true, symbol: 'none',
         lineStyle: { color: lineColor, width: 2 },
-        areaStyle: { color: '#1E3830' }
+        areaStyle: { 
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: finalValue >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)' },
+              { offset: 1, color: 'rgba(0, 0, 0, 0)' }
+            ]
+          }
+        }
       }]
     };
   };
@@ -200,449 +212,249 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const dateCellRender = (date) => {
     const key = date.format('YYYY-MM-DD');
     const data = tradesByDate[key];
-    if (!data) return null;
+    const isToday = date.isSame(dayjs(), 'day');
+    
+    if (!data) {
+      return (
+        <div className={`calendar-cell-empty ${isToday ? 'is-today' : ''}`}>
+          <span className="cell-date">{date.date()}</span>
+        </div>
+      );
+    }
+
     const isProfit = data.totalPnL > 0;
     const winRate = (data.winCount / data.trades.length * 100).toFixed(0);
 
     return (
       <div 
-        style={{
-          height: '100%',
-          width: '100%',
-          padding: 4,
-          cursor: 'pointer',
-          transition: 'background 0.2s',
-        }}
+        className={`calendar-cell-content ${isProfit ? 'is-profit' : 'is-loss'} ${isToday ? 'is-today' : ''}`}
         onClick={() => { setSelectedDate(key); setModalVisible(true); }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ 
-              fontSize: 9, 
-              fontWeight: 600, 
-              padding: '1px 6px', 
-              borderRadius: 2, 
-              background: 'var(--bg-tertiary)', 
-              color: 'var(--text-secondary)' 
-            }}>
-              {data.trades.length}
-            </span>
-            {savedReviews[key] && (
-              <span style={{ fontSize: 10, color: savedReviews[key].type === 'ai' ? 'var(--color-brand)' : 'var(--text-tertiary)' }}>
+        <div className="cell-header">
+          <span className="cell-date">{date.date()}</span>
+          {savedReviews[key] && (
+            <Tooltip title={savedReviews[key].type === 'ai' ? 'AI 已复盘' : '手动已复盘'}>
+              <span className={`cell-review-icon ${savedReviews[key].type}`}>
                 {savedReviews[key].type === 'ai' ? <RobotOutlined /> : <EditOutlined />}
               </span>
-            )}
-          </div>
-          <div style={{ 
-            fontSize: 12, 
-            fontWeight: 700, 
-            fontFamily: 'var(--font-mono)',
-            textAlign: 'right', 
-            color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)' 
-          }}>
+            </Tooltip>
+          )}
+        </div>
+        
+        <div className="cell-body">
+          <div className="cell-pnl">
             {isProfit ? '+' : ''}{Math.abs(data.totalPnL) >= 1000 ? `${(data.totalPnL / 1000).toFixed(1)}k` : data.totalPnL.toFixed(0)}
           </div>
-          <div style={{ 
-            width: '100%', 
-            height: 3, 
-            background: 'var(--bg-tertiary)', 
-            borderRadius: 2, 
-            overflow: 'hidden', 
-            marginTop: 4 
-          }}>
-            <div style={{ 
-              height: '100%', 
-              background: 'var(--color-profit)', 
-              width: `${winRate}%`, 
-              transition: 'width 0.3s' 
-            }} />
+          <div className="cell-count">{data.trades.length} 笔</div>
+        </div>
+
+        <div className="cell-footer">
+          <div className="win-rate-bar">
+            <div className="win-rate-fill" style={{ width: `${winRate}%` }} />
           </div>
         </div>
       </div>
     );
   };
 
-  // 统计卡片组件
-  const StatItem = ({ label, value, unit, color }) => (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
-      <div style={{ 
-        fontSize: 20, 
-        fontWeight: 700, 
-        fontFamily: 'var(--font-mono)', 
-        color: color || 'var(--text-primary)',
-        letterSpacing: '-0.5px'
-      }}>
-        {value}
-        {unit && <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 4 }}>{unit}</span>}
+  const StatItem = ({ label, value, unit, color, icon }) => (
+    <div className="stat-card">
+      <div className="stat-icon" style={{ color: color || 'var(--text-tertiary)' }}>{icon}</div>
+      <div className="stat-content">
+        <div className="stat-label">{label}</div>
+        <div className="stat-value" style={{ color: color || 'var(--text-primary)' }}>
+          {value}
+          {unit && <span className="stat-unit">{unit}</span>}
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 月份导航和统计头部 */}
-      <div style={{ 
-        background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 6, 
-        padding: 24 
-      }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="trade-calendar-page">
+      {/* 顶部统计面板 */}
+      <div className="dashboard-header">
+        <div className="month-navigator">
+          <div className="nav-controls">
             <Button 
               icon={<LeftOutlined />} 
               onClick={() => setCurrentMonth(currentMonth.subtract(1, 'month'))} 
-              style={{ 
-                border: 'none', 
-                background: 'var(--bg-tertiary)', 
-                color: 'var(--text-secondary)',
-                borderRadius: 4
-              }} 
+              className="nav-btn"
             />
-            <div style={{ textAlign: 'center', minWidth: 140 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{currentMonth.format('YYYY年MM月')}</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>绩效回顾</div>
+            <div className="current-month">
+              <span className="month-text">{currentMonth.format('YYYY年MM月')}</span>
+              <span className="sub-text">TRADING PERFORMANCE</span>
             </div>
             <Button 
               icon={<RightOutlined />} 
               onClick={() => setCurrentMonth(currentMonth.add(1, 'month'))} 
-              style={{ 
-                border: 'none', 
-                background: 'var(--bg-tertiary)', 
-                color: 'var(--text-secondary)',
-                borderRadius: 4
-              }} 
+              className="nav-btn"
             />
-            <Button 
-              onClick={() => setCurrentMonth(dayjs())} 
-              size="small" 
-              style={{ 
-                fontSize: 10, 
-                fontWeight: 600, 
-                textTransform: 'uppercase', 
-                background: 'var(--color-brand-bg)', 
-                border: 'none', 
-                color: 'var(--color-brand)', 
-                borderRadius: 4 
-              }}
-            >
-              今天
-            </Button>
           </div>
+          <Button 
+            onClick={() => setCurrentMonth(dayjs())} 
+            className="today-btn"
+          >
+            回到今天
+          </Button>
+        </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'center' }}>
-            <StatItem 
-              label="月度盈亏" 
-              value={`${monthStats.totalPnL >= 0 ? '+' : ''}${monthStats.totalPnL.toLocaleString()}`}
-              unit="美元"
-              color={monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
-            />
-            <div style={{ width: 1, height: 40, background: 'var(--border-primary)' }} />
-            <StatItem label="交易笔数" value={monthStats.totalTrades} />
-            <div style={{ width: 1, height: 40, background: 'var(--border-primary)' }} />
-            <StatItem label="胜率" value={`${monthStats.winRate}%`} />
-            <div style={{ width: 1, height: 40, background: 'var(--border-primary)' }} />
-            <StatItem label="交易天数" value={monthStats.tradingDays} unit="活跃" />
-          </div>
+        <div className="stats-grid">
+          <StatItem 
+            label="月度总盈亏" 
+            value={`${monthStats.totalPnL >= 0 ? '+' : ''}${monthStats.totalPnL.toLocaleString()}`}
+            unit="USD"
+            color={monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
+            icon={<LineChartOutlined />}
+          />
+          <StatItem label="交易总笔数" value={monthStats.totalTrades} unit="TRADES" icon={<CalendarOutlined />} />
+          <StatItem label="综合胜率" value={`${monthStats.winRate}%`} icon={<TrophyOutlined />} />
+          <StatItem label="活跃交易日" value={monthStats.tradingDays} unit="DAYS" icon={<ClockCircleOutlined />} />
         </div>
 
         {monthStats.totalTrades > 0 && (
-          <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--border-primary)' }}>
-            <ReactECharts option={getMonthlyChartOption()} style={{ height: 100 }} notMerge={true} />
+          <div className="equity-curve-mini">
+            <div className="curve-label">
+              <InfoCircleOutlined /> 月度权益曲线
+            </div>
+            <ReactECharts option={getMonthlyChartOption()} style={{ height: 80 }} notMerge={true} />
           </div>
         )}
       </div>
 
-      {/* 最佳/最差日高亮 */}
-      {monthStats.bestDay && (
-        <Row gutter={16}>
-          <Col xs={24} sm={12}>
-            <div 
-              style={{ 
-                background: 'var(--bg-secondary)', 
-                border: '1px solid var(--border-primary)', 
-                borderLeft: '4px solid var(--color-profit)',
-                borderRadius: 6, 
-                padding: 16, 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => { setSelectedDate(monthStats.bestDay.date); setModalVisible(true); }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TrophyOutlined style={{ color: 'var(--color-profit)' }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-profit)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>最佳盈利日</span>
+      {/* 核心日历区域 */}
+      <div className="calendar-container">
+        <div className="calendar-sidebar">
+          <div className="sidebar-section">
+            <h3 className="section-title">月度高光</h3>
+            {monthStats.bestDay ? (
+              <div className="highlight-card best" onClick={() => { setSelectedDate(monthStats.bestDay.date); setModalVisible(true); }}>
+                <div className="highlight-icon"><TrophyOutlined /></div>
+                <div className="highlight-info">
+                  <div className="label">最佳盈利日</div>
+                  <div className="date">{dayjs(monthStats.bestDay.date).format('MM月DD日')}</div>
+                  <div className="value">+{monthStats.bestDay.totalPnL.toFixed(0)}</div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginTop: 4 }}>{dayjs(monthStats.bestDay.date).format('MM月DD日')}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-profit)' }}>+{monthStats.bestDay.totalPnL.toFixed(0)}</div>
-                <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-tertiary)' }}>{monthStats.bestDay.trades.length} 笔</div>
+            ) : (
+              <div className="empty-highlight">暂无数据</div>
+            )}
+            
+            {monthStats.worstDay ? (
+              <div className="highlight-card worst" onClick={() => { setSelectedDate(monthStats.worstDay.date); setModalVisible(true); }}>
+                <div className="highlight-icon"><WarningOutlined /></div>
+                <div className="highlight-info">
+                  <div className="label">最大回撤日</div>
+                  <div className="date">{dayjs(monthStats.worstDay.date).format('MM月DD日')}</div>
+                  <div className="value">{monthStats.worstDay.totalPnL.toFixed(0)}</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="sidebar-section">
+            <h3 className="section-title">图例说明</h3>
+            <div className="legend-list">
+              <div className="legend-item">
+                <div className="dot profit"></div>
+                <span>盈利交易日</span>
+              </div>
+              <div className="legend-item">
+                <div className="dot loss"></div>
+                <span>亏损交易日</span>
+              </div>
+              <div className="legend-item">
+                <div className="dot ai"></div>
+                <span>AI 复盘已完成</span>
               </div>
             </div>
-          </Col>
-          <Col xs={24} sm={12}>
-            <div 
-              style={{ 
-                background: 'var(--bg-secondary)', 
-                border: '1px solid var(--border-primary)', 
-                borderLeft: '4px solid var(--color-loss)',
-                borderRadius: 6, 
-                padding: 16, 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => { setSelectedDate(monthStats.worstDay.date); setModalVisible(true); }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <WarningOutlined style={{ color: 'var(--color-loss)' }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-loss)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>最大回撤日</span>
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginTop: 4 }}>{dayjs(monthStats.worstDay.date).format('MM月DD日')}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-loss)' }}>{monthStats.worstDay.totalPnL.toFixed(0)}</div>
-                <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-tertiary)' }}>{monthStats.worstDay.trades.length} 笔</div>
-              </div>
-            </div>
-          </Col>
-        </Row>
-      )}
-
-      {/* 主日历卡片 */}
-      <div style={{ 
-        background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 6, 
-        padding: 8,
-        overflow: 'hidden'
-      }}>
-        <Calendar
-          value={currentMonth}
-          onPanelChange={setCurrentMonth}
-          headerRender={() => null}
-          fullScreen={true}
-          cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
-          className="trading-calendar binance-calendar"
-        />
-      </div>
-
-      {/* 图例 */}
-      <div style={{ 
-        display: 'flex', 
-        flexWrap: 'wrap', 
-        justifyContent: 'center', 
-        gap: 32, 
-        padding: '16px 24px', 
-        background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 6 
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-profit)' }} />
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>盈利日</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-loss)' }} />
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>亏损日</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ClockCircleOutlined style={{ color: 'var(--text-tertiary)', fontSize: 12 }} />
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>交易日：06:00 - 05:59</span>
+
+        <div className="calendar-main">
+          <Calendar
+            value={currentMonth}
+            onPanelChange={setCurrentMonth}
+            headerRender={() => null}
+            fullScreen={true}
+            cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
+            className="professional-calendar"
+          />
         </div>
       </div>
 
       {/* 交易详情弹窗 */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand-bg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <CalendarOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+          <div className="modal-custom-header">
+            <div className="header-icon"><CalendarOutlined /></div>
+            <div className="header-text">
+              <span className="main-title">{selectedDate} 交易报告</span>
+              <span className="sub-title">DAILY PERFORMANCE REPORT</span>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDate} 交易报告</span>
           </div>
         }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
-        width={900}
+        width={800}
+        centered
         footer={[
-          <Button 
-            key="close" 
-            onClick={() => setModalVisible(false)} 
-            style={{ 
-              fontWeight: 600, 
-              fontSize: 12, 
-              textTransform: 'uppercase',
-              borderColor: 'var(--border-primary)',
-              color: 'var(--text-secondary)',
-              borderRadius: 4
-            }}
-          >
-            关闭
-          </Button>,
-          <Button 
-            key="manual" 
-            icon={<EditOutlined />} 
-            onClick={() => { setModalVisible(false); setManualReviewVisible(true); }} 
-            style={{ 
-              fontWeight: 600, 
-              fontSize: 12, 
-              textTransform: 'uppercase',
-              borderColor: 'var(--border-primary)',
-              color: 'var(--text-secondary)',
-              borderRadius: 4
-            }}
-          >
-            手动复盘
-          </Button>,
-          <Button 
-            key="ai" 
-            type="primary" 
-            icon={<RobotOutlined />} 
-            onClick={() => { 
-              const dayTrades = tradesByDate[selectedDate].trades;
-              const stats = analyzeTradeData(dayTrades);
-              setReviewStats(stats);
-              const qs = generateReviewQuestions(stats);
-              setReviewQuestions(qs);
-              setCurrentQuestionIndex(0);
-              setChatHistory([{
-                role: 'ai', type: 'welcome',
-                content: `👋 准备开始复盘了吗？今天共有 ${stats.totalTrades} 笔交易需要拆解。`
-              }, {
-                role: 'ai', type: 'question', stage: qs[0].stage, title: qs[0].title, content: qs[0].question, placeholder: qs[0].placeholder
-              }]);
-              setModalVisible(false);
-              setAiReviewVisible(true);
-            }} 
-            style={{ 
-              fontWeight: 600, 
-              fontSize: 12, 
-              textTransform: 'uppercase',
-              background: 'var(--color-brand)',
-              borderColor: 'var(--color-brand)',
-              color: 'var(--bg-primary)',
-              borderRadius: 4
-            }}
-          >
-            AI 复盘
-          </Button>
+          <Button key="close" onClick={() => setModalVisible(false)} className="modal-btn">关闭</Button>,
+          <Button key="manual" icon={<EditOutlined />} onClick={() => { setModalVisible(false); setManualReviewVisible(true); }} className="modal-btn secondary">手动复盘</Button>,
+          <Button key="ai" type="primary" icon={<RobotOutlined />} onClick={() => { 
+            const dayTrades = tradesByDate[selectedDate].trades;
+            const stats = analyzeTradeData(dayTrades);
+            setReviewStats(stats);
+            const qs = generateReviewQuestions(stats);
+            setReviewQuestions(qs);
+            setCurrentQuestionIndex(0);
+            setChatHistory([{
+              role: 'ai', type: 'welcome',
+              content: `👋 准备开始复盘了吗？今天共有 ${stats.totalTrades} 笔交易需要拆解。`
+            }, {
+              role: 'ai', type: 'question', stage: qs[0].stage, title: qs[0].title, content: qs[0].question, placeholder: qs[0].placeholder
+            }]);
+            setModalVisible(false);
+            setAiReviewVisible(true);
+          }} className="modal-btn primary">AI 复盘</Button>
         ]}
       >
         {selectedDate && tradesByDate[selectedDate] && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <Row gutter={16}>
-              <Col span={6}>
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 16 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>当日盈亏</div>
-                  <div style={{ 
-                    fontSize: 20, 
-                    fontWeight: 700, 
-                    fontFamily: 'var(--font-mono)',
-                    color: tradesByDate[selectedDate].totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                  }}>
-                    {tradesByDate[selectedDate].totalPnL >= 0 ? '+' : ''}{tradesByDate[selectedDate].totalPnL.toFixed(2)}
-                  </div>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 16 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>交易数量</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {tradesByDate[selectedDate].trades.length} <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>笔</span>
-                  </div>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 16 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>胜率</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {(tradesByDate[selectedDate].winCount / tradesByDate[selectedDate].trades.length * 100).toFixed(1)}%
-                  </div>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 16 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>复盘状态</div>
-                  <div style={{ 
-                    fontSize: 14, 
-                    fontWeight: 600, 
-                    color: savedReviews[selectedDate] ? 'var(--color-profit)' : 'var(--text-tertiary)' 
-                  }}>
-                    {savedReviews[selectedDate] ? '已完成' : '待完成'}
-                  </div>
-                </div>
-              </Col>
-            </Row>
+          <div className="modal-report-content">
+            <div className="report-stats-row">
+              <div className="report-stat-box">
+                <span className="label">当日净盈亏</span>
+                <span className={`value ${tradesByDate[selectedDate].totalPnL >= 0 ? 'profit' : 'loss'}`}>
+                  {tradesByDate[selectedDate].totalPnL >= 0 ? '+' : ''}{tradesByDate[selectedDate].totalPnL.toFixed(2)}
+                </span>
+              </div>
+              <div className="report-stat-box">
+                <span className="label">交易笔数</span>
+                <span className="value">{tradesByDate[selectedDate].trades.length}</span>
+              </div>
+              <div className="report-stat-box">
+                <span className="label">胜率</span>
+                <span className="value">{(tradesByDate[selectedDate].winCount / tradesByDate[selectedDate].trades.length * 100).toFixed(0)}%</span>
+              </div>
+              <div className="report-stat-box">
+                <span className="label">复盘状态</span>
+                <span className={`value status ${savedReviews[selectedDate] ? 'done' : 'pending'}`}>
+                  {savedReviews[selectedDate] ? '已完成' : '待复盘'}
+                </span>
+              </div>
+            </div>
             
             <Table
               dataSource={tradesByDate[selectedDate].trades}
               pagination={false}
               size="small"
-              className="binance-table"
+              className="report-table"
               columns={[
-                { 
-                  title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>时间</span>, 
-                  dataIndex: 'openTime', 
-                  render: t => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{dayjs(t).format('HH:mm')}</span>
-                },
-                { 
-                  title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>品种</span>, 
-                  dataIndex: 'instrumentCode', 
-                  render: c => <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c}</span>
-                },
-                { 
-                  title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>方向</span>, 
-                  dataIndex: 'direction', 
-                  render: d => (
-                    <Tag style={{ 
-                      background: d === 'LONG' ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)', 
-                      color: d === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)', 
-                      border: 'none', 
-                      fontWeight: 600, 
-                      fontSize: 10 
-                    }}>
-                      {d === 'LONG' ? '多' : '空'}
-                    </Tag>
-                  )
-                },
-                { 
-                  title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>点数</span>, 
-                  dataIndex: 'ticks', 
-                  align: 'right', 
-                  render: t => (
-                    <span style={{ fontFamily: 'var(--font-mono)', color: t >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                      {t >= 0 ? '+' : ''}{t}
-                    </span>
-                  )
-                },
-                { 
-                  title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>盈亏</span>, 
-                  dataIndex: 'pnl', 
-                  align: 'right', 
-                  render: p => (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                      {p >= 0 ? '+' : ''}{p.toFixed(2)}
-                    </span>
-                  )
-                }
+                { title: '时间', dataIndex: 'openTime', render: t => dayjs(t).format('HH:mm') },
+                { title: '品种', dataIndex: 'instrumentCode', className: 'font-bold' },
+                { title: '方向', dataIndex: 'direction', render: d => <Tag color={d === 'LONG' ? 'green' : 'red'}>{d === 'LONG' ? '多' : '空'}</Tag> },
+                { title: '点数', dataIndex: 'ticks', align: 'right', render: t => <span className={t >= 0 ? 'text-profit' : 'text-loss'}>{t >= 0 ? '+' : ''}{t}</span> },
+                { title: '盈亏', dataIndex: 'pnl', align: 'right', render: p => <span className={`font-mono font-bold ${p >= 0 ? 'text-profit' : 'text-loss'}`}>{p >= 0 ? '+' : ''}{p.toFixed(2)}</span> }
               ]}
             />
           </div>
@@ -652,66 +464,40 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       {/* AI 复盘对话弹窗 */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand-bg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <RobotOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+          <div className="modal-custom-header">
+            <div className="header-icon ai"><RobotOutlined /></div>
+            <div className="header-text">
+              <span className="main-title">AI 复盘对话</span>
+              <span className="sub-title">AI-POWERED TRADING REVIEW</span>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>AI 复盘对话</span>
           </div>
         }
         open={aiReviewVisible}
         onCancel={() => setAiReviewVisible(false)}
         footer={null}
-        width={600}
+        width={550}
+        centered
       >
-        <div style={{ display: 'flex', flexDirection: 'column', height: 500 }}>
-          <div style={{ 
-            flex: 1, 
-            overflowY: 'auto', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 16, 
-            padding: 16, 
-            background: 'var(--bg-tertiary)', 
-            borderRadius: 8 
-          }}>
+        <div className="ai-chat-container">
+          <div className="chat-messages">
             {chatHistory.map((m, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: m.role === 'ai' ? 'flex-start' : 'flex-end' }}>
-                <div style={{ 
-                  padding: 12, 
-                  borderRadius: 12, 
-                  maxWidth: '80%', 
-                  fontSize: 13,
-                  whiteSpace: 'pre-wrap',
-                  background: m.role === 'ai' ? 'var(--bg-secondary)' : 'var(--color-brand)', 
-                  color: m.role === 'ai' ? 'var(--text-primary)' : 'var(--bg-primary)',
-                  border: m.role === 'ai' ? '1px solid var(--border-primary)' : 'none'
-                }}>
-                  {m.content}
-                </div>
+              <div key={i} className={`message-wrapper ${m.role}`}>
+                <div className="message-bubble">{m.content}</div>
               </div>
             ))}
           </div>
-          <div style={{ paddingTop: 16, display: 'flex', gap: 8 }}>
+          <div className="chat-input-area">
             <TextArea 
               placeholder="输入你的回答..." 
               autoSize={{ minRows: 1, maxRows: 3 }} 
               value={userInput} 
               onChange={e => setUserInput(e.target.value)} 
-              style={{ 
-                borderRadius: 8, 
-                background: 'var(--bg-tertiary)', 
-                borderColor: 'var(--border-primary)', 
-                color: 'var(--text-primary)' 
-              }} 
+              onPressEnter={e => {
+                if (!e.shiftKey) {
+                  e.preventDefault();
+                  // 发送逻辑
+                }
+              }}
             />
             <Button 
               type="primary" 
@@ -725,52 +511,380 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   setChatHistory([...newHistory, { role: 'ai', content: '已记录，请继续保持规范复盘。' }]);
                 }, 500);
               }} 
-              style={{ 
-                borderRadius: 8, 
-                height: 'auto', 
-                background: 'var(--color-brand)', 
-                borderColor: 'var(--color-brand)', 
-                color: 'var(--bg-primary)' 
-              }} 
             />
           </div>
         </div>
       </Modal>
 
       <style>{`
-        .binance-calendar .ant-picker-calendar-date-content {
-          height: 60px !important;
-          margin: 0 !important;
+        .trade-calendar-page {
+          padding: 24px;
+          background: #0a0a0a;
+          min-height: 100vh;
+          color: #fff;
         }
-        .binance-calendar .ant-picker-cell-inner {
-          border: 1px solid var(--border-primary) !important;
-          border-radius: 4px !important;
-          margin: 2px !important;
-          padding: 0 !important;
-          min-height: 80px !important;
-          background: var(--bg-tertiary) !important;
+
+        /* 顶部面板 */
+        .dashboard-header {
+          background: #111;
+          border: 1px solid #222;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
         }
-        .binance-calendar .ant-picker-cell-inner:hover {
-          background: var(--bg-primary) !important;
+
+        .month-navigator {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 32px;
         }
-        .binance-calendar .ant-picker-cell-selected .ant-picker-cell-inner {
-          background: var(--color-brand-bg) !important;
-          border-color: var(--color-brand) !important;
+
+        .nav-controls {
+          display: flex;
+          align-items: center;
+          gap: 20px;
         }
-        .binance-calendar .ant-picker-calendar-date-value {
-          padding: 4px 8px;
-          font-size: 13px;
+
+        .nav-btn {
+          background: #1a1a1a;
+          border: 1px solid #333;
+          color: #888;
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+        }
+
+        .current-month {
+          text-align: center;
+        }
+
+        .month-text {
+          display: block;
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: -0.5px;
+        }
+
+        .sub-text {
+          font-size: 10px;
+          color: #555;
           font-weight: 600;
-          color: var(--text-secondary);
+          letter-spacing: 2px;
         }
-        .binance-calendar .ant-picker-cell-today .ant-picker-calendar-date-value {
-          color: var(--color-brand) !important;
+
+        .today-btn {
+          background: transparent;
+          border: 1px solid #333;
+          color: #888;
+          font-size: 12px;
+          font-weight: 600;
+          border-radius: 6px;
         }
-        .binance-calendar .ant-picker-content th {
-          color: var(--text-tertiary) !important;
-          font-weight: 600 !important;
-          font-size: 11px !important;
-          text-transform: uppercase !important;
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 24px;
+          margin-bottom: 24px;
+        }
+
+        .stat-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 16px;
+          background: #161616;
+          border-radius: 10px;
+          border: 1px solid #222;
+        }
+
+        .stat-icon {
+          font-size: 20px;
+          opacity: 0.5;
+        }
+
+        .stat-label {
+          font-size: 11px;
+          color: #666;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+          font-size: 20px;
+          font-weight: 700;
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-unit {
+          font-size: 10px;
+          margin-left: 4px;
+          opacity: 0.4;
+        }
+
+        .equity-curve-mini {
+          border-top: 1px solid #222;
+          padding-top: 16px;
+        }
+
+        .curve-label {
+          font-size: 11px;
+          color: #444;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* 日历布局 */
+        .calendar-container {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 24px;
+        }
+
+        .calendar-sidebar {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .section-title {
+          font-size: 12px;
+          font-weight: 700;
+          color: #444;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 16px;
+        }
+
+        .highlight-card {
+          background: #111;
+          border: 1px solid #222;
+          border-radius: 10px;
+          padding: 16px;
+          display: flex;
+          gap: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-bottom: 12px;
+        }
+
+        .highlight-card:hover {
+          border-color: #444;
+          transform: translateY(-2px);
+        }
+
+        .highlight-card.best { border-left: 4px solid #10b981; }
+        .highlight-card.worst { border-left: 4px solid #f43f5e; }
+
+        .highlight-icon { font-size: 20px; }
+        .highlight-card.best .highlight-icon { color: #10b981; }
+        .highlight-card.worst .highlight-icon { color: #f43f5e; }
+
+        .highlight-info .label { font-size: 10px; color: #555; font-weight: 600; }
+        .highlight-info .date { font-size: 14px; font-weight: 600; margin: 2px 0; }
+        .highlight-info .value { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono'; }
+        .highlight-card.best .value { color: #10b981; }
+        .highlight-card.worst .value { color: #f43f5e; }
+
+        .legend-list {
+          background: #111;
+          border: 1px solid #222;
+          border-radius: 10px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 12px;
+          color: #888;
+        }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.profit { background: #10b981; }
+        .dot.loss { background: #f43f5e; }
+        .dot.ai { background: #f0b90b; }
+
+        /* 日历核心样式 */
+        .calendar-main {
+          background: #111;
+          border: 1px solid #222;
+          border-radius: 12px;
+          padding: 12px;
+        }
+
+        .professional-calendar .ant-picker-calendar-date {
+          border: 1px solid #222 !important;
+          border-radius: 6px !important;
+          margin: 4px !important;
+          background: #0d0d0d !important;
+          height: 100px !important;
+          transition: all 0.2s;
+        }
+
+        .professional-calendar .ant-picker-calendar-date:hover {
+          background: #161616 !important;
+          border-color: #444 !important;
+        }
+
+        .calendar-cell-empty {
+          height: 100%;
+          padding: 8px;
+          opacity: 0.2;
+        }
+
+        .calendar-cell-content {
+          height: 100%;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .cell-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .cell-date {
+          font-size: 12px;
+          font-weight: 600;
+          color: #555;
+        }
+
+        .is-today .cell-date {
+          color: #f0b90b;
+        }
+
+        .cell-review-icon { font-size: 10px; }
+        .cell-review-icon.ai { color: #f0b90b; }
+
+        .cell-pnl {
+          font-size: 16px;
+          font-weight: 700;
+          font-family: 'JetBrains Mono';
+          text-align: right;
+        }
+
+        .is-profit .cell-pnl { color: #10b981; }
+        .is-loss .cell-pnl { color: #f43f5e; }
+
+        .cell-count {
+          font-size: 9px;
+          color: #444;
+          text-align: right;
+          font-weight: 600;
+        }
+
+        .win-rate-bar {
+          height: 2px;
+          background: #222;
+          border-radius: 1px;
+          overflow: hidden;
+        }
+
+        .win-rate-fill {
+          height: 100%;
+          background: #10b981;
+        }
+
+        /* 弹窗样式 */
+        .modal-custom-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .header-icon {
+          width: 40px;
+          height: 40px;
+          background: #1a1a1a;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #f0b90b;
+          font-size: 20px;
+        }
+
+        .header-icon.ai { color: #f0b90b; background: rgba(240, 185, 11, 0.1); }
+
+        .header-text { display: flex; flex-direction: column; }
+        .main-title { font-size: 18px; font-weight: 700; color: #fff; }
+        .sub-title { font-size: 10px; color: #555; font-weight: 700; letter-spacing: 1px; }
+
+        .report-stats-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .report-stat-box {
+          background: #161616;
+          padding: 16px;
+          border-radius: 8px;
+          border: 1px solid #222;
+        }
+
+        .report-stat-box .label { font-size: 10px; color: #555; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .report-stat-box .value { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono'; color: #fff; }
+        .report-stat-box .value.profit { color: #10b981; }
+        .report-stat-box .value.loss { color: #f43f5e; }
+        .report-stat-box .value.status.done { color: #10b981; font-size: 14px; }
+        .report-stat-box .value.status.pending { color: #555; font-size: 14px; }
+
+        .modal-btn { border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .modal-btn.primary { background: #f0b90b; border-color: #f0b90b; color: #000; }
+        .modal-btn.secondary { background: #1a1a1a; border-color: #333; color: #888; }
+
+        /* AI 对话 */
+        .ai-chat-container {
+          background: #0d0d0d;
+          border-radius: 12px;
+          display: flex;
+          flex-direction: column;
+          height: 450px;
+        }
+
+        .chat-messages {
+          flex: 1;
+          padding: 20px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .message-wrapper { display: flex; }
+        .message-wrapper.ai { justify-content: flex-start; }
+        .message-wrapper.user { justify-content: flex-end; }
+
+        .message-bubble {
+          max-width: 80%;
+          padding: 12px 16px;
+          border-radius: 12px;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
+        .ai .message-bubble { background: #1a1a1a; color: #ccc; border: 1px solid #222; }
+        .user .message-bubble { background: #f0b90b; color: #000; font-weight: 500; }
+
+        .chat-input-area {
+          padding: 16px;
+          border-top: 1px solid #222;
+          display: flex;
+          gap: 12px;
         }
       `}</style>
     </div>
