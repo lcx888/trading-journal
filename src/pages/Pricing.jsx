@@ -11,6 +11,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Spin, message, Modal, ConfigProvider } from 'antd';
 import { 
   Check, 
+  X,
   ShieldCheck,
   CreditCard,
   RefreshCw,
@@ -18,6 +19,41 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { getPlans, getSubscriptionStatus } from '../services/subscription';
+
+// 对比表格行组件
+const CompareRow = ({ feature, pain, free, pro, elite, isLast = false }) => {
+  const renderCell = (value) => {
+    if (value === true) {
+      return <Check size={16} strokeWidth={2.5} style={{ color: '#fff' }} />;
+    }
+    if (value === false) {
+      return <X size={16} strokeWidth={2} style={{ color: '#333' }} />;
+    }
+    return <span style={{ fontSize: '13px', color: '#fff' }}>{value}</span>;
+  };
+
+  return (
+    <div style={{ 
+      display: 'grid', 
+      gridTemplateColumns: '1fr 100px 100px 100px',
+      borderBottom: isLast ? 'none' : '1px solid #1a1a1a',
+    }}>
+      <div style={{ padding: '16px 20px' }}>
+        <div style={{ fontSize: '14px', color: '#fff', marginBottom: '4px' }}>{feature}</div>
+        <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.4 }}>{pain}</div>
+      </div>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {renderCell(free)}
+      </div>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {renderCell(pro)}
+      </div>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {renderCell(elite)}
+      </div>
+    </div>
+  );
+};
 
 const THEME = {
   bg: '#0a0a0a',
@@ -370,6 +406,146 @@ const Pricing = () => {
               );
             })}
           </div>
+
+          {/* 功能对比表格 */}
+          <section style={{ marginTop: '80px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '32px' }}>功能对比</h2>
+            
+            <div style={{ 
+              border: `1px solid ${THEME.border}`, 
+              borderRadius: '8px', 
+              overflow: 'hidden' 
+            }}>
+              {/* 表头 */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 100px 100px 100px',
+                background: '#161616',
+                borderBottom: `1px solid ${THEME.border}`,
+              }}>
+                <div style={{ padding: '16px 20px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  功能
+                </div>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Free
+                </div>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Pro
+                </div>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Elite
+                </div>
+              </div>
+
+              {/* 分组：数据管理 */}
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  数据管理
+                </span>
+              </div>
+              
+              <CompareRow 
+                feature="交易账本数量" 
+                pain="多策略、多账户交易者需要分开记录"
+                free="1 个" pro="无限" elite="无限" 
+              />
+              <CompareRow 
+                feature="每月交易笔数" 
+                pain="高频交易者可能每天数十笔"
+                free="50 笔" pro="无限" elite="无限" 
+              />
+              <CompareRow 
+                feature="历史数据保留" 
+                pain="长期复盘需要回溯数月甚至数年"
+                free="7 天" pro="永久" elite="永久" 
+              />
+              <CompareRow 
+                feature="数据导出" 
+                pain="需要备份或用于外部分析"
+                free={false} pro={true} elite={true} 
+              />
+
+              {/* 分组：AI 诊断 */}
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  AI 诊断
+                </span>
+              </div>
+              
+              <CompareRow 
+                feature="AI 交易分析" 
+                pain="靠人工复盘难以发现隐藏的行为模式"
+                free="2 次/月" pro="无限" elite="无限" 
+              />
+              <CompareRow 
+                feature="智能诊断报告" 
+                pain="不知道自己的交易问题出在哪里"
+                free={false} pro={true} elite={true} 
+              />
+              <CompareRow 
+                feature="蒙特卡洛模拟" 
+                pain="无法量化策略的风险敞口"
+                free={false} pro={true} elite={true} 
+              />
+              <CompareRow 
+                feature="最优止损建议" 
+                pain="止损位置凭感觉，缺乏数据支撑"
+                free={false} pro={true} elite={true} 
+              />
+              <CompareRow 
+                feature="期望值计算" 
+                pain="不确定当前策略是否长期有利可图"
+                free={false} pro={true} elite={true} 
+              />
+              <CompareRow 
+                feature="行为标签分析" 
+                pain="冲动交易、过度交易等坏习惯难以察觉"
+                free={false} pro={true} elite={true} 
+              />
+
+              {/* 分组：高级功能 */}
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  高级功能
+                </span>
+              </div>
+              
+              <CompareRow 
+                feature="API 接口访问" 
+                pain="需要将数据接入自己的交易系统"
+                free={false} pro={false} elite={true} 
+              />
+              <CompareRow 
+                feature="定制化报告" 
+                pain="标准报告无法满足特定分析需求"
+                free={false} pro={false} elite={true} 
+              />
+              <CompareRow 
+                feature="新功能抢先体验" 
+                pain="希望第一时间使用最新工具"
+                free={false} pro={false} elite={true} 
+              />
+
+              {/* 分组：服务支持 */}
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  服务支持
+                </span>
+              </div>
+              
+              <CompareRow 
+                feature="技术支持" 
+                pain="遇到问题需要及时解决"
+                free="邮件" pro="优先" elite="专属" 
+              />
+              <CompareRow 
+                feature="1对1 策略咨询" 
+                pain="需要专业人士的个性化指导"
+                free={false} pro={false} elite={true} 
+                isLast
+              />
+            </div>
+          </section>
 
           <footer style={styles.trustArea}>
             <div style={styles.trustItem}><ShieldCheck size={16} /> SSL 加密</div>
