@@ -3,6 +3,9 @@
  * 使用 DeepSeek API 进行交易数据智能分析
  */
 
+// Node.js 16 兼容：使用 node-fetch
+import fetch from 'node-fetch';
+
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
 /**
