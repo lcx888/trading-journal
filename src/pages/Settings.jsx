@@ -25,10 +25,11 @@ import StorageService from '../services/storage';
 import { isUSDaylightSavingTime, isEUDaylightSavingTime, formatCSTTime } from '../utils/timezone';
 import { fixHoldingTimes } from '../utils/debugHoldingTime';
 import { changePassword, changeEmail, deleteAccount, resendVerification, getMe } from '../services/auth';
+import { CrownOutlined, RocketOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
-const Settings = ({ onLogout }) => {
+const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const [instruments, setInstruments] = useState([]);
   const [importHistory, setImportHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -540,6 +541,181 @@ const Settings = ({ onLogout }) => {
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>导入次数</div>
               </div>
             </div>
+          </div>
+
+          {/* 订阅管理 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 4, 
+                background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.2), rgba(180, 83, 9, 0.1))', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <CrownOutlined style={{ color: '#d97706' }} />
+              </div>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>订阅管理</span>
+            </div>
+            
+            {/* 当前订阅状态 */}
+            {(() => {
+              const plan = subscription?.plan || {};
+              const planName = plan.name || 'free';
+              const isFreePlan = planName === 'free';
+              const usage = subscription?.usage || {};
+              
+              const planInfo = {
+                free: { 
+                  displayName: 'Free 免费版', 
+                  color: '#6b7280',
+                  bgColor: 'rgba(107, 114, 128, 0.1)',
+                  features: ['1 个账本', '每月 100 笔交易', '3 次 AI 分析'],
+                },
+                pro: { 
+                  displayName: 'Pro 专业版', 
+                  color: '#d97706',
+                  bgColor: 'rgba(217, 119, 6, 0.1)',
+                  features: ['无限账本', '无限交易', '无限 AI 分析', '智能诊断系统'],
+                },
+                team: { 
+                  displayName: 'Team 团队版', 
+                  color: '#7c3aed',
+                  bgColor: 'rgba(124, 58, 237, 0.1)',
+                  features: ['所有 Pro 功能', '多人协作', 'API 接口', '优先支持'],
+                },
+              };
+              
+              const currentPlan = planInfo[planName] || planInfo.free;
+              
+              return (
+                <>
+                  {/* 当前计划卡片 */}
+                  <div style={{ 
+                    padding: 16, 
+                    background: currentPlan.bgColor, 
+                    borderRadius: 8, 
+                    border: `1px solid ${currentPlan.color}30`,
+                    marginBottom: 16,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>当前计划</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: currentPlan.color }}>{currentPlan.displayName}</div>
+                      </div>
+                      <Tag style={{ 
+                        background: currentPlan.color, 
+                        color: '#fff', 
+                        border: 'none',
+                        fontWeight: 600,
+                      }}>
+                        {isFreePlan ? 'FREE' : 'ACTIVE'}
+                      </Tag>
+                    </div>
+                    
+                    {/* 使用量统计 */}
+                    {isFreePlan && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div style={{ padding: 10, background: 'var(--bg-primary)', borderRadius: 6 }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>本月交易</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {usage.tradesUsedThisMonth || 0} / {plan.maxTradesPerMonth || 100}
+                          </div>
+                          <div style={{ 
+                            height: 4, 
+                            background: 'var(--bg-tertiary)', 
+                            borderRadius: 2, 
+                            marginTop: 6,
+                            overflow: 'hidden',
+                          }}>
+                            <div style={{ 
+                              width: `${Math.min(100, ((usage.tradesUsedThisMonth || 0) / (plan.maxTradesPerMonth || 100)) * 100)}%`, 
+                              height: '100%', 
+                              background: '#d97706',
+                              borderRadius: 2,
+                            }} />
+                          </div>
+                        </div>
+                        <div style={{ padding: 10, background: 'var(--bg-primary)', borderRadius: 6 }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>AI 分析</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {usage.aiAnalysisUsedThisMonth || 0} / {plan.maxAiAnalysisPerMonth || 3}
+                          </div>
+                          <div style={{ 
+                            height: 4, 
+                            background: 'var(--bg-tertiary)', 
+                            borderRadius: 2, 
+                            marginTop: 6,
+                            overflow: 'hidden',
+                          }}>
+                            <div style={{ 
+                              width: `${Math.min(100, ((usage.aiAnalysisUsedThisMonth || 0) / (plan.maxAiAnalysisPerMonth || 3)) * 100)}%`, 
+                              height: '100%', 
+                              background: '#3b82f6',
+                              borderRadius: 2,
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 功能列表 */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {currentPlan.features.map((feature, idx) => (
+                        <div key={idx} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 4, 
+                          fontSize: 11, 
+                          color: 'var(--text-secondary)',
+                        }}>
+                          <CheckCircleOutlined style={{ fontSize: 10, color: 'var(--color-profit)' }} />
+                          {feature}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* 操作按钮 */}
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {isFreePlan ? (
+                      <Button
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        onClick={onUpgrade}
+                        style={{
+                          flex: 1,
+                          background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                          border: 'none',
+                          height: 40,
+                          fontWeight: 600,
+                        }}
+                      >
+                        升级到 Pro · $19/月
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={onUpgrade}
+                          style={{ flex: 1, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                        >
+                          管理订阅
+                        </Button>
+                        <Button
+                          icon={<ThunderboltOutlined />}
+                          onClick={onUpgrade}
+                          style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                        >
+                          升级
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* 账户安全 */}

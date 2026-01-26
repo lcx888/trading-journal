@@ -39,6 +39,8 @@ import Pricing from './pages/Pricing';
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
+import { getSubscriptionStatus, getPlanDisplayInfo, clearSubscriptionCache } from './services/subscription';
+import { SubscriptionBadge, UpgradeModal } from './components/UpgradePrompt';
 
 dayjs.locale('zh-cn');
 
@@ -138,6 +140,9 @@ function App() {
   const [resetToken, setResetToken] = useState(null);
   const [pageKey, setPageKey] = useState(0);
   const [showDocs, setShowDocs] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
 
   // 处理 URL 参数
   useEffect(() => {
@@ -224,11 +229,36 @@ function App() {
   useEffect(() => {
     if (authUser) {
       loadRecords();
+      loadSubscription();
     } else {
       setRecords([]);
       setLoadingRecords(false);
+      setSubscription(null);
+      clearSubscriptionCache();
     }
   }, [refreshKey, authUser]);
+
+  // 加载订阅状态
+  const loadSubscription = async () => {
+    try {
+      const status = await getSubscriptionStatus(true);
+      setSubscription(status);
+    } catch (e) {
+      console.error('加载订阅状态失败:', e);
+    }
+  };
+
+  // 显示升级弹窗
+  const showUpgrade = (featureKey = 'smartDiagnosis') => {
+    setUpgradeFeatureKey(featureKey);
+    setShowUpgradeModal(true);
+  };
+
+  // 跳转到订阅页面
+  const goToPricing = () => {
+    setShowUpgradeModal(false);
+    setCurrentPage('pricing');
+  };
 
   const loadRecords = async () => {
     setLoadingRecords(true);
@@ -252,7 +282,7 @@ function App() {
     
     switch (currentPage) {
       case 'dashboard': 
-        return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} /></div>;
+        return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} subscription={subscription} onUpgrade={goToPricing} /></div>;
       case 'records': 
         return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} /></div>;
       case 'trades': 
@@ -260,13 +290,13 @@ function App() {
       case 'strategies': 
         return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} /></div>;
       case 'ai-analysis': 
-        return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+        return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} subscription={subscription} onShowUpgrade={goToPricing} /></div>;
       case 'calendar': 
         return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
       case 'import': 
         return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} /></div>;
       case 'settings': 
-        return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} /></div>;
+        return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} subscription={subscription} onUpgrade={goToPricing} /></div>;
       case 'pricing':
         return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => setCurrentPage(page)} /></div>;
       case 'admin':
@@ -514,7 +544,19 @@ function App() {
             </div>
             
             {/* 右侧操作区 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* 订阅状态 */}
+              {subscription && (
+                <SubscriptionBadge 
+                  plan={subscription.plan?.name || 'free'}
+                  usage={subscription.usage}
+                  onClick={goToPricing}
+                />
+              )}
+              
+              {/* 分隔线 */}
+              <div className="h-5 w-px bg-gray-700"></div>
+              
               {/* 日期显示 */}
               <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm px-3 py-1.5 bg-[var(--bg-tertiary)] rounded">
                 <ClockCircleOutlined className="text-xs" />
@@ -592,6 +634,22 @@ function App() {
           </Content>
         </Layout>
       </Layout>
+      
+      {/* 升级提示弹窗 */}
+      <UpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureKey={upgradeFeatureKey}
+        usage={subscription?.usage ? {
+          used: upgradeFeatureKey === 'aiAnalysis' 
+            ? subscription.usage.aiAnalysisUsedThisMonth 
+            : subscription.usage.tradesUsedThisMonth,
+          limit: upgradeFeatureKey === 'aiAnalysis'
+            ? subscription.plan?.maxAiAnalysisPerMonth
+            : subscription.plan?.maxTradesPerMonth,
+        } : null}
+        onUpgrade={goToPricing}
+      />
     </ConfigProvider>
   );
 }

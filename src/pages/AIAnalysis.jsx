@@ -65,6 +65,7 @@ import {
   monteCarloSimulation,
   calculateExpectancy,
 } from '../services/tradingDiagnostics';
+import { FeatureLock, ProBadge, UpgradeModal } from '../components/UpgradePrompt';
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -810,12 +811,24 @@ const StatCard = ({ icon: IconComponent, label, value, valueColor, subText, bgCo
   </div>
 );
 
-const AIAnalysis = ({ activeRecordId = 'all' }) => {
+const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [instruments, setInstruments] = useState([]);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
+
+  // 检查是否为付费用户
+  const isPaidUser = subscription?.plan?.name === 'pro' || subscription?.plan?.name === 'team';
+  const planFeatures = subscription?.plan || {};
+  
+  // 显示升级弹窗
+  const handleShowUpgrade = (featureKey) => {
+    setUpgradeFeatureKey(featureKey);
+    setShowUpgradeModal(true);
+  };
   const [records, setRecords] = useState([]);
   const [filters, setFilters] = useState({
     instrument: 'ALL',
@@ -2380,11 +2393,36 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                       <span className="flex items-center gap-2">
                         <Brain size={14} />
                         智能诊断
+                        {!isPaidUser && <ProBadge />}
                       </span>
                     ),
                     children: (
                       <div className="p-5">
-                        {diagnosticLoading ? (
+                        {!isPaidUser ? (
+                          <FeatureLock 
+                            featureKey="smartDiagnosis" 
+                            onUpgrade={() => handleShowUpgrade('smartDiagnosis')}
+                          >
+                            <div className="opacity-50 pointer-events-none">
+                              <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="p-4 rounded-lg bg-[var(--bg-tertiary)]">
+                                  <div className="text-xs text-[var(--text-tertiary)] mb-1">综合评分</div>
+                                  <div className="text-2xl font-bold text-amber-400">--</div>
+                                </div>
+                                <div className="p-4 rounded-lg bg-[var(--bg-tertiary)]">
+                                  <div className="text-xs text-[var(--text-tertiary)] mb-1">需改进项</div>
+                                  <div className="text-2xl font-bold text-[var(--text-primary)]">--</div>
+                                </div>
+                              </div>
+                              <div className="h-48 bg-[var(--bg-tertiary)] rounded-lg flex items-center justify-center">
+                                <div className="text-center">
+                                  <Brain size={48} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
+                                  <div className="text-sm text-[var(--text-secondary)]">智能诊断分析区域</div>
+                                </div>
+                              </div>
+                            </div>
+                          </FeatureLock>
+                        ) : diagnosticLoading ? (
                           <div className="flex items-center justify-center py-16">
                             <Spin size="large" />
                             <span className="ml-4 text-[var(--text-secondary)]">正在生成诊断报告...</span>
@@ -3034,6 +3072,17 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
           }
         }
       `}</style>
+      
+      {/* 升级提示弹窗 */}
+      <UpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureKey={upgradeFeatureKey}
+        onUpgrade={() => {
+          setShowUpgradeModal(false);
+          if (onShowUpgrade) onShowUpgrade();
+        }}
+      />
     </div>
   );
 };

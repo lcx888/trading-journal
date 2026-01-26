@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import AnimatedNumber from '../components/AnimatedNumber';
 import EmptyState from '../components/EmptyState';
+import { SubscriptionCard } from '../components/UpgradePrompt';
 
 const { RangePicker } = DatePicker;
 
@@ -43,7 +44,7 @@ const COLORS = {
   border: 'rgba(255, 255, 255, 0.05)',
 };
 
-const Dashboard = ({ activeRecordId = 'all', onNavigateToImport }) => {
+const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, onUpgrade }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
@@ -622,6 +623,15 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport }) => {
         </div>
         
         <div className="flex flex-col gap-4">
+          {/* 订阅状态卡片 */}
+          {subscription && (
+            <SubscriptionCard 
+              subscription={subscription} 
+              onUpgrade={onUpgrade}
+              onManage={onUpgrade}
+            />
+          )}
+          
           <div className="card p-4 flex-1">
             <div className="flex items-center gap-2 mb-3">
               <ClockCircleOutlined className="text-[var(--color-brand)] text-sm" />
