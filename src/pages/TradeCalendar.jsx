@@ -555,62 +555,72 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         <div 
           style={{
             position: 'absolute',
-            inset: 0, // 填满整个父级格子
-            padding: '8px 10px',
+            inset: '2px', // 留出一点边距，增加呼吸感
             cursor: 'pointer',
-            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             background: isProfit 
-              ? 'var(--color-profit)' 
-              : 'var(--color-loss)',
+              ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%)' 
+              : 'linear-gradient(180deg, rgba(244, 63, 94, 0.2) 0%, rgba(244, 63, 94, 0.1) 100%)',
+            border: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+            borderRadius: 4,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: 4,
-            zIndex: 1
+            zIndex: 1,
+            backdropFilter: 'blur(4px)'
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
           className="calendar-cell-inner"
         >
-          {/* 状态角标 - 极简设计 */}
+          {/* 状态角标 - 悬浮小圆点 */}
           <div style={{
             position: 'absolute',
-            top: 6,
-            right: 6,
+            top: 4,
+            right: 4,
             display: 'flex',
-            gap: 4
+            gap: 3
           }}>
             {showStreak && (
-              streak.type === 'win' ? <FireOutlined style={{ color: '#fff', fontSize: 10 }} /> : <WarningOutlined style={{ color: '#fff', fontSize: 10 }} />
+              <FireOutlined style={{ color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)', fontSize: 8, opacity: 0.8 }} />
             )}
             {savedReviews[key] && (
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />
+              <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--color-brand)' }} />
             )}
           </div>
 
-          {/* 盈亏金额 - 绝对核心 */}
+          {/* 盈亏金额 - 现代排版 */}
           <div style={{ 
-            fontSize: 18, 
-            fontWeight: 800, 
+            fontSize: '15px', 
+            fontWeight: 700, 
             fontFamily: 'var(--font-mono)',
-            color: '#fff',
-            lineHeight: 1,
-            letterSpacing: '-0.5px'
+            color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+            marginBottom: 2
           }}>
             {isProfit ? '+' : '-'}{Math.abs(data.totalPnL).toFixed(0)}
           </div>
 
-          {/* 辅助信息 - 极简横向布局 */}
+          {/* 进度指示器 - 极简线条 */}
+          <div style={{ 
+            width: '24px', 
+            height: '2px', 
+            background: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+            opacity: 0.4,
+            borderRadius: 1,
+            marginBottom: 4
+          }} />
+
+          {/* 辅助数据 - 极简标签 */}
           <div style={{ 
             display: 'flex', 
-            alignItems: 'center', 
-            gap: 6,
-            fontSize: 10,
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontWeight: 600
+            gap: 4,
+            fontSize: '9px',
+            color: 'var(--text-tertiary)',
+            fontWeight: 500,
+            letterSpacing: '0.02em'
           }}>
-            <span>{data.trades.length}T</span>
-            <span style={{ opacity: 0.3 }}>|</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{data.trades.length}T</span>
+            <span style={{ opacity: 0.3 }}>•</span>
             <span>{winRate}%</span>
           </div>
         </div>
