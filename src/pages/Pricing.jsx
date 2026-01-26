@@ -1,12 +1,11 @@
 /**
- * 订阅定价页面 - 极简专业设计系统版
+ * 订阅定价页面 - 极简主义专业版 (Minimalist Professional)
  * 
- * 设计原则：
- * 1. 深度融合整站设计系统，完全使用 CSS 变量
- * 2. 移除 Apple 风格的硬性背景覆盖，改用整站的 --bg-primary
- * 3. 强化层级对比，采用 --bg-secondary 作为卡片背景
- * 4. 品牌色统一使用 --color-brand (金色)
- * 5. 极致简约，去除多余的装饰性渐变
+ * 设计哲学：
+ * 1. 去营销化 (De-marketing) - 移除所有夸张的渐变、阴影和徽章。
+ * 2. 灰阶美学 (Grayscale Aesthetic) - 仅使用黑、白、灰，辅以极少量的品牌色。
+ * 3. 极致排版 (Typography First) - 通过字重和间距而非颜色来区分层级。
+ * 4. 工业感 (Industrial Feel) - 强调线条感和结构感，符合专业交易工具定位。
  */
 import React, { useState, useEffect } from 'react';
 import { Button, Spin, message, Modal, ConfigProvider } from 'antd';
@@ -16,200 +15,163 @@ import {
   CreditCard,
   RefreshCw,
   Headphones,
-  Zap,
-  Crown,
-  TrendingUp,
-  Sparkles,
-  ChevronRight
+  ArrowRight
 } from 'lucide-react';
 import { getPlans, getSubscriptionStatus } from '../services/subscription';
+
+const THEME = {
+  bg: '#0a0a0a',
+  card: '#111111',
+  border: '#222222',
+  borderHover: '#333333',
+  text: '#ffffff',
+  textSecondary: '#888888',
+  textMuted: '#444444',
+  accent: '#ffffff', // 极致简约，主色调为白
+  brand: '#eab308', // 仅在必要时使用的品牌色
+};
 
 const styles = {
   page: {
     minHeight: '100%',
-    background: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
-    paddingBottom: '80px',
+    background: THEME.bg,
+    color: THEME.text,
+    paddingBottom: '100px',
+    fontFamily: 'Inter, -apple-system, sans-serif',
   },
   
-  hero: {
-    textAlign: 'center',
-    padding: '60px 24px 48px',
-    maxWidth: '800px',
-    margin: '0 auto',
-  },
-  
-  superTitle: {
-    fontSize: '12px',
-    fontWeight: 600,
-    letterSpacing: '0.15em',
-    textTransform: 'uppercase',
-    color: 'var(--color-brand)',
-    marginBottom: '12px',
-    display: 'block',
-  },
-  
-  title: {
-    fontSize: '42px',
-    fontWeight: 700,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.2,
-    marginBottom: '16px',
-    color: 'var(--text-primary)',
-  },
-  
-  subtitle: {
-    fontSize: '16px',
-    lineHeight: 1.6,
-    fontWeight: 400,
-    color: 'var(--text-secondary)',
-    maxWidth: '540px',
-    margin: '0 auto 40px',
-  },
-
-  toggleContainer: {
-    display: 'inline-flex',
-    background: 'var(--bg-tertiary)',
-    padding: '4px',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-primary)',
-    marginBottom: '40px',
-  },
-
-  toggleBtn: (active) => ({
-    padding: '8px 24px',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '14px',
-    fontWeight: 500,
-    cursor: 'pointer',
-    background: active ? 'var(--bg-elevated)' : 'transparent',
-    color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
-    border: 'none',
-    transition: 'all var(--transition-normal)',
-  }),
-
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    gap: '24px',
-    maxWidth: '1100px',
+  container: {
+    maxWidth: '1000px',
     margin: '0 auto',
     padding: '0 24px',
   },
 
-  card: (isPopular, isElite) => ({
-    background: 'var(--bg-secondary)',
-    borderRadius: 'var(--radius-xl)',
+  header: {
+    padding: '80px 0 60px',
+    textAlign: 'left', // 改为左对齐，更显专业工具感
+  },
+  
+  title: {
+    fontSize: '32px',
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
+    marginBottom: '12px',
+  },
+  
+  subtitle: {
+    fontSize: '15px',
+    color: THEME.textSecondary,
+    maxWidth: '500px',
+    lineHeight: 1.6,
+  },
+
+  toggleWrapper: {
+    display: 'inline-flex',
+    background: '#161616',
+    padding: '3px',
+    borderRadius: '6px',
+    border: `1px solid ${THEME.border}`,
+    marginTop: '32px',
+  },
+
+  toggleBtn: (active) => ({
+    padding: '6px 16px',
+    borderRadius: '4px',
+    fontSize: '13px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    background: active ? '#262626' : 'transparent',
+    color: active ? '#fff' : THEME.textMuted,
+    border: 'none',
+    transition: 'all 0.2s',
+  }),
+
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '1px', // 使用 1px 间隙配合背景色实现细线边框效果
+    background: THEME.border,
+    border: `1px solid ${THEME.border}`,
+    borderRadius: '8px',
+    overflow: 'hidden',
+  },
+
+  card: {
+    background: THEME.card,
     padding: '40px',
-    border: `1px solid ${isPopular ? 'var(--color-brand)' : isElite ? '#bf5af2' : 'var(--border-primary)'}`,
     display: 'flex',
     flexDirection: 'column',
-    transition: 'all var(--transition-normal)',
-    position: 'relative',
-    overflow: 'hidden',
-    boxShadow: isPopular ? '0 0 20px var(--color-brand-bg)' : 'none',
-  }),
-
-  cardBadge: (isElite) => ({
-    position: 'absolute',
-    top: '20px',
-    right: '24px',
-    fontSize: '11px',
-    fontWeight: 700,
-    color: isElite ? '#bf5af2' : 'var(--color-brand)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    background: isElite ? 'rgba(191, 90, 242, 0.1)' : 'var(--color-brand-bg)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-sm)',
-  }),
-
-  planName: {
-    fontSize: '22px',
-    fontWeight: 600,
-    marginBottom: '8px',
-    color: 'var(--text-primary)',
+    height: '100%',
   },
 
-  priceWrapper: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '4px',
-    margin: '24px 0 12px',
-  },
-
-  priceAmount: {
-    fontSize: '48px',
-    fontWeight: 700,
-    letterSpacing: '-0.03em',
-    color: 'var(--text-primary)',
-    fontFamily: 'var(--font-mono)',
-  },
-
-  pricePeriod: {
-    fontSize: '16px',
-    color: 'var(--text-tertiary)',
-  },
-
-  savingsTag: {
-    display: 'inline-block',
+  planLabel: {
     fontSize: '12px',
     fontWeight: 600,
-    color: 'var(--color-profit)',
-    background: 'var(--color-profit-bg)',
-    padding: '4px 10px',
-    borderRadius: 'var(--radius-sm)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: THEME.textSecondary,
     marginBottom: '24px',
+  },
+
+  priceSection: {
+    marginBottom: '32px',
+  },
+
+  price: {
+    fontSize: '40px',
+    fontWeight: 600,
+    fontFamily: 'JetBrains Mono, monospace',
+  },
+
+  period: {
+    fontSize: '14px',
+    color: THEME.textMuted,
+    marginLeft: '4px',
   },
 
   featureList: {
     listStyle: 'none',
     padding: 0,
-    margin: '32px 0',
+    margin: '0 0 40px 0',
     flex: 1,
   },
 
-  featureItem: {
+  featureItem: (included) => ({
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
     fontSize: '14px',
-    color: 'var(--text-secondary)',
-    marginBottom: '16px',
-    lineHeight: 1.4,
-  },
-
-  ctaButton: (isPrimary, isElite) => ({
-    height: '48px',
-    borderRadius: 'var(--radius-md)',
-    fontSize: '15px',
-    fontWeight: 600,
-    background: isPrimary ? (isElite ? '#bf5af2' : 'var(--color-brand)') : 'transparent',
-    borderColor: isPrimary ? 'transparent' : 'var(--border-primary)',
-    color: isPrimary ? (isElite ? '#FFFFFF' : '#0a0a0c') : 'var(--text-primary)',
-    transition: 'all var(--transition-normal)',
+    color: included ? THEME.text : THEME.textMuted,
+    marginBottom: '14px',
   }),
 
-  trustSection: {
-    maxWidth: '1100px',
-    margin: '80px auto 0',
-    padding: '0 24px',
-  },
+  ctaButton: (isPrimary) => ({
+    height: '44px',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontWeight: 600,
+    background: isPrimary ? '#fff' : 'transparent',
+    borderColor: isPrimary ? '#fff' : THEME.border,
+    color: isPrimary ? '#000' : '#fff',
+    boxShadow: 'none',
+  }),
 
-  trustGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '32px',
+  trustArea: {
+    marginTop: '80px',
     padding: '40px 0',
-    borderTop: '1px solid var(--border-primary)',
+    borderTop: `1px solid ${THEME.border}`,
+    display: 'flex',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '32px',
   },
 
   trustItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    color: 'var(--text-tertiary)',
+    gap: '10px',
     fontSize: '13px',
+    color: THEME.textMuted,
   }
 };
 
@@ -249,59 +211,60 @@ const Pricing = () => {
       title: null,
       icon: null,
       centered: true,
-      width: 400,
+      width: 360,
+      styles: {
+        content: {
+          background: '#111',
+          border: '1px solid #222',
+          borderRadius: '8px',
+        }
+      },
       content: (
-        <div style={{ textAlign: 'center', padding: '10px 0' }}>
-          <div style={{ 
-            width: '56px', 
-            height: '56px', 
-            background: planName === 'elite' ? 'rgba(191, 90, 242, 0.1)' : 'var(--color-brand-bg)',
-            borderRadius: 'var(--radius-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px'
-          }}>
-            {planName === 'elite' ? <Crown color="#bf5af2" size={28} /> : <Zap color="var(--color-brand)" size={28} />}
-          </div>
-          <h3 style={{ color: 'var(--text-primary)', fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>升级到 {plan.displayName}</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-            解锁专业级 AI 交易洞察，开启您的进阶之路。
+        <div style={{ padding: '10px 0' }}>
+          <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>订阅 {plan.displayName}</h3>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
+            升级后将立即解锁所有专业功能。
           </p>
           <div style={{ 
-            background: 'var(--bg-tertiary)', 
+            background: '#181818', 
             padding: '20px', 
-            borderRadius: 'var(--radius-md)',
+            borderRadius: '4px',
             marginBottom: '24px',
-            border: '1px solid var(--border-primary)'
+            border: '1px solid #222'
           }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>
-              {billingCycle === 'yearly' ? '年付方案' : '月付方案'}
+            <div style={{ fontSize: '12px', color: '#444', marginBottom: '4px' }}>
+              {billingCycle === 'yearly' ? '按年计费' : '按月计费'}
             </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-              ${monthlyPrice}<span style={{ fontSize: '16px', fontWeight: 400, color: 'var(--text-tertiary)' }}>/月</span>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#fff', fontFamily: 'JetBrains Mono' }}>
+              ${monthlyPrice}<span style={{ fontSize: '14px', color: '#444' }}>/月</span>
             </div>
           </div>
-          <div style={{ textAlign: 'left', fontSize: '12px', color: 'var(--text-tertiary)', lineHeight: 1.8 }}>
-            • 7 天无理由全额退款保障<br/>
-            • 随时可在设置中管理或取消订阅<br/>
-            • 升级立即生效，数据无缝迁移
+          <div style={{ fontSize: '12px', color: '#444', lineHeight: 1.6 }}>
+            • 7 天退款保障<br/>
+            • 随时取消订阅<br/>
+            • 增值税已包含（如适用）
           </div>
         </div>
       ),
-      okText: '立即升级',
+      okText: '确认订阅',
       cancelText: '取消',
+      okButtonProps: {
+        style: { background: '#fff', borderColor: '#fff', color: '#000', borderRadius: '4px', fontWeight: 600 }
+      },
+      cancelButtonProps: {
+        style: { color: '#666', border: 'none' }
+      },
       onOk: () => {
         navigator.clipboard.writeText('support@metworthai.com');
-        message.success('客服邮箱已复制，请联系开通');
+        message.success('客服邮箱已复制');
       },
     });
   };
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spin size="large" />
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: THEME.bg }}>
+        <Spin />
       </div>
     );
   }
@@ -309,147 +272,120 @@ const Pricing = () => {
   const currentPlan = currentSubscription?.plan?.name || 'free';
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: 'var(--color-brand)', borderRadius: 6 } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#fff', borderRadius: 4 } }}>
       <div style={styles.page}>
-        {/* Hero Section */}
-        <div style={styles.hero}>
-          <span style={styles.superTitle}>MetworthAI 订阅方案</span>
-          <h1 style={styles.title}>选择适合你的交易方案</h1>
-          <p style={styles.subtitle}>
-            加入专业交易者行列，利用 AI 深度洞察每一笔交易的本质。
-          </p>
-
-          <div style={styles.toggleContainer}>
-            <button 
-              style={styles.toggleBtn(billingCycle === 'monthly')}
-              onClick={() => setBillingCycle('monthly')}
-            >
-              月付
-            </button>
-            <button 
-              style={styles.toggleBtn(billingCycle === 'yearly')}
-              onClick={() => setBillingCycle('yearly')}
-            >
-              年付
-            </button>
-          </div>
-        </div>
-
-        {/* Pricing Grid */}
-        <div style={styles.grid}>
-          {plans.map((plan) => {
-            const isPro = plan.name === 'pro';
-            const isElite = plan.name === 'elite';
-            const isFree = plan.name === 'free';
-            const isCurrent = currentPlan === plan.name;
-            
-            const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
-            const monthlyPrice = billingCycle === 'yearly' && price > 0 ? Math.round(price / 12) : price;
-            const savings = billingCycle === 'yearly' && plan.priceMonthly > 0 
-              ? (plan.priceMonthly * 12) - plan.priceYearly 
-              : 0;
-
-            const features = {
-              free: ['1 个交易账本', '每月 50 笔交易', '7 天历史数据限制', '每月 2 次 AI 分析'],
-              pro: ['无限交易账本', '无限交易笔数', '永久历史数据', '无限 AI 分析', '智能诊断系统', '蒙特卡洛模拟'],
-              elite: ['包含 Pro 全部功能', 'API 接口访问', '优先技术支持', '1对1 策略咨询', '定制化报告']
-            };
-
-            return (
-              <div 
-                key={plan.id} 
-                style={styles.card(isPro, isElite)}
-                className="hover-lift"
-              >
-                {isPro && <span style={styles.cardBadge(false)}>最受欢迎</span>}
-                {isElite && <span style={styles.cardBadge(true)}>VIP 专属</span>}
-                
-                <h3 style={styles.planName}>{plan.displayName}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', minHeight: '40px', lineHeight: 1.5 }}>
-                  {plan.description}
-                </p>
-
-                <div style={styles.priceWrapper}>
-                  <span style={styles.priceAmount}>${monthlyPrice}</span>
-                  <span style={styles.pricePeriod}>/月</span>
-                </div>
-
-                {savings > 0 && billingCycle === 'yearly' ? (
-                  <span style={styles.savingsTag}>年付立省 ${savings}</span>
-                ) : <div style={{ height: '24px', marginBottom: '24px' }} />}
-
-                <ul style={styles.featureList}>
-                  {features[plan.name]?.map((feat, i) => (
-                    <li key={i} style={styles.featureItem}>
-                      <Check size={16} color={isElite ? '#bf5af2' : 'var(--color-brand)'} strokeWidth={3} />
-                      {feat}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  type={isFree ? 'default' : 'primary'}
-                  block
-                  disabled={isCurrent}
-                  onClick={() => handleSubscribe(plan.name)}
-                  style={styles.ctaButton(!isFree, isElite)}
-                >
-                  {isCurrent ? '当前方案' : (isFree ? '开始使用' : '立即升级')}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Trust Section */}
-        <div style={styles.trustSection}>
-          <div style={styles.trustGrid}>
-            <div style={styles.trustItem}>
-              <ShieldCheck size={20} color="var(--color-profit)" />
-              <span>SSL 银行级安全加密</span>
-            </div>
-            <div style={styles.trustItem}>
-              <CreditCard size={20} color="var(--color-brand)" />
-              <span>支持多种主流支付方式</span>
-            </div>
-            <div style={styles.trustItem}>
-              <RefreshCw size={20} color="var(--color-info)" />
-              <span>7天无理由退款保障</span>
-            </div>
-            <div style={styles.trustItem}>
-              <Headphones size={20} color="var(--color-brand)" />
-              <span>24/7 专家级技术支持</span>
-            </div>
-          </div>
-
-          <div style={{ 
-            background: 'var(--bg-secondary)', 
-            padding: '48px', 
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-primary)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-            textAlign: 'center'
-          }}>
-            <Sparkles size={32} color="var(--color-brand)" />
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)' }}>需要企业级定制化服务？</h3>
-            <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', fontSize: '14px' }}>
-              如果您是机构交易员或需要深度 API 集成，我们的专家团队将为您提供专属的解决方案。
+        <div style={styles.container}>
+          <header style={styles.header}>
+            <h1 style={styles.title}>订阅方案</h1>
+            <p style={styles.subtitle}>
+              选择适合您的专业交易工具集。所有付费方案均包含完整的 AI 诊断能力。
             </p>
-            <Button 
-              type="link" 
-              href="mailto:support@metworthai.com"
-              style={{ fontSize: '15px', color: 'var(--color-brand)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              联系专家团队 <ChevronRight size={16} />
-            </Button>
+
+            <div style={styles.toggleWrapper}>
+              <button 
+                style={styles.toggleBtn(billingCycle === 'monthly')}
+                onClick={() => setBillingCycle('monthly')}
+              >
+                月付
+              </button>
+              <button 
+                style={styles.toggleBtn(billingCycle === 'yearly')}
+                onClick={() => setBillingCycle('yearly')}
+              >
+                年付 (-20%)
+              </button>
+            </div>
+          </header>
+
+          <div style={styles.grid}>
+            {plans.map((plan) => {
+              const isFree = plan.name === 'free';
+              const isPro = plan.name === 'pro';
+              const isElite = plan.name === 'elite';
+              const isCurrent = currentPlan === plan.name;
+              
+              const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+              const monthlyPrice = billingCycle === 'yearly' && price > 0 ? Math.round(price / 12) : price;
+
+              const features = {
+                free: [
+                  { text: '1 个交易账本', inc: true },
+                  { text: '每月 50 笔交易', inc: true },
+                  { text: '7 天历史保留', inc: true },
+                  { text: 'AI 分析 (2次/月)', inc: true },
+                  { text: '高级智能诊断', inc: false },
+                  { text: 'API 接口访问', inc: false },
+                ],
+                pro: [
+                  { text: '无限交易账本', inc: true },
+                  { text: '无限交易笔数', inc: true },
+                  { text: '永久历史保留', inc: true },
+                  { text: '无限 AI 分析', inc: true },
+                  { text: '高级智能诊断', inc: true },
+                  { text: 'API 接口访问', inc: false },
+                ],
+                elite: [
+                  { text: '包含 Pro 所有功能', inc: true },
+                  { text: 'API 接口访问', inc: true },
+                  { text: '优先技术支持', inc: true },
+                  { text: '1对1 策略咨询', inc: true },
+                  { text: '专属交易报告', inc: true },
+                  { text: '新功能抢先体验', inc: true },
+                ]
+              };
+
+              return (
+                <div key={plan.id} style={styles.card}>
+                  <div style={styles.planLabel}>{plan.displayName}</div>
+                  
+                  <div style={styles.priceSection}>
+                    <span style={styles.price}>${monthlyPrice}</span>
+                    <span style={styles.period}>/月</span>
+                  </div>
+
+                  <ul style={styles.featureList}>
+                    {features[plan.name]?.map((f, i) => (
+                      <li key={i} style={styles.featureItem(f.inc)}>
+                        <Check size={14} strokeWidth={3} style={{ opacity: f.inc ? 1 : 0 }} />
+                        {f.text}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    type={isPro || isElite ? 'primary' : 'default'}
+                    block
+                    disabled={isCurrent}
+                    onClick={() => handleSubscribe(plan.name)}
+                    style={styles.ctaButton(isPro || isElite)}
+                  >
+                    {isCurrent ? '当前方案' : (isFree ? '开始使用' : '立即升级')}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
 
-          <p style={{ marginTop: '60px', color: 'var(--text-tertiary)', fontSize: '12px', textAlign: 'center' }}>
-            © 2026 MetworthAI. 所有的订阅方案均受我们的服务条款和隐私政策约束。
-          </p>
+          <footer style={styles.trustArea}>
+            <div style={styles.trustItem}><ShieldCheck size={16} /> SSL 加密</div>
+            <div style={styles.trustItem}><CreditCard size={16} /> 安全支付</div>
+            <div style={styles.trustItem}><RefreshCw size={16} /> 7天退款</div>
+            <div style={styles.trustItem}><Headphones size={16} /> 技术支持</div>
+            <div style={{ flex: 1 }} />
+            <a 
+              href="mailto:support@metworthai.com" 
+              style={{ 
+                color: THEME.text, 
+                fontSize: '13px', 
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              联系专家团队 <ArrowRight size={14} />
+            </a>
+          </footer>
         </div>
       </div>
     </ConfigProvider>
