@@ -1,18 +1,17 @@
 /**
- * 订阅定价页面 - Apple 设计语言版 (Minimalist & Premium)
+ * 订阅定价页面 - 融合网站设计系统
  * 
  * 设计原则：
- * 1. 负空间 (Negative Space) - 大量留白，让内容呼吸
- * 2. 极致排版 (Typography) - 强调字重对比，而非颜色对比
- * 3. 玻璃拟态 (Glassmorphism) - 细腻的毛玻璃效果与柔和阴影
- * 4. 动效哲学 (Motion) - 丝滑的微交互，无感而高级
- * 5. 材质感 (Material) - 模拟物理材质的细腻质感
+ * 1. 完全使用 CSS 变量，与整站风格统一
+ * 2. 极简主义 - 去除多余装饰，专注内容
+ * 3. 币安风格的深色专业界面
+ * 4. 清晰的信息层级和视觉引导
  */
 import React, { useState, useEffect } from 'react';
 import { Button, Spin, message, Modal, ConfigProvider } from 'antd';
 import { 
   Check, 
-  ChevronRight,
+  X,
   ShieldCheck,
   CreditCard,
   RefreshCw,
@@ -20,225 +19,8 @@ import {
   Zap,
   Crown,
   TrendingUp,
-  Sparkles
 } from 'lucide-react';
 import { getPlans, getSubscriptionStatus } from '../services/subscription';
-
-// ============================================================
-// Apple 设计系统常量
-// ============================================================
-const APPLE_THEME = {
-  colors: {
-    bg: '#000000',
-    card: 'rgba(28, 28, 30, 0.5)',
-    cardHover: 'rgba(44, 44, 46, 0.7)',
-    border: 'rgba(255, 255, 255, 0.1)',
-    text: '#FFFFFF',
-    textSecondary: '#86868b', // Apple 经典的次级文本色
-    accent: '#0071e3', // Apple Blue
-    gold: '#d4af37',
-    purple: '#bf5af2', // Apple Purple
-    success: '#32d74b',
-  },
-  fonts: {
-    display: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    body: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Myriad Set Pro", "SF Pro Icons", "Apple Legacy Chevron", "Helvetica Neue", Helvetica, Arial, sans-serif',
-  }
-};
-
-const styles = {
-  page: {
-    minHeight: '100%',
-    background: APPLE_THEME.colors.bg,
-    color: APPLE_THEME.colors.text,
-    fontFamily: APPLE_THEME.fonts.body,
-    paddingBottom: '100px',
-    overflowX: 'hidden',
-  },
-  
-  hero: {
-    textAlign: 'center',
-    padding: '80px 24px 60px',
-    maxWidth: '800px',
-    margin: '0 auto',
-  },
-  
-  superTitle: {
-    fontSize: '14px',
-    fontWeight: 600,
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    color: APPLE_THEME.colors.accent,
-    marginBottom: '16px',
-    display: 'block',
-  },
-  
-  title: {
-    fontSize: '56px',
-    fontWeight: 700,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    marginBottom: '20px',
-    background: 'linear-gradient(180deg, #FFFFFF 0%, #A1A1A1 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  },
-  
-  subtitle: {
-    fontSize: '21px',
-    lineHeight: 1.4,
-    fontWeight: 400,
-    color: APPLE_THEME.colors.textSecondary,
-    maxWidth: '600px',
-    margin: '0 auto 40px',
-  },
-
-  toggleContainer: {
-    display: 'inline-flex',
-    background: 'rgba(255, 255, 255, 0.05)',
-    padding: '4px',
-    borderRadius: '30px',
-    border: `1px solid ${APPLE_THEME.colors.border}`,
-    marginBottom: '60px',
-  },
-
-  toggleBtn: (active) => ({
-    padding: '8px 24px',
-    borderRadius: '26px',
-    fontSize: '14px',
-    fontWeight: 500,
-    cursor: 'pointer',
-    background: active ? '#FFFFFF' : 'transparent',
-    color: active ? '#000000' : APPLE_THEME.colors.textSecondary,
-    border: 'none',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  }),
-
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    gap: '30px',
-    maxWidth: '1100px',
-    margin: '0 auto',
-    padding: '0 24px',
-  },
-
-  card: (isPopular, isElite) => ({
-    background: APPLE_THEME.colors.card,
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius: '24px',
-    padding: '40px',
-    border: `1px solid ${isPopular ? 'rgba(255, 255, 255, 0.2)' : APPLE_THEME.colors.border}`,
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'transform 0.4s cubic-bezier(0.2, 0, 0.2, 1), background 0.4s ease',
-    cursor: 'default',
-    position: 'relative',
-    overflow: 'hidden',
-  }),
-
-  cardBadge: (isElite) => ({
-    position: 'absolute',
-    top: '20px',
-    right: '24px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: isElite ? APPLE_THEME.colors.purple : APPLE_THEME.colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  }),
-
-  planName: {
-    fontSize: '24px',
-    fontWeight: 600,
-    marginBottom: '8px',
-  },
-
-  priceWrapper: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '4px',
-    margin: '20px 0 12px',
-  },
-
-  priceSymbol: {
-    fontSize: '24px',
-    fontWeight: 600,
-    alignSelf: 'flex-start',
-    marginTop: '4px',
-  },
-
-  priceAmount: {
-    fontSize: '56px',
-    fontWeight: 700,
-    letterSpacing: '-0.03em',
-  },
-
-  pricePeriod: {
-    fontSize: '17px',
-    color: APPLE_THEME.colors.textSecondary,
-  },
-
-  savingsTag: {
-    display: 'inline-block',
-    fontSize: '13px',
-    fontWeight: 500,
-    color: APPLE_THEME.colors.success,
-    marginBottom: '24px',
-  },
-
-  featureList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '32px 0',
-    flex: 1,
-  },
-
-  featureItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    fontSize: '15px',
-    color: APPLE_THEME.colors.text,
-    marginBottom: '16px',
-    lineHeight: 1.4,
-  },
-
-  ctaButton: (isPrimary, isElite) => ({
-    height: '52px',
-    borderRadius: '26px',
-    fontSize: '17px',
-    fontWeight: 600,
-    background: isPrimary ? (isElite ? APPLE_THEME.colors.purple : '#FFFFFF') : 'transparent',
-    borderColor: isPrimary ? 'transparent' : 'rgba(255, 255, 255, 0.3)',
-    color: isPrimary ? (isElite ? '#FFFFFF' : '#000000') : '#FFFFFF',
-    transition: 'all 0.2s ease',
-  }),
-
-  footer: {
-    maxWidth: '900px',
-    margin: '100px auto 0',
-    padding: '0 24px',
-    textAlign: 'center',
-  },
-
-  trustGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '40px',
-    marginBottom: '80px',
-  },
-
-  trustItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-    color: APPLE_THEME.colors.textSecondary,
-    fontSize: '13px',
-  }
-};
 
 const Pricing = () => {
   const [plans, setPlans] = useState([]);
@@ -271,89 +53,74 @@ const Pricing = () => {
     const plan = plans.find(p => p.name === planName);
     const price = billingCycle === 'yearly' ? plan?.priceYearly : plan?.priceMonthly;
     const monthlyPrice = billingCycle === 'yearly' ? Math.round(price / 12) : price;
+    const isElite = planName === 'elite';
 
     Modal.confirm({
       title: null,
       icon: null,
       centered: true,
-      width: 400,
-      styles: {
-        content: {
-          background: '#1c1c1e',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }
-      },
+      width: 380,
       content: (
-        <div style={{ textAlign: 'center', padding: '20px 10px' }}>
-          <div style={{ 
-            width: '60px', 
-            height: '60px', 
-            background: planName === 'elite' ? 'rgba(191, 90, 242, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px'
-          }}>
-            {planName === 'elite' ? <Crown color={APPLE_THEME.colors.purple} size={30} /> : <Zap color="#FFFFFF" size={30} />}
+        <div className="py-2">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className={`
+              w-11 h-11 rounded-xl flex items-center justify-center
+              ${isElite ? 'bg-purple-500/10' : 'bg-[var(--color-brand-bg)]'}
+            `}>
+              {isElite ? <Crown size={22} className="text-purple-400" /> : <Zap size={22} className="text-[var(--color-brand)]" />}
+            </div>
+            <div>
+              <div className="text-base font-semibold text-white">升级到 {plan.displayName}</div>
+              <div className="text-xs text-[var(--text-tertiary)]">解锁完整 AI 分析能力</div>
+            </div>
           </div>
-          <h3 style={{ color: '#FFF', fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>升级到 {plan.displayName}</h3>
-          <p style={{ color: APPLE_THEME.colors.textSecondary, fontSize: '15px', marginBottom: '24px' }}>
-            解锁专业级 AI 交易洞察，开启您的进阶之路。
-          </p>
-          <div style={{ 
-            background: 'rgba(255,255,255,0.03)', 
-            padding: '20px', 
-            borderRadius: '16px',
-            marginBottom: '24px'
-          }}>
-            <div style={{ fontSize: '13px', color: APPLE_THEME.colors.textSecondary, marginBottom: '4px' }}>
+          
+          {/* Price Card */}
+          <div className="bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)] p-4 mb-4">
+            <div className="text-xs text-[var(--text-tertiary)] mb-1">
               {billingCycle === 'yearly' ? '年付方案' : '月付方案'}
             </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color: '#FFF' }}>
-              ${monthlyPrice}<span style={{ fontSize: '16px', fontWeight: 400, color: APPLE_THEME.colors.textSecondary }}>/月</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-white font-mono">${monthlyPrice}</span>
+              <span className="text-sm text-[var(--text-tertiary)]">/月</span>
             </div>
+            {billingCycle === 'yearly' && (
+              <div className="text-xs text-[var(--color-profit)] mt-2">
+                年付立省 ${isElite ? '600' : '120'}
+              </div>
+            )}
           </div>
-          <div style={{ textAlign: 'left', fontSize: '13px', color: APPLE_THEME.colors.textSecondary, lineHeight: 1.8 }}>
-            • 7 天无理由全额退款保障<br/>
-            • 随时可在设置中管理或取消订阅<br/>
-            • 升级立即生效，数据无缝迁移
+
+          {/* Benefits */}
+          <div className="text-xs text-[var(--text-secondary)] leading-relaxed space-y-1">
+            <div className="flex items-center gap-2">
+              <Check size={12} className="text-[var(--color-profit)]" />
+              <span>7 天无理由退款</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check size={12} className="text-[var(--color-profit)]" />
+              <span>随时可取消订阅</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check size={12} className="text-[var(--color-profit)]" />
+              <span>升级后立即生效</span>
+            </div>
           </div>
         </div>
       ),
-      okText: '立即升级',
+      okText: '联系客服开通',
       cancelText: '取消',
-      okButtonProps: {
-        style: {
-          background: planName === 'elite' ? APPLE_THEME.colors.purple : '#FFF',
-          borderColor: 'transparent',
-          color: planName === 'elite' ? '#FFF' : '#000',
-          height: '44px',
-          borderRadius: '22px',
-          fontWeight: 600,
-          padding: '0 30px'
-        }
-      },
-      cancelButtonProps: {
-        style: {
-          height: '44px',
-          borderRadius: '22px',
-          background: 'transparent',
-          color: APPLE_THEME.colors.textSecondary,
-          border: 'none'
-        }
-      },
       onOk: () => {
         navigator.clipboard.writeText('support@metworthai.com');
-        message.success('客服邮箱已复制，请联系开通');
+        message.success('客服邮箱已复制');
       },
     });
   };
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#000' }}>
+      <div className="flex items-center justify-center min-h-[400px]">
         <Spin size="large" />
       </div>
     );
@@ -361,154 +128,274 @@ const Pricing = () => {
 
   const currentPlan = currentSubscription?.plan?.name || 'free';
 
+  // 功能配置
+  const planFeatures = {
+    free: [
+      { text: '1 个交易账本', included: true },
+      { text: '每月 50 笔交易', included: true },
+      { text: '7 天历史数据', included: true, limit: true },
+      { text: '每月 2 次 AI 分析', included: true },
+      { text: '智能诊断系统', included: false },
+      { text: '蒙特卡洛模拟', included: false },
+      { text: '数据导出', included: false },
+    ],
+    pro: [
+      { text: '无限交易账本', included: true, highlight: true },
+      { text: '无限交易笔数', included: true, highlight: true },
+      { text: '永久历史数据', included: true, highlight: true },
+      { text: '无限 AI 分析', included: true, highlight: true },
+      { text: '智能诊断系统', included: true },
+      { text: '蒙特卡洛模拟', included: true },
+      { text: '最优止损预测', included: true },
+      { text: '行为标签系统', included: true },
+      { text: '数据导出', included: true },
+    ],
+    elite: [
+      { text: '包含 Pro 全部功能', included: true, highlight: true },
+      { text: 'API 接口访问', included: true, highlight: true },
+      { text: '优先技术支持', included: true, highlight: true },
+      { text: '1对1 策略咨询', included: true },
+      { text: '专属交易社群', included: true },
+      { text: '新功能抢先体验', included: true },
+      { text: '定制化报告', included: true },
+    ],
+  };
+
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#FFFFFF', borderRadius: 12 } }}>
-      <div style={styles.page}>
-        {/* Hero Section */}
-        <div style={styles.hero}>
-          <span style={styles.superTitle}>MetworthAI 订阅</span>
-          <h1 style={styles.title}>选择适合你的方案</h1>
-          <p style={styles.subtitle}>
-            无论您是刚起步的交易者，还是追求极致的专业人士，我们都有为您量身打造的分析工具。
+    <ConfigProvider theme={{ token: { colorPrimary: '#eab308' } }}>
+      <div className="min-h-full pb-16">
+        {/* Header */}
+        <div className="text-center pt-8 pb-10 px-6">
+          <h1 className="text-2xl font-bold text-white mb-2">选择适合你的方案</h1>
+          <p className="text-sm text-[var(--text-secondary)] mb-8">
+            专业交易者的智能分析工具
           </p>
 
-          <div style={styles.toggleContainer}>
-            <button 
-              style={styles.toggleBtn(billingCycle === 'monthly')}
+          {/* Billing Toggle */}
+          <div className="inline-flex bg-[var(--bg-tertiary)] p-1 rounded-lg border border-[var(--border-primary)]">
+            <button
               onClick={() => setBillingCycle('monthly')}
+              className={`
+                px-5 py-2 rounded-md text-sm font-medium transition-all
+                ${billingCycle === 'monthly' 
+                  ? 'bg-[var(--bg-hover)] text-white' 
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                }
+              `}
             >
               月付
             </button>
-            <button 
-              style={styles.toggleBtn(billingCycle === 'yearly')}
+            <button
               onClick={() => setBillingCycle('yearly')}
+              className={`
+                px-5 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2
+                ${billingCycle === 'yearly' 
+                  ? 'bg-[var(--bg-hover)] text-white' 
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                }
+              `}
             >
               年付
+              <span className="text-[10px] font-semibold text-[var(--color-profit)] bg-[var(--color-profit-bg)] px-1.5 py-0.5 rounded">
+                省20%
+              </span>
             </button>
           </div>
         </div>
 
-        {/* Pricing Grid */}
-        <div style={styles.grid}>
-          {plans.map((plan) => {
-            const isPro = plan.name === 'pro';
-            const isElite = plan.name === 'elite';
-            const isFree = plan.name === 'free';
-            const isCurrent = currentPlan === plan.name;
-            
-            const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
-            const monthlyPrice = billingCycle === 'yearly' && price > 0 ? Math.round(price / 12) : price;
-            const savings = billingCycle === 'yearly' && plan.priceMonthly > 0 
-              ? (plan.priceMonthly * 12) - plan.priceYearly 
-              : 0;
+        {/* Pricing Cards */}
+        <div className="max-w-[1000px] mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map((plan) => {
+              const isFree = plan.name === 'free';
+              const isPro = plan.name === 'pro';
+              const isElite = plan.name === 'elite';
+              const isCurrent = currentPlan === plan.name;
+              
+              const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+              const monthlyPrice = billingCycle === 'yearly' && price > 0 ? Math.round(price / 12) : price;
+              const savings = billingCycle === 'yearly' && plan.priceMonthly > 0 
+                ? (plan.priceMonthly * 12) - plan.priceYearly 
+                : 0;
 
-            const features = {
-              free: ['1 个交易账本', '每月 50 笔交易', '7 天历史数据限制', '每月 2 次 AI 分析'],
-              pro: ['无限交易账本', '无限交易笔数', '永久历史数据', '无限 AI 分析', '智能诊断系统', '蒙特卡洛模拟'],
-              elite: ['包含 Pro 全部功能', 'API 接口访问', '优先技术支持', '1对1 策略咨询', '定制化报告']
-            };
+              const features = planFeatures[plan.name] || [];
 
-            return (
-              <div 
-                key={plan.id} 
-                style={styles.card(isPro, isElite)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.background = APPLE_THEME.colors.cardHover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.background = APPLE_THEME.colors.card;
-                }}
-              >
-                {isPro && <span style={styles.cardBadge(false)}>最受欢迎</span>}
-                {isElite && <span style={styles.cardBadge(true)}>VIP 专属</span>}
-                
-                <h3 style={styles.planName}>{plan.displayName}</h3>
-                <p style={{ color: APPLE_THEME.colors.textSecondary, fontSize: '15px', minHeight: '44px' }}>
-                  {plan.description}
-                </p>
-
-                <div style={styles.priceWrapper}>
-                  {!isFree && <span style={styles.priceSymbol}>$</span>}
-                  <span style={styles.priceAmount}>{monthlyPrice}</span>
-                  <span style={styles.pricePeriod}>/月</span>
-                </div>
-
-                {savings > 0 && billingCycle === 'yearly' ? (
-                  <span style={styles.savingsTag}>年付立省 ${savings}</span>
-                ) : <div style={{ height: '20px', marginBottom: '24px' }} />}
-
-                <ul style={styles.featureList}>
-                  {features[plan.name]?.map((feat, i) => (
-                    <li key={i} style={styles.featureItem}>
-                      <Check size={18} color={isElite ? APPLE_THEME.colors.purple : (isPro ? APPLE_THEME.colors.accent : APPLE_THEME.colors.success)} />
-                      {feat}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  type={isFree ? 'default' : 'primary'}
-                  block
-                  disabled={isCurrent}
-                  onClick={() => handleSubscribe(plan.name)}
-                  style={styles.ctaButton(!isFree, isElite)}
+              return (
+                <div 
+                  key={plan.id}
+                  className={`
+                    relative rounded-xl p-6 flex flex-col transition-all duration-200
+                    ${isPro 
+                      ? 'bg-[var(--bg-secondary)] border-2 border-[var(--color-brand)]' 
+                      : isElite 
+                        ? 'bg-[var(--bg-secondary)] border border-purple-500/30' 
+                        : 'bg-[var(--bg-secondary)] border border-[var(--border-primary)]'
+                    }
+                    hover:border-[var(--border-hover)]
+                  `}
                 >
-                  {isCurrent ? '当前方案' : (isFree ? '开始使用' : '立即升级')}
-                </Button>
-              </div>
-            );
-          })}
+                  {/* Badge */}
+                  {isPro && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[var(--color-brand)] text-black text-xs font-bold rounded-full">
+                      推荐
+                    </div>
+                  )}
+                  {isElite && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">
+                      VIP
+                    </div>
+                  )}
+
+                  {/* Plan Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`
+                      w-10 h-10 rounded-lg flex items-center justify-center
+                      ${isFree ? 'bg-[var(--bg-tertiary)]' : isPro ? 'bg-[var(--color-brand-bg)]' : 'bg-purple-500/10'}
+                    `}>
+                      {isFree && <TrendingUp size={18} className="text-[var(--text-tertiary)]" />}
+                      {isPro && <Zap size={18} className="text-[var(--color-brand)]" />}
+                      {isElite && <Crown size={18} className="text-purple-400" />}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white">{plan.displayName}</div>
+                    </div>
+                  </div>
+
+                  {/* Price */}
+                  <div className="mb-1">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-white font-mono">${monthlyPrice}</span>
+                      <span className="text-sm text-[var(--text-tertiary)]">/月</span>
+                    </div>
+                  </div>
+
+                  {/* Savings */}
+                  {savings > 0 && billingCycle === 'yearly' ? (
+                    <div className="text-xs text-[var(--color-profit)] mb-4">
+                      年付立省 ${savings}
+                    </div>
+                  ) : (
+                    <div className="h-4 mb-4" />
+                  )}
+
+                  {/* Description */}
+                  <p className="text-xs text-[var(--text-secondary)] mb-5 leading-relaxed">
+                    {plan.description}
+                  </p>
+
+                  {/* Features */}
+                  <div className="flex-1 space-y-2.5 mb-6">
+                    {features.map((feature, i) => (
+                      <div 
+                        key={i}
+                        className={`
+                          flex items-center gap-2.5 text-[13px]
+                          ${feature.included ? 'text-[var(--text-secondary)]' : 'text-[var(--text-disabled)]'}
+                        `}
+                      >
+                        {feature.included ? (
+                          <Check 
+                            size={14} 
+                            className={
+                              feature.highlight 
+                                ? (isElite ? 'text-purple-400' : 'text-[var(--color-brand)]')
+                                : 'text-[var(--color-profit)]'
+                            } 
+                          />
+                        ) : (
+                          <X size={14} className="text-[var(--text-disabled)]" />
+                        )}
+                        <span className={!feature.included ? 'line-through' : ''}>
+                          {feature.text}
+                        </span>
+                        {feature.limit && (
+                          <span className="text-[10px] text-[var(--color-loss)] bg-[var(--color-loss-bg)] px-1.5 py-0.5 rounded">
+                            限制
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA Button */}
+                  <Button
+                    type={isFree ? 'default' : 'primary'}
+                    block
+                    disabled={isCurrent}
+                    onClick={() => handleSubscribe(plan.name)}
+                    className={`
+                      h-10 font-semibold text-sm rounded-lg
+                      ${isElite && !isCurrent ? '!bg-purple-500 !border-purple-500 !text-white hover:!bg-purple-600' : ''}
+                    `}
+                  >
+                    {isCurrent ? '当前方案' : (isFree ? '免费使用' : '立即升级')}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Footer & Trust */}
-        <div style={styles.footer}>
-          <div style={styles.trustGrid}>
-            <div style={styles.trustItem}>
-              <ShieldCheck size={28} strokeWidth={1.5} />
-              <span>SSL 安全加密</span>
-            </div>
-            <div style={styles.trustItem}>
-              <CreditCard size={28} strokeWidth={1.5} />
-              <span>多种支付方式</span>
-            </div>
-            <div style={styles.trustItem}>
-              <RefreshCw size={28} strokeWidth={1.5} />
-              <span>7天无理由退款</span>
-            </div>
-            <div style={styles.trustItem}>
-              <Headphones size={28} strokeWidth={1.5} />
-              <span>24/7 优先支持</span>
-            </div>
+        {/* Trust Signals */}
+        <div className="max-w-[800px] mx-auto mt-12 px-6">
+          <div className="flex items-center justify-center gap-8 flex-wrap py-6 border-t border-b border-[var(--border-primary)]">
+            {[
+              { icon: ShieldCheck, text: 'SSL 加密' },
+              { icon: CreditCard, text: '安全支付' },
+              { icon: RefreshCw, text: '7天退款' },
+              { icon: Headphones, text: '技术支持' },
+            ].map((item, i) => (
+              <div 
+                key={i} 
+                className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]"
+              >
+                <item.icon size={14} />
+                {item.text}
+              </div>
+            ))}
           </div>
+        </div>
 
-          <div style={{ 
-            background: 'rgba(255,255,255,0.03)', 
-            padding: '40px', 
-            borderRadius: '32px',
-            border: `1px solid ${APPLE_THEME.colors.border}`,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
-            <Sparkles size={32} color={APPLE_THEME.colors.accent} />
-            <h3 style={{ fontSize: '24px', fontWeight: 600 }}>需要企业级定制？</h3>
-            <p style={{ color: APPLE_THEME.colors.textSecondary, maxWidth: '500px' }}>
-              如果您是机构交易员或需要 API 深度集成，请联系我们的专家团队。
-            </p>
-            <Button 
-              type="link" 
+        {/* FAQ */}
+        <div className="max-w-[600px] mx-auto mt-12 px-6">
+          <h2 className="text-lg font-semibold text-white text-center mb-6">常见问题</h2>
+          
+          <div className="space-y-4">
+            {[
+              {
+                q: '我可以随时取消订阅吗？',
+                a: '是的，您可以随时取消。取消后仍可使用至当前周期结束。'
+              },
+              {
+                q: '年付和月付有什么区别？',
+                a: '功能完全相同。年付可节省约 20% 的费用。'
+              },
+              {
+                q: 'Pro 和 Elite 有什么区别？',
+                a: 'Elite 额外提供 API 访问、优先支持和 1对1 策略咨询。'
+              },
+            ].map((faq, i) => (
+              <div 
+                key={i}
+                className="py-4 border-b border-[var(--border-primary)] last:border-b-0"
+              >
+                <div className="text-sm font-medium text-white mb-2">{faq.q}</div>
+                <div className="text-xs text-[var(--text-secondary)] leading-relaxed">{faq.a}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Contact */}
+        <div className="max-w-[500px] mx-auto mt-12 px-6 text-center">
+          <p className="text-xs text-[var(--text-tertiary)]">
+            需要定制方案？
+            <a 
               href="mailto:support@metworthai.com"
-              style={{ fontSize: '17px', color: APPLE_THEME.colors.accent, fontWeight: 500 }}
+              className="text-[var(--color-brand)] ml-1 hover:underline"
             >
-              联系专家团队 <ChevronRight size={18} style={{ verticalAlign: 'middle', marginTop: '-2px' }} />
-            </Button>
-          </div>
-
-          <p style={{ marginTop: '60px', color: APPLE_THEME.colors.textSecondary, fontSize: '13px' }}>
-            © 2026 MetworthAI. 所有的订阅方案均受我们的服务条款和隐私政策约束。
+              联系我们
+            </a>
           </p>
         </div>
       </div>
