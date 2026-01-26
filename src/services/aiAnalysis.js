@@ -1504,6 +1504,8 @@ export const generateAIAnalysis = async (filters = {}) => {
       executionQualityAnalysis, // MAE/MFE 执行质量分析
       holdingReport,
       generatedAt: new Date(),
+      // 返回交易数据供智能诊断系统使用
+      trades: allTrades,
     };
   } catch (error) {
     console.error('AI分析失败:', error);

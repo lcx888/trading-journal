@@ -58,6 +58,13 @@ import ReactMarkdown from 'react-markdown';
 import StorageService from '../services/storage';
 import { generateAIAnalysis } from '../services/aiAnalysis';
 import { aiApi } from '../services/api';
+import {
+  generateDiagnosticReport,
+  calculateOptimalStopLoss,
+  simulateBreakEven,
+  monteCarloSimulation,
+  calculateExpectancy,
+} from '../services/tradingDiagnostics';
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -316,6 +323,467 @@ const InsightCard = ({ Icon, title, content, type }) => {
   );
 };
 
+// ========== 智能诊断仪表板组件 ==========
+const DiagnosticDashboard = ({ report, instruments }) => {
+  if (!report) return null;
+
+  const { summary, actionItems, analyses } = report;
+  
+  // 获取综合建议的样式
+  const getRecommendationStyle = (rec) => {
+    if (rec.includes('多看少动')) return { bg: 'var(--color-loss-bg)', color: 'var(--color-loss)', icon: AlertOctagon };
+    if (rec.includes('减仓')) return { bg: 'var(--color-brand-bg)', color: 'var(--color-brand)', icon: AlertTriangle };
+    if (rec.includes('早出')) return { bg: 'var(--color-profit-bg)', color: 'var(--color-profit)', icon: Clock };
+    return { bg: 'var(--color-profit-bg)', color: 'var(--color-profit)', icon: CheckCircle };
+  };
+  
+  const recStyle = getRecommendationStyle(summary.overallRecommendation);
+  const RecIcon = recStyle.icon;
+  
+  // 蒙特卡洛图表配置
+  const getMonteCarloChartOption = () => {
+    if (!analyses.monteCarlo?.hasData) return null;
+    const curves = analyses.monteCarlo.sampleCurves || [];
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', backgroundColor: '#0d0d10', borderColor: 'rgba(255,255,255,0.05)' },
+      grid: { top: 20, right: 20, bottom: 30, left: 50 },
+      xAxis: {
+        type: 'category',
+        data: Array.from({ length: curves[0]?.length || 0 }, (_, i) => i),
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        axisLabel: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        axisLabel: { color: '#9ca3af', fontSize: 10, formatter: v => `$${v}` },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+      },
+      series: curves.slice(0, 15).map((curve, i) => ({
+        type: 'line',
+        data: curve,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 1, color: `rgba(234, 179, 8, ${0.1 + i * 0.05})` },
+      }))
+    };
+  };
+  
+  // 期望值图表配置
+  const getExpectancyChartOption = () => {
+    if (!analyses.expectancy?.hasData) return null;
+    const sessions = Object.entries(analyses.expectancy.sessionExpectancy)
+      .filter(([_, v]) => v !== null)
+      .sort((a, b) => b[1].expectancy - a[1].expectancy);
+    
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', backgroundColor: '#0d0d10', borderColor: 'rgba(255,255,255,0.05)' },
+      grid: { top: 10, right: 20, bottom: 30, left: 80 },
+      xAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        axisLabel: { color: '#9ca3af', fontSize: 10, formatter: v => `$${v}` },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: sessions.map(([name]) => name),
+        axisLine: { show: false },
+        axisLabel: { color: '#9ca3af', fontSize: 11 }
+      },
+      series: [{
+        type: 'bar',
+        data: sessions.map(([_, v]) => ({
+          value: v.expectancy,
+          itemStyle: { color: v.expectancy >= 0 ? '#10b981' : '#f43f5e', borderRadius: [0, 4, 4, 0] }
+        })),
+        barWidth: 16,
+        label: {
+          show: true,
+          position: 'right',
+          color: '#9ca3af',
+          fontSize: 10,
+          formatter: p => `$${p.value.toFixed(0)}`
+        }
+      }]
+    };
+  };
+
+  // 止损优化图表
+  const getStopLossChartOption = () => {
+    if (!analyses.stopLossAnalysis?.hasData) return null;
+    const results = analyses.stopLossAnalysis.results || [];
+    const optimal = analyses.stopLossAnalysis.optimal;
+    
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', backgroundColor: '#0d0d10', borderColor: 'rgba(255,255,255,0.05)' },
+      grid: { top: 30, right: 20, bottom: 30, left: 60 },
+      xAxis: {
+        type: 'category',
+        data: results.map(r => `$${r.stopLevel}`),
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        axisLabel: { color: '#9ca3af', fontSize: 10 }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        axisLabel: { color: '#9ca3af', fontSize: 10, formatter: v => `$${v}` },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
+      },
+      series: [{
+        type: 'line',
+        data: results.map(r => r.totalPnL),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { color: '#eab308', width: 2 },
+        itemStyle: { color: '#eab308' },
+        markPoint: optimal ? {
+          data: [{
+            coord: [results.findIndex(r => r.stopLevel === optimal.stopLevel), optimal.totalPnL],
+            symbol: 'pin',
+            symbolSize: 40,
+            itemStyle: { color: '#10b981' },
+            label: { show: true, formatter: '最优', color: '#fff', fontSize: 10 }
+          }]
+        } : undefined,
+        areaStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(234, 179, 8, 0.2)' }, { offset: 1, color: 'rgba(234, 179, 8, 0)' }]
+          }
+        }
+      }]
+    };
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* 综合诊断建议卡片 */}
+      <div 
+        className="p-5 rounded-lg"
+        style={{ background: recStyle.bg, border: `1px solid ${recStyle.color}30` }}
+      >
+        <div className="flex items-start gap-4">
+          <div 
+            className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: recStyle.color }}
+          >
+            <RecIcon size={24} style={{ color: '#fff' }} />
+          </div>
+          <div className="flex-1">
+            <div className="text-xs font-medium uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+              下周操作建议
+            </div>
+            <div className="text-xl font-bold mb-2" style={{ color: recStyle.color }}>
+              {summary.overallRecommendation.split(' - ')[0]}
+            </div>
+            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {summary.overallRecommendation.split(' - ')[1] || '基于您的交易数据智能生成'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>发现问题</div>
+            <div className="text-2xl font-bold font-mono" style={{ color: recStyle.color }}>
+              {summary.actionItemCount}
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              高优先 {summary.highPriorityCount}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 行动建议列表 */}
+      {actionItems.length > 0 && (
+        <div 
+          className="rounded-lg overflow-hidden"
+          style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)' }}
+        >
+          <div 
+            className="px-5 py-4 flex items-center gap-3"
+            style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}
+          >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand-bg)' }}>
+              <ListChecks size={16} style={{ color: 'var(--color-brand)' }} />
+            </div>
+            <div>
+              <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>优化行动清单</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>按优先级排序的改进建议</div>
+            </div>
+          </div>
+          <div className="p-4 space-y-3">
+            {actionItems.slice(0, 5).map((item, i) => (
+              <div 
+                key={i}
+                className="p-4 rounded-lg flex items-start gap-4"
+                style={{ 
+                  background: item.priority === 'high' ? 'var(--color-loss-bg)' : 
+                              item.priority === 'medium' ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                  borderLeft: `3px solid ${item.priority === 'high' ? 'var(--color-loss)' : 
+                                           item.priority === 'medium' ? 'var(--color-brand)' : 'var(--text-tertiary)'}`
+                }}
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{item.title}</span>
+                    <Tag 
+                      className="text-[10px] border-0"
+                      style={{ 
+                        background: item.priority === 'high' ? 'var(--color-loss)' : 
+                                    item.priority === 'medium' ? 'var(--color-brand)' : 'var(--text-tertiary)',
+                        color: '#fff'
+                      }}
+                    >
+                      {item.priority === 'high' ? '高优先' : item.priority === 'medium' ? '中等' : '建议'}
+                    </Tag>
+                  </div>
+                  <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>{item.description}</div>
+                  <div className="text-xs font-medium" style={{ color: 'var(--color-profit)' }}>{item.impact}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 分析模块网格 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* 期望值分布 */}
+        {analyses.expectancy?.hasData && (
+          <div 
+            className="rounded-lg overflow-hidden"
+            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)' }}
+          >
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-profit-bg)' }}>
+                  <DollarSign size={16} style={{ color: 'var(--color-profit)' }} />
+                </div>
+                <div>
+                  <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>期望值分布</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>找出你的提款机时段</div>
+                </div>
+              </div>
+              {analyses.expectancy.bestSession && (
+                <Tag style={{ background: 'var(--color-profit-bg)', color: 'var(--color-profit)', border: 'none' }}>
+                  最佳: {analyses.expectancy.bestSession.name}
+                </Tag>
+              )}
+            </div>
+            <div className="p-4">
+              {getExpectancyChartOption() && (
+                <ReactECharts option={getExpectancyChartOption()} style={{ height: '200px' }} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 蒙特卡洛模拟 */}
+        {analyses.monteCarlo?.hasData && (
+          <div 
+            className="rounded-lg overflow-hidden"
+            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)' }}
+          >
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand-bg)' }}>
+                  <Activity size={16} style={{ color: 'var(--color-brand)' }} />
+                </div>
+                <div>
+                  <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>蒙特卡洛模拟</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>未来 {analyses.monteCarlo.parameters.futureTradesCount} 笔交易预测</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>盈利概率</div>
+                <div className="font-bold font-mono" style={{ color: analyses.monteCarlo.results.profitProbability >= 60 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                  {analyses.monteCarlo.results.profitProbability}%
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              {getMonteCarloChartOption() && (
+                <ReactECharts option={getMonteCarloChartOption()} style={{ height: '200px' }} />
+              )}
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>预期收益</div>
+                  <div className="font-bold font-mono text-sm" style={{ color: analyses.monteCarlo.results.avgFinalEquity >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                    ${analyses.monteCarlo.results.avgFinalEquity.toFixed(0)}
+                  </div>
+                </div>
+                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>95%回撤</div>
+                  <div className="font-bold font-mono text-sm" style={{ color: 'var(--color-loss)' }}>
+                    -${analyses.monteCarlo.results.maxDrawdown95.toFixed(0)}
+                  </div>
+                </div>
+                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>爆仓风险</div>
+                  <div className="font-bold font-mono text-sm" style={{ color: analyses.monteCarlo.results.ruinProbability > 10 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                    {analyses.monteCarlo.results.ruinProbability}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 止损优化 */}
+        {analyses.stopLossAnalysis?.hasData && (
+          <div 
+            className="rounded-lg overflow-hidden"
+            style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)' }}
+          >
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-loss-bg)' }}>
+                  <Shield size={16} style={{ color: 'var(--color-loss)' }} />
+                </div>
+                <div>
+                  <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>最优止损分析</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>回测不同止损位的表现</div>
+                </div>
+              </div>
+              {analyses.stopLossAnalysis.optimal && (
+                <Tag style={{ background: 'var(--color-profit-bg)', color: 'var(--color-profit)', border: 'none' }}>
+                  建议: ${analyses.stopLossAnalysis.optimal.stopLevel}
+                </Tag>
+              )}
+            </div>
+            <div className="p-4">
+              {getStopLossChartOption() && (
+                <ReactECharts option={getStopLossChartOption()} style={{ height: '200px' }} />
+              )}
+              {analyses.stopLossAnalysis.improvement > 0 && (
+                <div className="mt-3 p-3 rounded text-center" style={{ background: 'var(--color-profit-bg)' }}>
+                  <span className="text-sm" style={{ color: 'var(--color-profit)' }}>
+                    优化后预计提升 <strong>${analyses.stopLossAnalysis.improvement.toFixed(0)}</strong> ({analyses.stopLossAnalysis.improvementPercent}%)
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 行为诊断汇总 */}
+        <div 
+          className="rounded-lg overflow-hidden"
+          style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)' }}
+        >
+          <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand-bg)' }}>
+              <Brain size={16} style={{ color: 'var(--color-brand)' }} />
+            </div>
+            <div>
+              <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>行为特征分析</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>自动识别的交易行为标签</div>
+            </div>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-3">
+            {/* 报复性交易 */}
+            {analyses.revengeTrades?.hasData && (
+              <div className="p-3 rounded" style={{ background: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span>🔥</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>报复性交易</span>
+                </div>
+                <div className="text-lg font-bold font-mono" style={{ color: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                  {analyses.revengeTrades.revengeCount} 笔
+                </div>
+              </div>
+            )}
+            
+            {/* 止损极点 */}
+            {analyses.badStopLoss?.hasData && (
+              <div className="p-3 rounded" style={{ background: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span>🎯</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>割肉极点</span>
+                </div>
+                <div className="text-lg font-bold font-mono" style={{ color: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
+                  {analyses.badStopLoss.atBottomRate}%
+                </div>
+              </div>
+            )}
+            
+            {/* 执行焦虑 */}
+            {analyses.executionAnxiety?.hasData && (
+              <div className="p-3 rounded" style={{ background: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span>⏳</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>执行犹豫</span>
+                </div>
+                <div className="text-lg font-bold font-mono" style={{ color: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
+                  {analyses.executionAnxiety.anxiousRate}%
+                </div>
+              </div>
+            )}
+            
+            {/* 处置效应 */}
+            {analyses.dispositionEffect?.hasData && (
+              <div className="p-3 rounded" style={{ background: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span>⏱️</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>处置效应</span>
+                </div>
+                <div className="text-lg font-bold font-mono" style={{ color: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                  {analyses.dispositionEffect.hasDispositionEffect ? '存在' : '正常'}
+                </div>
+                <div className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  亏损持仓 / 盈利持仓: {analyses.dispositionEffect.ratio}x
+                </div>
+              </div>
+            )}
+            
+            {/* 平均压力 */}
+            {analyses.stressScores?.hasData && (
+              <div className="p-3 rounded col-span-2" style={{ background: 'var(--bg-tertiary)' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>💪</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>平均心理压力</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div 
+                          key={i}
+                          className="w-6 h-3 rounded"
+                          style={{ 
+                            background: i <= Math.round(analyses.stressScores.avgStressScore) 
+                              ? (analyses.stressScores.avgStressScore >= 4 ? 'var(--color-loss)' : 
+                                 analyses.stressScores.avgStressScore >= 3 ? 'var(--color-brand)' : 'var(--color-profit)')
+                              : 'var(--bg-primary)'
+                          }}
+                        />
+                      ))}
+                      <span className="font-bold font-mono ml-2" style={{ color: 'var(--text-primary)' }}>
+                        {analyses.stressScores.avgStressScore.toFixed(1)}/5
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>高压交易</div>
+                    <div className="font-bold font-mono" style={{ color: 'var(--color-loss)' }}>
+                      {analyses.stressScores.highStressCount} 笔
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ========== 统计卡片组件 ==========
 const StatCard = ({ icon: IconComponent, label, value, valueColor, subText, bgColor }) => (
   <div 
@@ -372,6 +840,11 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [reviewForm] = Form.useForm();
+  
+  // 智能诊断系统状态
+  const [diagnosticReport, setDiagnosticReport] = useState(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [showDiagnosticSidebar, setShowDiagnosticSidebar] = useState(false);
 
   useEffect(() => {
     loadInstruments();
@@ -470,6 +943,7 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
     setAiLoading(true);
     setAnalysis(null);
     setAiResult(null);
+    setDiagnosticReport(null);
     
     try {
       const result = await generateAIAnalysis({
@@ -484,6 +958,20 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
         if (result.aiReport) {
           setAiResult({ success: true, analysis: result.aiReport, generatedAt: new Date() });
         }
+        
+        // 生成智能诊断报告
+        if (result.trades && result.trades.length > 0) {
+          setDiagnosticLoading(true);
+          try {
+            const report = generateDiagnosticReport(result.trades, instruments);
+            setDiagnosticReport(report);
+          } catch (diagErr) {
+            console.error('诊断报告生成失败:', diagErr);
+          } finally {
+            setDiagnosticLoading(false);
+          }
+        }
+        
         loadHistory();
       } else {
         setAnalysis({ success: false, message: result.message || '分析失败' });
@@ -1883,6 +2371,34 @@ const AIAnalysis = ({ activeRecordId = 'all' }) => {
                           )}
                         </div>
                         <ReactECharts option={getInstrumentChartOption()} style={{ height: '300px' }} />
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'diagnostics',
+                    label: (
+                      <span className="flex items-center gap-2">
+                        <Brain size={14} />
+                        智能诊断
+                      </span>
+                    ),
+                    children: (
+                      <div className="p-5">
+                        {diagnosticLoading ? (
+                          <div className="flex items-center justify-center py-16">
+                            <Spin size="large" />
+                            <span className="ml-4 text-[var(--text-secondary)]">正在生成诊断报告...</span>
+                          </div>
+                        ) : diagnosticReport ? (
+                          <DiagnosticDashboard report={diagnosticReport} instruments={instruments} />
+                        ) : (
+                          <div className="text-center py-16">
+                            <Brain size={48} className="mx-auto mb-4 opacity-30" style={{ color: 'var(--text-tertiary)' }} />
+                            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                              完成分析后将自动生成智能诊断报告
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                   },
