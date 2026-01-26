@@ -273,8 +273,13 @@ export function SubscriptionBadge({ plan, usage, onClick }) {
 /**
  * Dashboard 订阅卡片
  */
-export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
-  const { plan, usage, status, currentPeriodStart, currentPeriodEnd } = subscription || {};
+export function SubscriptionCard({ subscription: subscriptionData, onUpgrade, onManage }) {
+  // 正确解构嵌套的 subscription 对象
+  const { plan, usage, subscription: subDetails } = subscriptionData || {};
+  const currentPeriodStart = subDetails?.currentPeriodStart;
+  const currentPeriodEnd = subDetails?.currentPeriodEnd;
+  const status = subDetails?.status || 'free';
+  
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   
@@ -425,8 +430,12 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
 /**
  * 侧边栏底部区域（订阅状态 + 折叠按钮一体化设计）- 极简专业版
  */
-export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleCollapse }) {
-  const { plan, usage, currentPeriodStart, currentPeriodEnd, status } = subscription || {};
+export function SidebarFooter({ subscription: subscriptionData, collapsed, onUpgrade, onToggleCollapse }) {
+  // 正确解构嵌套的 subscription 对象
+  const { plan, usage, subscription: subDetails } = subscriptionData || {};
+  const currentPeriodStart = subDetails?.currentPeriodStart;
+  const currentPeriodEnd = subDetails?.currentPeriodEnd;
+  
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   const isElite = planName === 'elite';
@@ -572,8 +581,11 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
 /**
  * 侧边栏订阅卡片（保留原版用于其他地方调用）- 极简专业版
  */
-export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) {
-  const { plan, usage } = subscription || {};
+export function SidebarSubscriptionCard({ subscription: subscriptionData, collapsed, onUpgrade }) {
+  // 正确解构嵌套的 subscription 对象
+  const { plan, usage, subscription: subDetails } = subscriptionData || {};
+  const currentPeriodEnd = subDetails?.currentPeriodEnd;
+  
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   const isElite = planName === 'elite';
@@ -585,6 +597,10 @@ export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) 
 
   const tradesPercent = tradesLimit === -1 ? 0 : Math.min(100, (tradesUsed / tradesLimit) * 100);
   const aiPercent = aiLimit === -1 ? 0 : Math.min(100, (aiUsed / aiLimit) * 100);
+  
+  // 格式化日期
+  const formatDate = (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-';
+  const daysRemaining = currentPeriodEnd ? dayjs(currentPeriodEnd).diff(dayjs(), 'day') : null;
   
   if (collapsed) {
     return (
