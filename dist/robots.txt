@@ -1,0 +1,15 @@
+# MetworthAI - 智能交易日志
+# https://metworth.ai
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://metworth.ai/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /admin/

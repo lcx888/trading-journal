@@ -340,10 +340,10 @@ const Pricing = () => {
           <header style={styles.header}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h1 style={styles.title}>订阅方案</h1>
-                <p style={styles.subtitle}>
-                  选择适合您的专业交易工具集。所有付费方案均包含完整的 AI 诊断能力。
-                </p>
+            <h1 style={styles.title}>订阅方案</h1>
+            <p style={styles.subtitle}>
+              选择适合您的专业交易工具集。所有付费方案均包含完整的 AI 诊断能力。
+            </p>
               </div>
               <Button 
                 icon={<Gift size={16} />} 

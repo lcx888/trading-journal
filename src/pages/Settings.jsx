@@ -705,39 +705,39 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                   
                   {/* 操作按钮 */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      {isFreePlan ? (
-                        <Button
-                          type="primary"
-                          icon={<RocketOutlined />}
-                          onClick={onUpgrade}
-                          style={{
-                            flex: 1,
-                            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-                            border: 'none',
-                            height: 40,
-                            fontWeight: 600,
-                          }}
-                        >
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {isFreePlan ? (
+                      <Button
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        onClick={onUpgrade}
+                        style={{
+                          flex: 1,
+                          background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                          border: 'none',
+                          height: 40,
+                          fontWeight: 600,
+                        }}
+                      >
                           升级到 Pro · $49/月
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={onUpgrade}
+                          style={{ flex: 1, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                        >
+                          管理订阅
                         </Button>
-                      ) : (
-                        <>
-                          <Button
-                            onClick={onUpgrade}
-                            style={{ flex: 1, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
-                          >
-                            管理订阅
-                          </Button>
-                          <Button
-                            icon={<ThunderboltOutlined />}
-                            onClick={onUpgrade}
-                            style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
-                          >
-                            升级
-                          </Button>
-                        </>
-                      )}
+                        <Button
+                          icon={<ThunderboltOutlined />}
+                          onClick={onUpgrade}
+                          style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                        >
+                          升级
+                        </Button>
+                      </>
+                    )}
                     </div>
                     {/* 兑换码入口 */}
                     <Button
