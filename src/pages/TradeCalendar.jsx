@@ -1,13 +1,10 @@
 /**
- * 交易日历模块 - 专业版 v2.0
+ * 交易日历模块 - 专业版 v2.1
  * 
- * 优化内容：
- * 1. 增强单元格信息密度 - 显示胜负比、复盘状态
- * 2. 连胜/连败标识 - 快速识别趋势
- * 3. 周度统计卡片 - 本周绩效概览
- * 4. 悬停预览卡片 - 无需点击即可预览
- * 5. 时段分布分析 - 24小时热力图
- * 6. 快速复盘入口 - 减少操作步骤
+ * 遵循网站设计规范：
+ * - 使用全局 CSS 变量（--bg-primary, --color-brand 等）
+ * - 统一的圆角、间距、字体
+ * - 一致的交互反馈
  */
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -62,7 +59,7 @@ const analyzeStreaks = (tradesByDate, currentMonth) => {
   
   const streaks = {};
   let currentStreak = 0;
-  let streakType = null; // 'win' or 'loss'
+  let streakType = null;
   
   dates.forEach((date, index) => {
     const data = tradesByDate[date];
@@ -83,30 +80,18 @@ const analyzeStreaks = (tradesByDate, currentMonth) => {
     streaks[date] = { type: streakType, count: currentStreak };
   });
   
-  // 回溯更新连胜/连败计数
   for (let i = dates.length - 1; i >= 0; i--) {
     const date = dates[i];
     const streak = streaks[date];
-    
-    // 向前查找同类型的连续日期
     let count = 1;
     for (let j = i + 1; j < dates.length; j++) {
-      if (streaks[dates[j]].type === streak.type) {
-        count++;
-      } else {
-        break;
-      }
+      if (streaks[dates[j]].type === streak.type) count++;
+      else break;
     }
-    
-    // 向后查找同类型的连续日期
     for (let j = i - 1; j >= 0; j--) {
-      if (streaks[dates[j]].type === streak.type) {
-        count++;
-      } else {
-        break;
-      }
+      if (streaks[dates[j]].type === streak.type) count++;
+      else break;
     }
-    
     streaks[date].totalCount = count;
   }
   
@@ -121,7 +106,6 @@ const analyzeTradeData = (dayTrades) => {
   const lossTrades = dayTrades.filter(t => t.pnl < 0);
   const winRate = dayTrades.length > 0 ? (winTrades.length / dayTrades.length * 100) : 0;
   
-  // 计算平均持仓时间
   const avgHoldingTime = dayTrades.reduce((sum, t) => {
     if (t.openTime && t.closeTime) {
       return sum + dayjs(t.closeTime).diff(dayjs(t.openTime), 'minute');
@@ -197,38 +181,36 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
   
   return (
     <div style={{ width: 280, padding: 4 }}>
-      {/* 头部 */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: 12,
         paddingBottom: 12,
-        borderBottom: '1px solid #262626'
+        borderBottom: '1px solid var(--border-primary)'
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
             {dayjs(date).format('M月D日 dddd')}
           </div>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
             {savedReview ? (
-              <span style={{ color: '#10b981' }}><CheckCircleOutlined /> 已复盘</span>
+              <span style={{ color: 'var(--color-profit)' }}><CheckCircleOutlined /> 已复盘</span>
             ) : (
-              <span style={{ color: '#f59e0b' }}>待复盘</span>
+              <span style={{ color: 'var(--color-brand)' }}>待复盘</span>
             )}
           </div>
         </div>
         <div style={{ 
           fontSize: 20, 
           fontWeight: 700, 
-          fontFamily: 'JetBrains Mono, monospace',
-          color: stats.totalPnL >= 0 ? '#10b981' : '#f43f5e'
+          fontFamily: 'var(--font-mono)',
+          color: stats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
         }}>
           {stats.totalPnL >= 0 ? '+' : ''}{stats.totalPnL.toFixed(0)}
         </div>
       </div>
       
-      {/* 关键指标 */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(3, 1fr)', 
@@ -236,52 +218,51 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
         marginBottom: 12
       }}>
         <div>
-          <div style={{ fontSize: 10, color: '#666', marginBottom: 2 }}>交易数</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', fontFamily: 'JetBrains Mono' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>交易数</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
             {stats.totalTrades}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: '#666', marginBottom: 2 }}>胜率</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', fontFamily: 'JetBrains Mono' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>胜率</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
             {stats.winRate.toFixed(0)}%
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: '#666', marginBottom: 2 }}>胜/负</div>
-          <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'JetBrains Mono' }}>
-            <span style={{ color: '#10b981' }}>{stats.winCount}</span>
-            <span style={{ color: '#444' }}>/</span>
-            <span style={{ color: '#f43f5e' }}>{stats.lossCount}</span>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>胜/负</div>
+          <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+            <span style={{ color: 'var(--color-profit)' }}>{stats.winCount}</span>
+            <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+            <span style={{ color: 'var(--color-loss)' }}>{stats.lossCount}</span>
           </div>
         </div>
       </div>
       
-      {/* 最佳/最差交易 */}
       {(stats.maxWinTrade || stats.maxLossTrade) && (
         <div style={{ 
-          background: '#1a1a1a', 
+          background: 'var(--bg-tertiary)', 
           borderRadius: 6, 
           padding: 10, 
           marginBottom: 12,
-          border: '1px solid #262626'
+          border: '1px solid var(--border-primary)'
         }}>
           {stats.maxWinTrade && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: stats.maxLossTrade ? 6 : 0 }}>
-              <span style={{ fontSize: 11, color: '#888' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 最佳: {stats.maxWinTrade.instrumentCode} ({stats.maxWinTrade.direction === 'LONG' ? '多' : '空'})
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-profit)', fontFamily: 'var(--font-mono)' }}>
                 +{stats.maxWinTrade.pnl.toFixed(0)}
               </span>
             </div>
           )}
           {stats.maxLossTrade && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, color: '#888' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 最差: {stats.maxLossTrade.instrumentCode} ({stats.maxLossTrade.direction === 'LONG' ? '多' : '空'})
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#f43f5e', fontFamily: 'JetBrains Mono' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-loss)', fontFamily: 'var(--font-mono)' }}>
                 {stats.maxLossTrade.pnl.toFixed(0)}
               </span>
             </div>
@@ -289,7 +270,6 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
         </div>
       )}
       
-      {/* 操作按钮 */}
       <div style={{ display: 'flex', gap: 8 }}>
         <Button 
           size="small" 
@@ -298,9 +278,9 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
           style={{ 
             flex: 1, 
             fontSize: 11, 
-            background: '#262626', 
-            borderColor: '#333', 
-            color: '#888',
+            background: 'var(--bg-tertiary)', 
+            borderColor: 'var(--border-primary)', 
+            color: 'var(--text-secondary)',
             borderRadius: 4
           }}
         >
@@ -314,9 +294,9 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
           style={{ 
             flex: 1, 
             fontSize: 11, 
-            background: '#f0b90b', 
-            borderColor: '#f0b90b', 
-            color: '#000',
+            background: 'var(--color-brand)', 
+            borderColor: 'var(--color-brand)', 
+            color: 'var(--bg-primary)',
             borderRadius: 4
           }}
         >
@@ -377,12 +357,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     return grouped;
   }, [trades]);
 
-  // 连胜/连败分析
   const streaks = useMemo(() => {
     return analyzeStreaks(tradesByDate, currentMonth);
   }, [tradesByDate, currentMonth]);
 
-  // 月度统计
   const monthStats = useMemo(() => {
     const monthKey = currentMonth.format('YYYY-MM');
     const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
@@ -395,7 +373,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const bestDay = daysData.reduce((b, d) => d.totalPnL > (b?.totalPnL || -Infinity) ? d : b, null);
     const worstDay = daysData.reduce((w, d) => d.totalPnL < (w?.totalPnL || Infinity) ? d : w, null);
     
-    // 计算最大连胜/连败
     let maxWinStreak = 0, maxLossStreak = 0;
     Object.values(streaks).forEach(s => {
       if (s.type === 'win' && s.totalCount > maxWinStreak) maxWinStreak = s.totalCount;
@@ -418,7 +395,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     };
   }, [trades, currentMonth, tradesByDate, streaks]);
 
-  // 周度统计
   const weekStats = useMemo(() => {
     const weekStart = dayjs().startOf('isoWeek');
     const weekEnd = dayjs().endOf('isoWeek');
@@ -444,7 +420,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     };
   }, [trades]);
 
-  // 时段分布统计
   const hourlyStats = useMemo(() => {
     const monthKey = currentMonth.format('YYYY-MM');
     const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
@@ -496,7 +471,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     };
   };
 
-  // 时段热力图选项
   const getHourlyChartOption = () => {
     const hours = [];
     const data = [];
@@ -515,13 +489,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       xAxis: { 
         type: 'category', 
         data: hours,
-        axisLine: { lineStyle: { color: '#333' } },
-        axisLabel: { color: '#666', fontSize: 9, interval: 2 }
+        axisLine: { lineStyle: { color: '#1e1e24' } },
+        axisLabel: { color: '#52525b', fontSize: 9, interval: 2 }
       },
-      yAxis: { 
-        type: 'value', 
-        show: false 
-      },
+      yAxis: { type: 'value', show: false },
       series: [{
         type: 'bar',
         data: data.map(v => ({
@@ -533,7 +504,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     };
   };
 
-  // 开始 AI 复盘
   const startAiReview = (date) => {
     const dayTrades = tradesByDate[date].trades;
     const stats = analyzeTradeData(dayTrades);
@@ -576,8 +546,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         placement="right"
         overlayStyle={{ padding: 0 }}
         overlayInnerStyle={{ 
-          background: '#141414', 
-          border: '1px solid #262626',
+          background: 'var(--bg-secondary)', 
+          border: '1px solid var(--border-primary)',
           borderRadius: 8,
           padding: 12
         }}
@@ -593,7 +563,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
         >
-          {/* 连胜/连败标识 */}
           {showStreak && (
             <div style={{
               position: 'absolute',
@@ -605,17 +574,17 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               gap: 2,
               padding: '1px 4px',
               borderRadius: 4,
-              background: streak.type === 'win' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+              background: streak.type === 'win' ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)',
             }}>
               {streak.type === 'win' ? (
-                <FireOutlined style={{ color: '#f59e0b', fontSize: 10 }} />
+                <FireOutlined style={{ color: 'var(--color-brand)', fontSize: 10 }} />
               ) : (
-                <WarningOutlined style={{ color: '#f43f5e', fontSize: 10 }} />
+                <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 10 }} />
               )}
               <span style={{ 
                 fontSize: 9, 
                 fontWeight: 700,
-                color: streak.type === 'win' ? '#10b981' : '#f43f5e'
+                color: streak.type === 'win' ? 'var(--color-profit)' : 'var(--color-loss)'
               }}>
                 {streak.totalCount}
               </span>
@@ -623,68 +592,65 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           )}
           
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-            {/* 顶部：交易数量 + 复盘状态 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <span style={{ 
                 fontSize: 9, 
                 fontWeight: 600, 
                 padding: '1px 5px', 
                 borderRadius: 3, 
-                background: '#1a1a1a', 
-                color: '#888',
-                border: '1px solid #262626'
+                background: 'var(--bg-tertiary)', 
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-primary)'
               }}>
                 {data.trades.length}笔
               </span>
               {savedReviews[key] && (
                 <span style={{ 
                   fontSize: 9, 
-                  color: savedReviews[key].type === 'ai' ? '#f0b90b' : '#666'
+                  color: savedReviews[key].type === 'ai' ? 'var(--color-brand)' : 'var(--text-tertiary)'
                 }}>
                   {savedReviews[key].type === 'ai' ? <RobotOutlined /> : <CheckCircleOutlined />}
                 </span>
               )}
             </div>
             
-            {/* 中部：盈亏金额 */}
             <div style={{ 
               fontSize: 13, 
               fontWeight: 700, 
-              fontFamily: 'JetBrains Mono, monospace',
+              fontFamily: 'var(--font-mono)',
               textAlign: 'center', 
-              color: isProfit ? '#10b981' : '#f43f5e',
+              color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
               margin: '4px 0'
             }}>
               {isProfit ? '+' : ''}{Math.abs(data.totalPnL) >= 1000 ? `${(data.totalPnL / 1000).toFixed(1)}k` : data.totalPnL.toFixed(0)}
             </div>
             
-            {/* 底部：胜率条 + 胜负比 */}
             <div>
               <div style={{ 
                 width: '100%', 
                 height: 3, 
-                background: '#1a1a1a', 
+                background: 'var(--bg-primary)', 
                 borderRadius: 2, 
                 overflow: 'hidden',
-                border: '1px solid #262626'
+                border: '1px solid var(--border-primary)'
               }}>
                 <div style={{ 
                   height: '100%', 
-                  background: '#10b981', 
+                  background: 'var(--color-profit)', 
                   width: `${winRate}%`, 
                   transition: 'width 0.3s' 
                 }} />
               </div>
               <div style={{ 
                 fontSize: 9, 
-                color: '#666', 
+                color: 'var(--text-tertiary)', 
                 textAlign: 'center',
                 marginTop: 2,
-                fontFamily: 'JetBrains Mono'
+                fontFamily: 'var(--font-mono)'
               }}>
-                <span style={{ color: '#10b981' }}>{data.winCount}</span>
-                <span style={{ color: '#444' }}>:</span>
-                <span style={{ color: '#f43f5e' }}>{data.lossCount}</span>
+                <span style={{ color: 'var(--color-profit)' }}>{data.winCount}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>:</span>
+                <span style={{ color: 'var(--color-loss)' }}>{data.lossCount}</span>
               </div>
             </div>
           </div>
@@ -693,39 +659,33 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     );
   };
 
-  // 统计卡片组件
   const StatCard = ({ label, value, unit, color, icon, subValue }) => (
     <div style={{ 
-      background: '#141414', 
-      border: '1px solid #262626', 
-      borderRadius: 8, 
+      background: 'var(--bg-tertiary)', 
+      border: '1px solid var(--border-primary)', 
+      borderRadius: 6, 
       padding: 16,
       flex: 1,
       minWidth: 120
     }}>
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: 6, 
-        marginBottom: 8 
-      }}>
-        {icon && <span style={{ color: '#666', fontSize: 12 }}>{icon}</span>}
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        {icon && <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{icon}</span>}
+        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {label}
         </span>
       </div>
       <div style={{ 
         fontSize: 22, 
         fontWeight: 700, 
-        fontFamily: 'JetBrains Mono, monospace', 
-        color: color || '#fff',
+        fontFamily: 'var(--font-mono)', 
+        color: color || 'var(--text-primary)',
         letterSpacing: '-0.5px'
       }}>
         {value}
         {unit && <span style={{ fontSize: 11, opacity: 0.5, marginLeft: 4 }}>{unit}</span>}
       </div>
       {subValue && (
-        <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>{subValue}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>{subValue}</div>
       )}
     </div>
   );
@@ -745,30 +705,30 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        background: '#141414', 
-        border: '1px solid #262626', 
-        borderRadius: 8, 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 6, 
         padding: '12px 20px' 
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Button 
             icon={<LeftOutlined />} 
             onClick={() => setCurrentMonth(currentMonth.subtract(1, 'month'))} 
-            style={{ border: 'none', background: '#1a1a1a', color: '#888', borderRadius: 4, width: 32, height: 32 }} 
+            style={{ border: 'none', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderRadius: 4, width: 32, height: 32 }} 
           />
           <div style={{ textAlign: 'center', minWidth: 120 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{currentMonth.format('YYYY年M月')}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{currentMonth.format('YYYY年M月')}</div>
           </div>
           <Button 
             icon={<RightOutlined />} 
             onClick={() => setCurrentMonth(currentMonth.add(1, 'month'))} 
-            style={{ border: 'none', background: '#1a1a1a', color: '#888', borderRadius: 4, width: 32, height: 32 }} 
+            style={{ border: 'none', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderRadius: 4, width: 32, height: 32 }} 
           />
         </div>
         <Button 
           onClick={() => setCurrentMonth(dayjs())} 
           size="small" 
-          style={{ fontSize: 11, fontWeight: 600, background: '#f0b90b', border: 'none', color: '#000', borderRadius: 4, padding: '0 12px' }}
+          style={{ fontSize: 11, fontWeight: 600, background: 'var(--color-brand)', border: 'none', color: 'var(--bg-primary)', borderRadius: 4, padding: '0 12px' }}
         >
           本月
         </Button>
@@ -777,26 +737,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       {/* 周度统计 */}
       {weekStats.totalTrades > 0 && (
         <div style={{ 
-          background: '#141414', 
-          border: '1px solid #262626', 
-          borderRadius: 8, 
+          background: 'var(--bg-secondary)', 
+          border: '1px solid var(--border-primary)', 
+          borderRadius: 6, 
           padding: 20 
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 8, 
-            marginBottom: 16 
-          }}>
-            <ThunderboltOutlined style={{ color: '#f0b90b' }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>本周绩效</span>
-            <span style={{ fontSize: 11, color: '#666' }}>({weekStats.weekStart} - {weekStats.weekEnd})</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>本周绩效</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>({weekStats.weekStart} - {weekStats.weekEnd})</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <StatCard 
               label="周盈亏" 
               value={`${weekStats.totalPnL >= 0 ? '+' : ''}${weekStats.totalPnL.toFixed(0)}`}
-              color={weekStats.totalPnL >= 0 ? '#10b981' : '#f43f5e'}
+              color={weekStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
             />
             <StatCard label="交易数" value={weekStats.totalTrades} unit="笔" />
             <StatCard label="胜率" value={`${weekStats.winRate}%`} />
@@ -804,7 +759,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             <StatCard 
               label="最大单笔亏损" 
               value={weekStats.maxDrawdown.toFixed(0)}
-              color="#f43f5e"
+              color="var(--color-loss)"
             />
           </div>
         </div>
@@ -812,21 +767,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
       {/* 月度统计 */}
       <div style={{ 
-        background: '#141414', 
-        border: '1px solid #262626', 
-        borderRadius: 8, 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 6, 
         padding: 20 
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <CalendarOutlined style={{ color: '#f0b90b' }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>月度统计</span>
+          <CalendarOutlined style={{ color: 'var(--color-brand)' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>月度统计</span>
         </div>
         
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           <StatCard 
             label="月度盈亏" 
             value={`${monthStats.totalPnL >= 0 ? '+' : ''}${monthStats.totalPnL.toLocaleString()}`}
-            color={monthStats.totalPnL >= 0 ? '#10b981' : '#f43f5e'}
+            color={monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
           />
           <StatCard label="交易笔数" value={monthStats.totalTrades} unit="笔" />
           <StatCard label="胜率" value={`${monthStats.winRate}%`} />
@@ -839,30 +794,28 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             label="最大连胜" 
             value={monthStats.maxWinStreak}
             unit="天"
-            color="#10b981"
+            color="var(--color-profit)"
             icon={<FireOutlined />}
           />
           <StatCard 
             label="最大连败" 
             value={monthStats.maxLossStreak}
             unit="天"
-            color="#f43f5e"
+            color="var(--color-loss)"
             icon={<WarningOutlined />}
           />
         </div>
 
-        {/* 累计收益曲线 */}
         {monthStats.totalTrades > 0 && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #262626' }}>
-            <div style={{ fontSize: 11, color: '#666', marginBottom: 8, fontWeight: 600 }}>累计收益曲线</div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-primary)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600 }}>累计收益曲线</div>
             <ReactECharts option={getMonthlyChartOption()} style={{ height: 80 }} notMerge={true} />
           </div>
         )}
         
-        {/* 时段分布 */}
         {monthStats.totalTrades > 0 && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #262626' }}>
-            <div style={{ fontSize: 11, color: '#666', marginBottom: 8, fontWeight: 600 }}>时段盈亏分布</div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-primary)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600 }}>时段盈亏分布</div>
             <ReactECharts option={getHourlyChartOption()} style={{ height: 100 }} notMerge={true} />
           </div>
         )}
@@ -874,10 +827,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           <Col xs={24} sm={12}>
             <div 
               style={{ 
-                background: '#141414', 
-                border: '1px solid #262626', 
-                borderLeft: '3px solid #10b981',
-                borderRadius: 8, 
+                background: 'var(--bg-secondary)', 
+                border: '1px solid var(--border-primary)', 
+                borderLeft: '3px solid var(--color-profit)',
+                borderRadius: 6, 
                 padding: 16, 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -889,24 +842,24 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <TrophyOutlined style={{ color: '#10b981', fontSize: 12 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: '#10b981', textTransform: 'uppercase' }}>最佳盈利日</span>
+                  <TrophyOutlined style={{ color: 'var(--color-profit)', fontSize: 12 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-profit)', textTransform: 'uppercase' }}>最佳盈利日</span>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginTop: 4 }}>{dayjs(monthStats.bestDay.date).format('M月D日')}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 4 }}>{dayjs(monthStats.bestDay.date).format('M月D日')}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'JetBrains Mono', color: '#10b981' }}>+{monthStats.bestDay.totalPnL.toFixed(0)}</div>
-                <div style={{ fontSize: 10, color: '#666' }}>{monthStats.bestDay.trades.length}笔</div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-profit)' }}>+{monthStats.bestDay.totalPnL.toFixed(0)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{monthStats.bestDay.trades.length}笔</div>
               </div>
             </div>
           </Col>
           <Col xs={24} sm={12}>
             <div 
               style={{ 
-                background: '#141414', 
-                border: '1px solid #262626', 
-                borderLeft: '3px solid #f43f5e',
-                borderRadius: 8, 
+                background: 'var(--bg-secondary)', 
+                border: '1px solid var(--border-primary)', 
+                borderLeft: '3px solid var(--color-loss)',
+                borderRadius: 6, 
                 padding: 16, 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -918,14 +871,14 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <WarningOutlined style={{ color: '#f43f5e', fontSize: 12 }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: '#f43f5e', textTransform: 'uppercase' }}>最大回撤日</span>
+                  <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 12 }} />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-loss)', textTransform: 'uppercase' }}>最大回撤日</span>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginTop: 4 }}>{dayjs(monthStats.worstDay.date).format('M月D日')}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 4 }}>{dayjs(monthStats.worstDay.date).format('M月D日')}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'JetBrains Mono', color: '#f43f5e' }}>{monthStats.worstDay.totalPnL.toFixed(0)}</div>
-                <div style={{ fontSize: 10, color: '#666' }}>{monthStats.worstDay.trades.length}笔</div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-loss)' }}>{monthStats.worstDay.totalPnL.toFixed(0)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{monthStats.worstDay.trades.length}笔</div>
               </div>
             </div>
           </Col>
@@ -934,9 +887,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
       {/* 主日历卡片 */}
       <div style={{ 
-        background: '#141414', 
-        border: '1px solid #262626', 
-        borderRadius: 8, 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 6, 
         padding: 8,
         overflow: 'hidden'
       }}>
@@ -957,29 +910,29 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         justifyContent: 'center', 
         gap: 24, 
         padding: '12px 20px', 
-        background: '#141414', 
-        border: '1px solid #262626', 
-        borderRadius: 8 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 6 
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }} />
-          <span style={{ fontSize: 10, color: '#666' }}>盈利日</span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-profit)' }} />
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>盈利日</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e' }} />
-          <span style={{ fontSize: 10, color: '#666' }}>亏损日</span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-loss)' }} />
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>亏损日</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <FireOutlined style={{ color: '#f59e0b', fontSize: 12 }} />
-          <span style={{ fontSize: 10, color: '#666' }}>连胜 ≥3天</span>
+          <FireOutlined style={{ color: 'var(--color-brand)', fontSize: 12 }} />
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>连胜 ≥3天</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <WarningOutlined style={{ color: '#f43f5e', fontSize: 12 }} />
-          <span style={{ fontSize: 10, color: '#666' }}>连败 ≥3天</span>
+          <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 12 }} />
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>连败 ≥3天</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ClockCircleOutlined style={{ color: '#666', fontSize: 12 }} />
-          <span style={{ fontSize: 10, color: '#666' }}>交易日：06:00 - 05:59</span>
+          <ClockCircleOutlined style={{ color: 'var(--text-tertiary)', fontSize: 12 }} />
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>交易日：06:00 - 05:59</span>
         </div>
       </div>
 
@@ -991,16 +944,16 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               width: 32, 
               height: 32, 
               borderRadius: 6, 
-              background: '#f0b90b', 
+              background: 'var(--color-brand)', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center' 
             }}>
-              <CalendarOutlined style={{ color: '#000', fontSize: 14 }} />
+              <CalendarOutlined style={{ color: 'var(--bg-primary)', fontSize: 14 }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{selectedDate && dayjs(selectedDate).format('M月D日')} 交易报告</div>
-              <div style={{ fontSize: 11, color: '#666' }}>{selectedDate && dayjs(selectedDate).format('dddd')}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDate && dayjs(selectedDate).format('M月D日')} 交易报告</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{selectedDate && dayjs(selectedDate).format('dddd')}</div>
             </div>
           </div>
         }
@@ -1011,7 +964,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           <Button 
             key="close" 
             onClick={() => setModalVisible(false)} 
-            style={{ fontWeight: 600, fontSize: 11, borderColor: '#333', color: '#888', borderRadius: 4 }}
+            style={{ fontWeight: 600, fontSize: 11, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)', borderRadius: 4 }}
           >
             关闭
           </Button>,
@@ -1019,7 +972,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             key="manual" 
             icon={<EditOutlined />} 
             onClick={() => { setModalVisible(false); setManualReviewVisible(true); }} 
-            style={{ fontWeight: 600, fontSize: 11, borderColor: '#333', color: '#888', borderRadius: 4 }}
+            style={{ fontWeight: 600, fontSize: 11, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)', borderRadius: 4 }}
           >
             手动复盘
           </Button>,
@@ -1031,7 +984,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               setModalVisible(false);
               startAiReview(selectedDate);
             }} 
-            style={{ fontWeight: 600, fontSize: 11, background: '#f0b90b', borderColor: '#f0b90b', color: '#000', borderRadius: 4 }}
+            style={{ fontWeight: 600, fontSize: 11, background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: 'var(--bg-primary)', borderRadius: 4 }}
           >
             AI 复盘
           </Button>
@@ -1041,41 +994,41 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Row gutter={12}>
               <Col span={6}>
-                <div style={{ background: '#1a1a1a', borderRadius: 6, padding: 14, border: '1px solid #262626' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>当日盈亏</div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 14, border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 6 }}>当日盈亏</div>
                   <div style={{ 
                     fontSize: 20, 
                     fontWeight: 700, 
-                    fontFamily: 'JetBrains Mono',
-                    color: tradesByDate[selectedDate].totalPnL >= 0 ? '#10b981' : '#f43f5e'
+                    fontFamily: 'var(--font-mono)',
+                    color: tradesByDate[selectedDate].totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
                   }}>
                     {tradesByDate[selectedDate].totalPnL >= 0 ? '+' : ''}{tradesByDate[selectedDate].totalPnL.toFixed(2)}
                   </div>
                 </div>
               </Col>
               <Col span={6}>
-                <div style={{ background: '#1a1a1a', borderRadius: 6, padding: 14, border: '1px solid #262626' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>交易数量</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono', color: '#fff' }}>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 14, border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 6 }}>交易数量</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
                     {tradesByDate[selectedDate].trades.length}
                   </div>
                 </div>
               </Col>
               <Col span={6}>
-                <div style={{ background: '#1a1a1a', borderRadius: 6, padding: 14, border: '1px solid #262626' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>胜率</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono', color: '#fff' }}>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 14, border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 6 }}>胜率</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
                     {(tradesByDate[selectedDate].winCount / tradesByDate[selectedDate].trades.length * 100).toFixed(1)}%
                   </div>
                 </div>
               </Col>
               <Col span={6}>
-                <div style={{ background: '#1a1a1a', borderRadius: 6, padding: 14, border: '1px solid #262626' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>复盘状态</div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 6, padding: 14, border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 6 }}>复盘状态</div>
                   <div style={{ 
                     fontSize: 14, 
                     fontWeight: 600, 
-                    color: savedReviews[selectedDate] ? '#10b981' : '#f59e0b' 
+                    color: savedReviews[selectedDate] ? 'var(--color-profit)' : 'var(--color-brand)' 
                   }}>
                     {savedReviews[selectedDate] ? '✓ 已完成' : '○ 待完成'}
                   </div>
@@ -1091,22 +1044,22 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               rowKey={(record, index) => index}
               columns={[
                 { 
-                  title: <span style={{ color: '#666', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>时间</span>, 
+                  title: <span style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>时间</span>, 
                   dataIndex: 'openTime', 
-                  render: t => <span style={{ fontFamily: 'JetBrains Mono', color: '#888', fontSize: 12 }}>{dayjs(t).format('HH:mm')}</span>
+                  render: t => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: 12 }}>{dayjs(t).format('HH:mm')}</span>
                 },
                 { 
-                  title: <span style={{ color: '#666', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>品种</span>, 
+                  title: <span style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>品种</span>, 
                   dataIndex: 'instrumentCode', 
-                  render: c => <span style={{ fontWeight: 600, color: '#fff', fontSize: 12 }}>{c}</span>
+                  render: c => <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>{c}</span>
                 },
                 { 
-                  title: <span style={{ color: '#666', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>方向</span>, 
+                  title: <span style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>方向</span>, 
                   dataIndex: 'direction', 
                   render: d => (
                     <Tag style={{ 
-                      background: d === 'LONG' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', 
-                      color: d === 'LONG' ? '#10b981' : '#f43f5e', 
+                      background: d === 'LONG' ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)', 
+                      color: d === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)', 
                       border: 'none', 
                       fontWeight: 600, 
                       fontSize: 10 
@@ -1116,21 +1069,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   )
                 },
                 { 
-                  title: <span style={{ color: '#666', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>点数</span>, 
+                  title: <span style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>点数</span>, 
                   dataIndex: 'ticks', 
                   align: 'right', 
                   render: t => (
-                    <span style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: t >= 0 ? '#10b981' : '#f43f5e' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: t >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
                       {t >= 0 ? '+' : ''}{t}
                     </span>
                   )
                 },
                 { 
-                  title: <span style={{ color: '#666', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>盈亏</span>, 
+                  title: <span style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>盈亏</span>, 
                   dataIndex: 'pnl', 
                   align: 'right', 
                   render: p => (
-                    <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 600, fontSize: 12, color: p >= 0 ? '#10b981' : '#f43f5e' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 12, color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
                       {p >= 0 ? '+' : ''}{p.toFixed(2)}
                     </span>
                   )
@@ -1145,10 +1098,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 6, background: '#f0b90b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RobotOutlined style={{ color: '#000', fontSize: 14 }} />
+            <div style={{ width: 32, height: 32, borderRadius: 6, background: 'var(--color-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RobotOutlined style={{ color: 'var(--bg-primary)', fontSize: 14 }} />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>AI 复盘对话</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>AI 复盘对话</span>
           </div>
         }
         open={aiReviewVisible}
@@ -1164,9 +1117,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             flexDirection: 'column', 
             gap: 12, 
             padding: 16, 
-            background: '#1a1a1a', 
+            background: 'var(--bg-tertiary)', 
             borderRadius: 8,
-            border: '1px solid #262626'
+            border: '1px solid var(--border-primary)'
           }}>
             {chatHistory.map((m, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'ai' ? 'flex-start' : 'flex-end' }}>
@@ -1176,9 +1129,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   maxWidth: '85%', 
                   fontSize: 13,
                   whiteSpace: 'pre-wrap',
-                  background: m.role === 'ai' ? '#262626' : '#f0b90b', 
-                  color: m.role === 'ai' ? '#fff' : '#000',
-                  border: m.role === 'ai' ? '1px solid #333' : 'none'
+                  background: m.role === 'ai' ? 'var(--bg-secondary)' : 'var(--color-brand)', 
+                  color: m.role === 'ai' ? 'var(--text-primary)' : 'var(--bg-primary)',
+                  border: m.role === 'ai' ? '1px solid var(--border-primary)' : 'none'
                 }}>
                   {m.content}
                 </div>
@@ -1191,7 +1144,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               autoSize={{ minRows: 1, maxRows: 3 }} 
               value={userInput} 
               onChange={e => setUserInput(e.target.value)} 
-              style={{ borderRadius: 8, background: '#1a1a1a', borderColor: '#333', color: '#fff' }} 
+              style={{ borderRadius: 8, background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }} 
             />
             <Button 
               type="primary" 
@@ -1205,7 +1158,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   setChatHistory([...newHistory, { role: 'ai', content: '已记录，请继续保持规范复盘。' }]);
                 }, 500);
               }} 
-              style={{ borderRadius: 8, height: 'auto', background: '#f0b90b', borderColor: '#f0b90b', color: '#000' }} 
+              style={{ borderRadius: 8, height: 'auto', background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: 'var(--bg-primary)' }} 
             />
           </div>
         </div>
@@ -1217,41 +1170,41 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           margin: 0 !important;
         }
         .binance-calendar .ant-picker-cell-inner {
-          border: 1px solid #262626 !important;
+          border: 1px solid var(--border-primary) !important;
           border-radius: 6px !important;
           margin: 2px !important;
           padding: 0 !important;
           min-height: 90px !important;
-          background: #1a1a1a !important;
+          background: var(--bg-tertiary) !important;
           transition: all 0.2s !important;
         }
         .binance-calendar .ant-picker-cell-inner:hover {
-          background: #262626 !important;
-          border-color: #404040 !important;
+          background: var(--bg-secondary) !important;
+          border-color: var(--border-secondary) !important;
         }
         .binance-calendar .ant-picker-cell-selected .ant-picker-cell-inner {
-          background: rgba(240, 185, 11, 0.1) !important;
-          border-color: #f0b90b !important;
+          background: var(--color-brand-bg) !important;
+          border-color: var(--color-brand) !important;
         }
         .binance-calendar .ant-picker-calendar-date-value {
           padding: 4px 8px;
           font-size: 12px;
           font-weight: 600;
-          color: #888;
+          color: var(--text-secondary);
         }
         .binance-calendar .ant-picker-cell-today .ant-picker-calendar-date-value {
-          color: #f0b90b !important;
+          color: var(--color-brand) !important;
         }
         .binance-calendar .ant-picker-content th {
-          color: #666 !important;
+          color: var(--text-tertiary) !important;
           font-weight: 600 !important;
           font-size: 10px !important;
           text-transform: uppercase !important;
           letter-spacing: 0.05em !important;
         }
         .binance-calendar .ant-picker-cell-disabled .ant-picker-cell-inner {
-          background: #0a0a0a !important;
-          border-color: #1a1a1a !important;
+          background: var(--bg-primary) !important;
+          border-color: var(--border-primary) !important;
         }
       `}</style>
     </div>
