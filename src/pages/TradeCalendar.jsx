@@ -25,7 +25,10 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import StorageService from '../services/storage';
+
+dayjs.extend(isoWeek);
 
 const { TextArea } = Input;
 
@@ -291,6 +294,53 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       .filter(d => d.startsWith(monthKey) && !savedReviews[d])
       .length;
   }, [tradesByDate, savedReviews, currentMonth]);
+
+  // 周度统计（当前月的每一周）
+  const weeklyStats = useMemo(() => {
+    const monthKey = currentMonth.format('YYYY-MM');
+    const monthStart = currentMonth.startOf('month');
+    const monthEnd = currentMonth.endOf('month');
+    
+    const weeks = [];
+    let weekStart = monthStart.startOf('isoWeek');
+    
+    while (weekStart.isBefore(monthEnd) || weekStart.isSame(monthEnd, 'day')) {
+      const weekEnd = weekStart.endOf('isoWeek');
+      
+      // 筛选这一周的交易
+      const weekTrades = trades.filter(t => {
+        const tradeDate = dayjs(getTradingDate(t.openTime));
+        return tradeDate.isAfter(weekStart.subtract(1, 'day')) && 
+               tradeDate.isBefore(weekEnd.add(1, 'day')) &&
+               getTradingMonth(t.openTime) === monthKey;
+      });
+      
+      const totalPnL = weekTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const winCount = weekTrades.filter(t => t.pnl > 0).length;
+      const tradingDays = new Set(weekTrades.map(t => getTradingDate(t.openTime))).size;
+      
+      // 只添加有交易或属于当月的周
+      const weekStartInMonth = weekStart.month() === currentMonth.month();
+      const weekEndInMonth = weekEnd.month() === currentMonth.month();
+      
+      if (weekStartInMonth || weekEndInMonth) {
+        weeks.push({
+          weekNumber: weekStart.isoWeek(),
+          start: weekStart.format('M/D'),
+          end: weekEnd.format('M/D'),
+          totalTrades: weekTrades.length,
+          totalPnL,
+          winRate: weekTrades.length > 0 ? (winCount / weekTrades.length * 100).toFixed(0) : 0,
+          tradingDays,
+          isCurrentWeek: dayjs().isoWeek() === weekStart.isoWeek() && dayjs().year() === weekStart.year(),
+        });
+      }
+      
+      weekStart = weekStart.add(1, 'week');
+    }
+    
+    return weeks;
+  }, [trades, currentMonth]);
 
   const startAiReview = (date) => {
     const dayTrades = tradesByDate[date].trades;
@@ -561,47 +611,183 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         </div>
       </div>
 
-      {/* 主日历 */}
-      {monthStats.totalTrades === 0 ? (
-        /* 空状态 */
+      {/* 主区域：日历 + 周统计侧边栏 */}
+      <div style={{ display: 'flex', gap: 16 }}>
+        {/* 日历 */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {monthStats.totalTrades === 0 ? (
+            /* 空状态 */
+            <div style={{ 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-primary)', 
+              borderRadius: 6,
+              padding: '60px 20px',
+              textAlign: 'center'
+            }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                      本月暂无交易记录
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                      导入交易数据后，这里将显示您的交易日历
+                    </div>
+                  </div>
+                }
+              />
+            </div>
+          ) : (
+            <div style={{ 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-primary)', 
+              borderRadius: 6, 
+              overflow: 'hidden'
+            }}>
+              <Calendar
+                value={currentMonth}
+                onPanelChange={setCurrentMonth}
+                headerRender={() => null}
+                fullScreen={true}
+                cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
+                className="trading-calendar minimal-calendar"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 周统计侧边栏 */}
         <div style={{ 
+          width: 200, 
+          flexShrink: 0,
           background: 'var(--bg-secondary)', 
           border: '1px solid var(--border-primary)', 
           borderRadius: 6,
-          padding: '60px 20px',
-          textAlign: 'center'
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12
         }}>
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <div>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                  本月暂无交易记录
+          <div style={{ 
+            fontSize: 12, 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)',
+            paddingBottom: 8,
+            borderBottom: '1px solid var(--border-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <CalendarOutlined style={{ fontSize: 12 }} />
+            周度统计
+          </div>
+
+          {weeklyStats.length === 0 ? (
+            <div style={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--text-tertiary)',
+              fontSize: 12
+            }}>
+              暂无数据
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {weeklyStats.map((week, index) => (
+                <div 
+                  key={index}
+                  style={{ 
+                    padding: 12,
+                    background: week.isCurrentWeek ? 'rgba(212, 175, 55, 0.08)' : 'var(--bg-tertiary)',
+                    border: `1px solid ${week.isCurrentWeek ? 'rgba(212, 175, 55, 0.3)' : 'var(--border-primary)'}`,
+                    borderRadius: 6,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {/* 周标题 */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: 8
+                  }}>
+                    <span style={{ 
+                      fontSize: 10, 
+                      color: week.isCurrentWeek ? 'var(--color-brand)' : 'var(--text-tertiary)',
+                      fontWeight: 600
+                    }}>
+                      {week.start} - {week.end}
+                      {week.isCurrentWeek && (
+                        <span style={{ 
+                          marginLeft: 4, 
+                          padding: '1px 4px', 
+                          background: 'var(--color-brand)', 
+                          color: 'var(--bg-primary)', 
+                          borderRadius: 2,
+                          fontSize: 9
+                        }}>
+                          本周
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* 周盈亏 */}
+                  <div style={{ 
+                    fontSize: 18, 
+                    fontWeight: 700, 
+                    fontFamily: 'var(--font-mono)',
+                    color: week.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)',
+                    marginBottom: 8
+                  }}>
+                    {week.totalPnL >= 0 ? '+' : ''}{week.totalPnL.toFixed(0)}
+                  </div>
+
+                  {/* 周数据 */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    fontSize: 10,
+                    color: 'var(--text-tertiary)'
+                  }}>
+                    <span>{week.totalTrades} 笔</span>
+                    <span>{week.winRate}% 胜率</span>
+                    <span>{week.tradingDays} 天</span>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                  导入交易数据后，这里将显示您的交易日历
-                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 月度汇总 */}
+          {weeklyStats.length > 0 && (
+            <div style={{ 
+              marginTop: 'auto',
+              paddingTop: 12,
+              borderTop: '1px solid var(--border-primary)'
+            }}>
+              <div style={{ 
+                fontSize: 10, 
+                color: 'var(--text-tertiary)', 
+                marginBottom: 4 
+              }}>
+                本月合计
               </div>
-            }
-          />
+              <div style={{ 
+                fontSize: 20, 
+                fontWeight: 700, 
+                fontFamily: 'var(--font-mono)',
+                color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+              }}>
+                {monthStats.totalPnL >= 0 ? '+' : ''}{monthStats.totalPnL.toLocaleString()}
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <div style={{ 
-          background: 'var(--bg-secondary)', 
-          border: '1px solid var(--border-primary)', 
-          borderRadius: 6, 
-          overflow: 'hidden'
-        }}>
-          <Calendar
-            value={currentMonth}
-            onPanelChange={setCurrentMonth}
-            headerRender={() => null}
-            fullScreen={true}
-            cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
-            className="trading-calendar minimal-calendar"
-          />
-        </div>
-      )}
+      </div>
 
       {/* 交易详情弹窗 */}
       <Modal
