@@ -556,113 +556,77 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           style={{
             height: '100%',
             width: '100%',
-            padding: 6,
+            padding: '8px 10px',
             cursor: 'pointer',
-            transition: 'all 0.2s',
+            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative',
             background: isProfit 
-              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%)' 
-              : 'linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(244, 63, 94, 0.08) 100%)',
-            borderRadius: 4,
-            borderLeft: `3px solid ${isProfit ? 'var(--color-profit)' : 'var(--color-loss)'}`,
+              ? 'rgba(16, 185, 129, 0.06)' 
+              : 'rgba(244, 63, 94, 0.06)',
+            borderRadius: 6,
+            border: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 4
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
+          className="calendar-cell-inner"
         >
-          {/* 连胜/连败标识 */}
-          {showStreak && (
-            <div style={{
-              position: 'absolute',
-              top: 4,
-              right: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              padding: '2px 5px',
-              borderRadius: 4,
-              background: streak.type === 'win' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)',
-            }}>
-              {streak.type === 'win' ? (
-                <FireOutlined style={{ color: '#f59e0b', fontSize: 10 }} />
-              ) : (
-                <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 10 }} />
-              )}
-              <span style={{ 
-                fontSize: 9, 
-                fontWeight: 700,
-                color: streak.type === 'win' ? 'var(--color-profit)' : 'var(--color-loss)'
-              }}>
-                {streak.totalCount}
-              </span>
-            </div>
-          )}
-          
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-            {/* 顶部：交易数 + 复盘状态 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ 
-                fontSize: 10, 
-                fontWeight: 600, 
-                padding: '2px 6px', 
-                borderRadius: 4, 
-                background: 'rgba(255,255,255,0.08)', 
-                color: 'var(--text-secondary)',
-              }}>
-                {data.trades.length}笔
-              </span>
-              {savedReviews[key] && (
-                <span style={{ 
-                  fontSize: 10, 
-                  color: savedReviews[key].type === 'ai' ? 'var(--color-brand)' : 'var(--text-tertiary)'
-                }}>
-                  {savedReviews[key].type === 'ai' ? <RobotOutlined /> : <CheckCircleOutlined />}
-                </span>
-              )}
-            </div>
-            
-            {/* 中部：盈亏金额 - 大字突出 */}
-            <div style={{ 
-              fontSize: 16, 
-              fontWeight: 800, 
-              fontFamily: 'var(--font-mono)',
-              textAlign: 'center', 
-              color: isProfit ? '#34d399' : '#fb7185',
-              textShadow: isProfit ? '0 0 20px rgba(16, 185, 129, 0.4)' : '0 0 20px rgba(244, 63, 94, 0.4)',
-              margin: '6px 0',
-              letterSpacing: '-0.5px'
-            }}>
-              {isProfit ? '+' : ''}{Math.abs(data.totalPnL) >= 1000 ? `${(data.totalPnL / 1000).toFixed(1)}k` : data.totalPnL.toFixed(0)}
-            </div>
-            
-            {/* 底部：胜率条 + 胜负比 */}
-            <div>
-              <div style={{ 
-                width: '100%', 
-                height: 4, 
-                background: 'rgba(255,255,255,0.1)', 
-                borderRadius: 2, 
-                overflow: 'hidden',
-              }}>
-                <div style={{ 
-                  height: '100%', 
-                  background: 'var(--color-profit)', 
-                  width: `${winRate}%`, 
-                  transition: 'width 0.3s',
-                  boxShadow: '0 0 6px rgba(16, 185, 129, 0.5)'
-                }} />
-              </div>
-              <div style={{ 
-                fontSize: 10, 
-                textAlign: 'center',
-                marginTop: 3,
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 600
-              }}>
-                <span style={{ color: '#34d399' }}>{data.winCount}</span>
-                <span style={{ color: 'var(--text-tertiary)', margin: '0 2px' }}>:</span>
-                <span style={{ color: '#fb7185' }}>{data.lossCount}</span>
-              </div>
-            </div>
+          {/* 状态角标 - 极简设计 */}
+          <div style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            display: 'flex',
+            gap: 4
+          }}>
+            {showStreak && (
+              streak.type === 'win' ? <FireOutlined style={{ color: 'var(--color-brand)', fontSize: 10 }} /> : <WarningOutlined style={{ color: 'var(--color-loss)', fontSize: 10 }} />
+            )}
+            {savedReviews[key] && (
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-brand)' }} />
+            )}
           </div>
+
+          {/* 盈亏金额 - 绝对核心 */}
+          <div style={{ 
+            fontSize: 18, 
+            fontWeight: 800, 
+            fontFamily: 'var(--font-mono)',
+            color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+            lineHeight: 1,
+            letterSpacing: '-0.5px'
+          }}>
+            {isProfit ? '+' : '-'}{Math.abs(data.totalPnL).toFixed(0)}
+          </div>
+
+          {/* 辅助信息 - 极简横向布局 */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 6,
+            fontSize: 10,
+            color: 'var(--text-tertiary)',
+            fontWeight: 500
+          }}>
+            <span>{data.trades.length}T</span>
+            <span style={{ opacity: 0.3 }}>|</span>
+            <span style={{ color: winRate > 50 ? 'var(--text-secondary)' : 'inherit' }}>{winRate}%</span>
+          </div>
+
+          {/* 底部装饰条 - 仅作为视觉反馈 */}
+          <div style={{ 
+            position: 'absolute',
+            bottom: 0,
+            left: '15%',
+            right: '15%',
+            height: 2,
+            background: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+            opacity: 0.4,
+            borderRadius: '2px 2px 0 0'
+          }} />
         </div>
       </Popover>
     );
