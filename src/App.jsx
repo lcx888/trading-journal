@@ -425,7 +425,7 @@ function App() {
         }
       }}
     >
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
         {/* 侧边栏 */}
         <Sider
           collapsible
@@ -443,6 +443,7 @@ function App() {
             zIndex: 100,
             background: '#0d0d10',
             borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+            overflow: 'hidden',
           }}
         >
           {/* Logo */}
@@ -512,13 +513,24 @@ function App() {
         </Sider>
         
         {/* 主内容区 */}
-        <Layout style={{ marginLeft: collapsed ? 64 : 240, transition: 'margin 0.2s' }}>
-          {/* 顶部导航 */}
+        <Layout style={{ 
+          marginLeft: collapsed ? 64 : 240, 
+          transition: 'margin 0.2s',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          {/* 顶部导航 - 固定高度 */}
           <Header 
-            className="layout-header flex items-center justify-between sticky top-0 z-50 px-6 h-16"
+            className="layout-header flex items-center justify-between px-6"
             style={{
               background: '#0d0d10',
               borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              height: 64,
+              lineHeight: '64px',
+              flexShrink: 0,
+              zIndex: 50,
             }}
           >
             <div className="flex items-center gap-4">
@@ -647,10 +659,15 @@ function App() {
             </div>
           </Header>
           
-          {/* 内容区 */}
+          {/* 内容区 - 可滚动 */}
           <Content 
             className="layout-content p-6"
-            style={{ background: '#0a0a0c', minHeight: 'calc(100vh - 64px)' }}
+            style={{ 
+              background: '#0a0a0c', 
+              flex: 1,
+              overflow: 'auto',
+              minHeight: 0,
+            }}
           >
             <div className="max-w-[1400px] mx-auto">
               {renderContent()}
