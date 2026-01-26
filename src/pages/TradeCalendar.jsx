@@ -1101,7 +1101,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   </Button>
                   <Button 
                     type="primary" 
-                    icon={<RobotOutlined />} 
+                    icon={<EditOutlined />} 
                     onClick={() => { setModalVisible(false); startAiReview(selectedDate); }}
                     style={{ 
                       background: 'var(--color-brand)', 
@@ -1111,7 +1111,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                       fontWeight: 700
                     }}
                   >
-                    开始 AI 复盘
+                    手动复盘
                   </Button>
                 </div>
               </div>
@@ -1120,12 +1120,12 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         })()}
       </Modal>
 
-      {/* AI 复盘对话弹窗 */}
+      {/* 手动复盘对话弹窗 */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <RobotOutlined style={{ color: 'var(--color-brand)' }} />
-            <span>AI 复盘</span>
+            <EditOutlined style={{ color: 'var(--color-brand)' }} />
+            <span>手动复盘</span>
           </div>
         }
         open={aiReviewVisible}
