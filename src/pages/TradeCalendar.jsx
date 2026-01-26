@@ -1,15 +1,16 @@
 /**
- * 交易日历模块 - 极简专业版 v3.0
+ * 交易日历模块 - 极简专业版 v3.1
  * 
  * 设计原则：
  * - 信息极简：只展示核心数据
  * - 视觉聚焦：日历是唯一主角
  * - 操作高效：悬停即可获取详情
+ * - 情感化设计：复盘提醒、趋势感知
  */
 import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar, Modal, Table, Tag, Row, Col,
-  Button, Spin, Input, Popover
+  Button, Spin, Input, Popover, Empty
 } from 'antd';
 import {
   CalendarOutlined,
@@ -17,9 +18,11 @@ import {
   RightOutlined,
   RobotOutlined,
   SendOutlined,
-  EditOutlined,
   EyeOutlined,
   CheckCircleOutlined,
+  RiseOutlined,
+  FallOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -115,7 +118,7 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
             {savedReview ? (
               <span style={{ color: 'var(--color-profit)' }}><CheckCircleOutlined /> 已复盘</span>
             ) : (
-              <span>待复盘</span>
+              <span style={{ color: 'var(--color-brand)' }}>待复盘</span>
             )}
           </div>
         </div>
@@ -181,6 +184,28 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
   );
 };
 
+// 趋势指示器组件
+const TrendIndicator = ({ current, previous }) => {
+  if (previous === 0 || previous === undefined) return null;
+  const change = ((current - previous) / Math.abs(previous) * 100).toFixed(0);
+  const isUp = current >= previous;
+  
+  return (
+    <span style={{ 
+      fontSize: 11, 
+      fontWeight: 600,
+      color: isUp ? 'var(--color-profit)' : 'var(--color-loss)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 2,
+      marginLeft: 6
+    }}>
+      {isUp ? <RiseOutlined /> : <FallOutlined />}
+      {Math.abs(change)}%
+    </span>
+  );
+};
+
 const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -228,6 +253,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     return grouped;
   }, [trades]);
 
+  // 当月统计
   const monthStats = useMemo(() => {
     const monthKey = currentMonth.format('YYYY-MM');
     const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
@@ -242,6 +268,29 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       tradingDays,
     };
   }, [trades, currentMonth]);
+
+  // 上月统计（用于趋势对比）
+  const prevMonthStats = useMemo(() => {
+    const prevMonth = currentMonth.subtract(1, 'month');
+    const monthKey = prevMonth.format('YYYY-MM');
+    const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
+    const totalPnL = monthTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const winCount = monthTrades.filter(t => t.pnl > 0).length;
+    
+    return {
+      totalTrades: monthTrades.length,
+      totalPnL,
+      winRate: monthTrades.length > 0 ? (winCount / monthTrades.length * 100).toFixed(0) : 0,
+    };
+  }, [trades, currentMonth]);
+
+  // 待复盘天数
+  const pendingReviewDays = useMemo(() => {
+    const monthKey = currentMonth.format('YYYY-MM');
+    return Object.keys(tradesByDate)
+      .filter(d => d.startsWith(monthKey) && !savedReviews[d])
+      .length;
+  }, [tradesByDate, savedReviews, currentMonth]);
 
   const startAiReview = (date) => {
     const dayTrades = tradesByDate[date].trades;
@@ -262,9 +311,14 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const dateCellRender = (date) => {
     const key = date.format('YYYY-MM-DD');
     const data = tradesByDate[key];
-    if (!data) return null;
+    
+    // 无交易日显示空状态
+    if (!data) {
+      return null;
+    }
     
     const isProfit = data.totalPnL > 0;
+    const isReviewed = !!savedReviews[key];
 
     return (
       <Popover
@@ -289,25 +343,43 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         <div 
           style={{
             position: 'absolute',
-            top: '24px',
+            top: '22px',
             bottom: '4px',
             left: '4px',
             right: '4px',
             cursor: 'pointer',
             transition: 'all 0.2s',
-            background: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
-            borderRadius: 4,
+            background: isProfit 
+              ? 'rgba(16, 185, 129, 0.12)' 
+              : 'rgba(244, 63, 94, 0.12)',
+            borderLeft: `3px solid ${isProfit ? 'var(--color-profit)' : 'var(--color-loss)'}`,
+            borderRadius: '0 4px 4px 0',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
         >
+          {/* 复盘状态指示器 */}
+          {!isReviewed && (
+            <div style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: 'var(--color-brand)',
+              boxShadow: '0 0 4px var(--color-brand)'
+            }} />
+          )}
+          
+          {/* 盈亏金额 */}
           <div style={{ 
             fontSize: 14, 
             fontWeight: 700, 
             fontFamily: 'var(--font-mono)',
-            color: '#fff',
+            color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
           }}>
             {isProfit ? '+' : ''}{data.totalPnL.toFixed(0)}
           </div>
@@ -326,18 +398,20 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 顶部：月份导航 + 核心数据（一行） */}
+      {/* 顶部：月份导航 + 核心数据 */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
         background: 'var(--bg-secondary)', 
         border: '1px solid var(--border-primary)', 
         borderRadius: 6, 
-        padding: '12px 20px' 
+        padding: '14px 20px' 
       }}>
         {/* 左侧：月份导航 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button 
             icon={<LeftOutlined />} 
             onClick={() => setCurrentMonth(currentMonth.subtract(1, 'month'))} 
@@ -358,7 +432,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             size="small" 
             style={{ 
               fontSize: 11, 
-              marginLeft: 8,
+              marginLeft: 4,
               background: 'var(--bg-tertiary)', 
               border: '1px solid var(--border-primary)', 
               color: 'var(--text-secondary)', 
@@ -369,57 +443,123 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           </Button>
         </div>
 
-        {/* 右侧：核心数据（极简） */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        {/* 右侧：核心数据 + 趋势 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* 月度盈亏 + 趋势 */}
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>月度盈亏</div>
-            <div style={{ 
-              fontSize: 18, 
-              fontWeight: 700, 
-              fontFamily: 'var(--font-mono)',
-              color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-            }}>
-              {monthStats.totalPnL >= 0 ? '+' : ''}{monthStats.totalPnL.toLocaleString()}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+              <span style={{ 
+                fontSize: 20, 
+                fontWeight: 700, 
+                fontFamily: 'var(--font-mono)',
+                color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+              }}>
+                {monthStats.totalPnL >= 0 ? '+' : ''}{monthStats.totalPnL.toLocaleString()}
+              </span>
+              <TrendIndicator current={monthStats.totalPnL} previous={prevMonthStats.totalPnL} />
             </div>
           </div>
+          
           <div style={{ width: 1, height: 32, background: 'var(--border-primary)' }} />
+          
+          {/* 交易数 */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>交易</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
               {monthStats.totalTrades}
             </div>
           </div>
+          
+          {/* 胜率 + 趋势 */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>胜率</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-              {monthStats.winRate}%
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center' }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                {monthStats.winRate}%
+              </span>
+              <TrendIndicator current={Number(monthStats.winRate)} previous={Number(prevMonthStats.winRate)} />
             </div>
           </div>
+          
+          {/* 交易日 */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>交易日</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
               {monthStats.tradingDays}
             </div>
           </div>
+
+          {/* 待复盘提醒 */}
+          {pendingReviewDays > 0 && (
+            <>
+              <div style={{ width: 1, height: 32, background: 'var(--border-primary)' }} />
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 6,
+                padding: '6px 12px',
+                background: 'rgba(212, 175, 55, 0.1)',
+                border: '1px solid rgba(212, 175, 55, 0.3)',
+                borderRadius: 4
+              }}>
+                <div style={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  background: 'var(--color-brand)',
+                  animation: 'pulse 2s infinite'
+                }} />
+                <span style={{ fontSize: 11, color: 'var(--color-brand)', fontWeight: 600 }}>
+                  {pendingReviewDays} 天待复盘
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* 主日历 */}
-      <div style={{ 
-        background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 6, 
-        overflow: 'hidden'
-      }}>
-        <Calendar
-          value={currentMonth}
-          onPanelChange={setCurrentMonth}
-          headerRender={() => null}
-          fullScreen={true}
-          cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
-          className="trading-calendar minimal-calendar"
-        />
-      </div>
+      {monthStats.totalTrades === 0 ? (
+        /* 空状态 */
+        <div style={{ 
+          background: 'var(--bg-secondary)', 
+          border: '1px solid var(--border-primary)', 
+          borderRadius: 6,
+          padding: '60px 20px',
+          textAlign: 'center'
+        }}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  本月暂无交易记录
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  导入交易数据后，这里将显示您的交易日历
+                </div>
+              </div>
+            }
+          />
+        </div>
+      ) : (
+        <div style={{ 
+          background: 'var(--bg-secondary)', 
+          border: '1px solid var(--border-primary)', 
+          borderRadius: 6, 
+          overflow: 'hidden'
+        }}>
+          <Calendar
+            value={currentMonth}
+            onPanelChange={setCurrentMonth}
+            headerRender={() => null}
+            fullScreen={true}
+            cellRender={(date, info) => info.type === 'date' ? dateCellRender(date) : null}
+            className="trading-calendar minimal-calendar"
+          />
+        </div>
+      )}
 
       {/* 交易详情弹窗 */}
       <Modal
@@ -613,6 +753,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       </Modal>
 
       <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
         .minimal-calendar .ant-picker-calendar-date-content {
           height: 50px !important;
           margin: 0 !important;
