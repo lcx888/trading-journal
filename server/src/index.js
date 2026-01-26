@@ -1716,6 +1716,285 @@ app.patch('/admin/plans/:id', authRequired, adminRequired, async (req, res) => {
   }
 });
 
+// ========== Redemption Code Management ==========
+// 生成随机兑换码
+function generateRedemptionCode(length = 12) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 排除容易混淆的字符
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  // 每4个字符添加一个横杠，方便阅读
+  return code.match(/.{1,4}/g).join('-');
+}
+
+// 管理员批量生成兑换码
+app.post('/admin/redemption-codes/generate', authRequired, adminRequired, async (req, res) => {
+  try {
+    const { planName, durationDays, count = 1, maxUses = 1, expiresAt, note } = req.body;
+
+    if (!planName || !durationDays) {
+      return res.status(400).json({ message: '请填写订阅计划和时长' });
+    }
+
+    // 验证计划是否存在
+    const plan = await prisma.subscriptionPlan.findUnique({ where: { name: planName } });
+    if (!plan) {
+      return res.status(400).json({ message: '订阅计划不存在' });
+    }
+
+    const codes = [];
+    const generateCount = Math.min(parseInt(count) || 1, 100); // 最多一次生成100个
+
+    for (let i = 0; i < generateCount; i++) {
+      let code;
+      let attempts = 0;
+      // 确保生成唯一的兑换码
+      while (attempts < 10) {
+        code = generateRedemptionCode();
+        const existing = await prisma.redemptionCode.findUnique({ where: { code } });
+        if (!existing) break;
+        attempts++;
+      }
+
+      if (attempts >= 10) {
+        return res.status(500).json({ message: '生成兑换码失败，请重试' });
+      }
+
+      const created = await prisma.redemptionCode.create({
+        data: {
+          code,
+          planName,
+          durationDays: parseInt(durationDays),
+          maxUses: parseInt(maxUses) || 1,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          note: note || null,
+          createdBy: req.user.id,
+        },
+      });
+      codes.push(created);
+    }
+
+    return res.json({ success: true, codes, count: codes.length });
+  } catch (error) {
+    console.error('生成兑换码失败:', error);
+    return res.status(500).json({ message: '生成兑换码失败' });
+  }
+});
+
+// 管理员获取所有兑换码
+app.get('/admin/redemption-codes', authRequired, adminRequired, async (req, res) => {
+  try {
+    const codes = await prisma.redemptionCode.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        redemptions: {
+          select: {
+            id: true,
+            userId: true,
+            redeemedAt: true,
+          },
+        },
+      },
+    });
+    return res.json(codes);
+  } catch (error) {
+    console.error('获取兑换码列表失败:', error);
+    return res.status(500).json({ message: '获取兑换码列表失败' });
+  }
+});
+
+// 管理员删除兑换码
+app.delete('/admin/redemption-codes/:id', authRequired, adminRequired, async (req, res) => {
+  try {
+    // 先删除相关的兑换记录
+    await prisma.redemptionRecord.deleteMany({
+      where: { codeId: req.params.id },
+    });
+    // 再删除兑换码
+    await prisma.redemptionCode.delete({
+      where: { id: req.params.id },
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('删除兑换码失败:', error);
+    return res.status(500).json({ message: '删除兑换码失败' });
+  }
+});
+
+// 管理员更新兑换码状态
+app.patch('/admin/redemption-codes/:id', authRequired, adminRequired, async (req, res) => {
+  try {
+    const { isActive, note, maxUses, expiresAt } = req.body;
+    const updateData = {};
+    
+    if (typeof isActive === 'boolean') updateData.isActive = isActive;
+    if (note !== undefined) updateData.note = note;
+    if (maxUses !== undefined) updateData.maxUses = parseInt(maxUses);
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+    const updated = await prisma.redemptionCode.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
+    return res.json(updated);
+  } catch (error) {
+    console.error('更新兑换码失败:', error);
+    return res.status(500).json({ message: '更新兑换码失败' });
+  }
+});
+
+// 用户兑换码兑换
+app.post('/subscription/redeem', authRequired, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ message: '请输入兑换码' });
+    }
+
+    // 标准化兑换码（去除空格，转大写）
+    const normalizedCode = code.replace(/[\s-]/g, '').toUpperCase();
+    // 添加横杠格式
+    const formattedCode = normalizedCode.match(/.{1,4}/g)?.join('-') || normalizedCode;
+
+    // 查找兑换码
+    const redemptionCode = await prisma.redemptionCode.findFirst({
+      where: {
+        OR: [
+          { code: formattedCode },
+          { code: normalizedCode },
+        ],
+      },
+    });
+
+    if (!redemptionCode) {
+      return res.status(400).json({ message: '兑换码不存在' });
+    }
+
+    // 检查兑换码状态
+    if (!redemptionCode.isActive) {
+      return res.status(400).json({ message: '兑换码已失效' });
+    }
+
+    // 检查是否过期
+    if (redemptionCode.expiresAt && new Date() > new Date(redemptionCode.expiresAt)) {
+      return res.status(400).json({ message: '兑换码已过期' });
+    }
+
+    // 检查使用次数
+    if (redemptionCode.usedCount >= redemptionCode.maxUses) {
+      return res.status(400).json({ message: '兑换码已被使用完' });
+    }
+
+    // 检查用户是否已使用过此兑换码
+    const existingRedemption = await prisma.redemptionRecord.findFirst({
+      where: {
+        codeId: redemptionCode.id,
+        userId: req.user.id,
+      },
+    });
+
+    if (existingRedemption) {
+      return res.status(400).json({ message: '您已使用过此兑换码' });
+    }
+
+    // 验证计划是否存在
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { name: redemptionCode.planName },
+    });
+
+    if (!plan) {
+      return res.status(400).json({ message: '订阅计划不存在' });
+    }
+
+    // 开始兑换 - 使用事务
+    const now = new Date();
+    
+    // 获取用户现有订阅
+    const existingSubscription = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    let periodEnd;
+    if (existingSubscription && existingSubscription.status === 'active' && existingSubscription.currentPeriodEnd > now) {
+      // 如果有活跃订阅，在现有结束时间基础上延长
+      periodEnd = new Date(existingSubscription.currentPeriodEnd);
+      periodEnd.setDate(periodEnd.getDate() + redemptionCode.durationDays);
+    } else {
+      // 否则从现在开始计算
+      periodEnd = new Date(now);
+      periodEnd.setDate(periodEnd.getDate() + redemptionCode.durationDays);
+    }
+
+    if (existingSubscription) {
+      // 更新现有订阅
+      await prisma.subscription.update({
+        where: { userId: req.user.id },
+        data: {
+          planId: plan.id,
+          status: 'active',
+          currentPeriodStart: existingSubscription.status === 'active' ? existingSubscription.currentPeriodStart : now,
+          currentPeriodEnd: periodEnd,
+          cancelledAt: null,
+          tradesUsedThisMonth: 0,
+          aiAnalysisUsedThisMonth: 0,
+        },
+      });
+    } else {
+      // 创建新订阅
+      await prisma.subscription.create({
+        data: {
+          userId: req.user.id,
+          planId: plan.id,
+          billingCycle: 'monthly',
+          status: 'active',
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+        },
+      });
+    }
+
+    // 更新兑换码使用次数
+    await prisma.redemptionCode.update({
+      where: { id: redemptionCode.id },
+      data: {
+        usedCount: redemptionCode.usedCount + 1,
+      },
+    });
+
+    // 记录兑换
+    await prisma.redemptionRecord.create({
+      data: {
+        codeId: redemptionCode.id,
+        userId: req.user.id,
+      },
+    });
+
+    // 记录订阅历史
+    await prisma.subscriptionHistory.create({
+      data: {
+        userId: req.user.id,
+        planId: plan.id,
+        action: 'redeemed',
+        toPlan: plan.id,
+        amount: 0,
+        note: `兑换码: ${redemptionCode.code}`,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `兑换成功！已获得 ${plan.displayName} ${redemptionCode.durationDays} 天订阅`,
+      plan: plan.displayName,
+      durationDays: redemptionCode.durationDays,
+      expiresAt: periodEnd,
+    });
+  } catch (error) {
+    console.error('兑换失败:', error);
+    return res.status(500).json({ message: '兑换失败，请稍后重试' });
+  }
+});
+
 // ========== 静态文件 & SPA 支持（必须在所有 API 路由之后）==========
 const distPath = path.join(__dirname, '../../dist');
 if (fs.existsSync(distPath)) {

@@ -120,6 +120,39 @@ model SubscriptionHistory {
   @@index([createdAt])
 }
 
+// 兑换码
+model RedemptionCode {
+  id              String   @id @default(uuid())
+  code            String   @unique          // 兑换码（唯一）
+  planName        String                    // 对应的订阅计划名称：pro, elite
+  durationDays    Int                       // 订阅天数
+  maxUses         Int      @default(1)      // 最大使用次数
+  usedCount       Int      @default(0)      // 已使用次数
+  isActive        Boolean  @default(true)   // 是否启用
+  expiresAt       DateTime?                 // 过期时间（可选）
+  note            String?                   // 备注
+  createdBy       String?                   // 创建者 userId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  redemptions     RedemptionRecord[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// 兑换记录
+model RedemptionRecord {
+  id              String   @id @default(uuid())
+  codeId          String                    // 兑换码 ID
+  userId          String                    // 兑换用户 ID
+  code            RedemptionCode @relation(fields: [codeId], references: [id])
+  redeemedAt      DateTime @default(now())
+
+  @@index([codeId])
+  @@index([userId])
+}
+
 model Instrument {
   id             String   @id @default(uuid())
   userId         String
