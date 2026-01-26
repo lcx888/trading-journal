@@ -612,9 +612,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       </div>
 
       {/* 主区域：日历 + 周统计侧边栏 */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', gap: 16 }}>
         {/* 日历 */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {monthStats.totalTrades === 0 ? (
             /* 空状态 */
             <div style={{ 
@@ -643,10 +643,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
               borderRadius: 6, 
-              overflow: 'hidden',
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column'
+              overflow: 'hidden'
             }}>
               <Calendar
                 value={currentMonth}
@@ -1065,49 +1062,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         .minimal-calendar .ant-picker-cell-disabled .ant-picker-cell-inner {
           background: var(--bg-primary) !important;
           border-color: transparent !important;
-        }
-        
-        /* 日历容器填满高度 */
-        .minimal-calendar {
-          flex: 1 !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        .minimal-calendar .ant-picker-panel {
-          flex: 1 !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        .minimal-calendar .ant-picker-date-panel {
-          flex: 1 !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        .minimal-calendar .ant-picker-body {
-          flex: 1 !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        .minimal-calendar .ant-picker-content {
-          flex: 1 !important;
-          height: 100% !important;
-        }
-        .minimal-calendar .ant-picker-content tbody {
-          display: flex !important;
-          flex-direction: column !important;
-          height: 100% !important;
-        }
-        .minimal-calendar .ant-picker-content tbody tr {
-          flex: 1 !important;
-          display: flex !important;
-        }
-        .minimal-calendar .ant-picker-content tbody td {
-          flex: 1 !important;
-          height: auto !important;
-        }
-        .minimal-calendar .ant-picker-cell-inner {
-          min-height: 80px !important;
-          height: 100% !important;
         }
       `}</style>
     </div>
