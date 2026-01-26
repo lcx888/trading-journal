@@ -21,6 +21,11 @@ model User {
   rememberToken  String?
   lastLoginAt    DateTime?
   lastLoginIp    String?
+  // 订阅相关
+  subscriptionPlan String @default("free")  // free, basic, pro, enterprise
+  subscriptionStatus String @default("active")  // active, canceled, expired, trial
+  subscriptionExpiresAt DateTime?
+  subscriptionCanceledAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -31,6 +36,7 @@ model User {
   imports      ImportRecord[]
   reviews      Review[]
   aiAnalyses   AIAnalysis[]
+  subscriptions Subscription[]
 }
 
 model Instrument {
@@ -148,7 +154,7 @@ model Review {
 model AIAnalysis {
   id             String   @id @default(uuid())
   userId         String
-  recordId       String?
+  recordId        String?
   recordName     String?
   title          String
   summary        String
@@ -177,4 +183,29 @@ model AIAnalysis {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  userId          String
+  plan            String   // free, basic, pro, enterprise
+  status          String   // active, canceled, expired, trial
+  billingCycle    String   // monthly, yearly
+  amount          Float    // 金额（分）
+  currency        String   @default("CNY")
+  startDate       DateTime
+  endDate         DateTime?
+  canceledAt      DateTime?
+  cancelReason    String?
+  paymentMethod   String?  // stripe, alipay, wechat
+  paymentId       String?  // 第三方支付ID
+  trialEndsAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
 }

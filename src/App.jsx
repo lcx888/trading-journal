@@ -17,6 +17,7 @@ import {
   BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
@@ -34,6 +35,7 @@ import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
 import Docs from './pages/Docs';
+import Subscription from './pages/Subscription';
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
@@ -83,6 +85,11 @@ const buildMenuItems = (user) => {
       ]
     },
     { 
+      key: 'subscription', 
+      icon: <CrownOutlined />, 
+      label: '订阅',
+    },
+    { 
       key: 'settings', 
       icon: <SettingOutlined />, 
       label: '设置',
@@ -109,6 +116,7 @@ const getPageTitle = (key) => {
     'import': '导入数据',
     'strategies': '策略库',
     'calendar': '交易日历',
+    'subscription': '订阅管理',
     'settings': '设置',
     'admin': '管理后台',
   };
@@ -257,6 +265,8 @@ function App() {
         return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
       case 'import': 
         return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} /></div>;
+      case 'subscription': 
+        return <div key={pageKey} className={pageClass}><Subscription /></div>;
       case 'settings': 
         return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} /></div>;
       case 'admin':
