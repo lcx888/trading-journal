@@ -235,7 +235,7 @@ export function SubscriptionBadge({ plan, usage, onClick }) {
   const planColors = {
     free: { bg: '#374151', text: '#9ca3af', label: 'Free' },
     pro: { bg: '#d97706', text: '#ffffff', label: 'Pro' },
-    team: { bg: '#7c3aed', text: '#ffffff', label: 'Team' },
+    elite: { bg: '#a855f7', text: '#ffffff', label: 'Elite' },
   };
   
   const planStyle = planColors[plan] || planColors.free;
@@ -300,8 +300,8 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
       color: 'text-amber-400',
       gradient: 'from-amber-600 to-amber-700',
     },
-    team: { 
-      name: 'Team 团队版', 
+    elite: { 
+      name: 'Elite 精英版', 
       color: 'text-purple-400',
       gradient: 'from-purple-600 to-purple-700',
     },
@@ -431,7 +431,7 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
         <Tooltip 
           title={
             <div className="text-xs">
-              <div className="font-semibold mb-1">{isFreePlan ? '免费版' : '专业版'}</div>
+              <div className="font-semibold mb-1">{planName === 'elite' ? '精英版' : (isFreePlan ? '免费版' : '专业版')}</div>
               <div>交易: {tradesUsed}/{tradesLimit === -1 ? '∞' : tradesLimit}</div>
               <div>AI: {aiUsed}/{aiLimit === -1 ? '∞' : aiLimit}</div>
             </div>
@@ -491,11 +491,13 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
         {/* 信息区 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : 'text-[var(--color-brand)]'}`}>
-              {isFreePlan ? '免费版' : '专业版'}
+            <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : (planName === 'elite' ? 'text-purple-400' : 'text-[var(--color-brand)]')}`}>
+              {planName === 'elite' ? '精英版' : (isFreePlan ? '免费版' : '专业版')}
             </span>
             {!isFreePlan && (
-              <span className="text-[9px] font-bold text-[var(--color-brand)]">PRO</span>
+              <span className={`text-[9px] font-bold ${planName === 'elite' ? 'text-purple-400' : 'text-[var(--color-brand)]'}`}>
+                {planName === 'elite' ? 'ELITE' : 'PRO'}
+              </span>
             )}
           </div>
           
@@ -587,9 +589,14 @@ export function SidebarSubscriptionCard({ subscription, collapsed, onUpgrade }) 
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : 'text-[var(--color-brand)]'}`}>
-            {isFreePlan ? '免费版' : '专业版'}
+          <span className={`text-xs font-semibold ${isFreePlan ? 'text-[var(--text-primary)]' : (planName === 'elite' ? 'text-purple-400' : 'text-[var(--color-brand)]')}`}>
+            {planName === 'elite' ? '精英版' : (isFreePlan ? '免费版' : '专业版')}
           </span>
+          {!isFreePlan && (
+            <span className={`text-[9px] font-bold ${planName === 'elite' ? 'text-purple-400' : 'text-[var(--color-brand)]'}`}>
+              {planName === 'elite' ? 'ELITE' : 'PRO'}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[10px] text-[var(--text-tertiary)]">

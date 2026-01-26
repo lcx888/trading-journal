@@ -1229,22 +1229,91 @@ app.post('/ai/daily-summary', authRequired, async (req, res) => {
 });
 
 // ========== Subscription Plans ==========
-// 初始化默认订阅计划
+// 初始化默认订阅计划（心理学定价策略 v2）
+// Pro $49/月（主力产品），Elite $149/月（锚点+高端）
 async function initSubscriptionPlans() {
-  const existingPlans = await prisma.subscriptionPlan.count();
-  if (existingPlans > 0) return;
+  // 检查是否需要更新到新版本的计划
+  const existingPlans = await prisma.subscriptionPlan.findMany();
+  
+  // 如果存在 team 计划，说明是旧版本，需要更新
+  const hasTeamPlan = existingPlans.some(p => p.name === 'team');
+  const hasElitePlan = existingPlans.some(p => p.name === 'elite');
+  
+  if (existingPlans.length > 0 && !hasTeamPlan) {
+    // 已经是新版本，不需要更新
+    return;
+  }
+  
+  if (hasTeamPlan && !hasElitePlan) {
+    // 需要从旧版本迁移到新版本
+    console.log('Migrating subscription plans from v1 to v2...');
+    
+    // 删除 team 计划（如果没有用户使用）
+    await prisma.subscriptionPlan.deleteMany({ where: { name: 'team' } });
+    
+    // 更新 pro 计划的价格
+    await prisma.subscriptionPlan.updateMany({
+      where: { name: 'pro' },
+      data: {
+        priceMonthly: 49,
+        priceYearly: 468,
+        description: '专业交易者的完整工具箱，每天仅需 $1.3',
+      }
+    });
+    
+    // 更新 free 计划的限制
+    await prisma.subscriptionPlan.updateMany({
+      where: { name: 'free' },
+      data: {
+        maxTradesPerMonth: 50,
+        maxHistoryDays: 7,
+        maxAiAnalysisPerMonth: 2,
+        description: '体验核心功能，感受 AI 分析的价值',
+      }
+    });
+    
+    // 创建 elite 计划
+    await prisma.subscriptionPlan.create({
+      data: {
+        name: 'elite',
+        displayName: 'Elite 精英版',
+        description: '为追求卓越的交易者打造，享受 VIP 服务',
+        priceMonthly: 149,
+        priceYearly: 1188,
+        maxRecords: -1,
+        maxTradesPerMonth: -1,
+        maxHistoryDays: -1,
+        maxAiAnalysisPerMonth: -1,
+        maxTeamMembers: 1,
+        hasSmartDiagnosis: true,
+        hasMonteCarlo: true,
+        hasOptimalStopLoss: true,
+        hasExpectancy: true,
+        hasBehaviorTags: true,
+        hasExport: true,
+        hasApi: true,
+        hasPrioritySupport: true,
+        sortOrder: 2,
+      }
+    });
+    
+    console.log('Subscription plans migrated to v2 successfully');
+    return;
+  }
+  
+  if (existingPlans.length > 0) return;
 
   const defaultPlans = [
     {
       name: 'free',
-      displayName: 'Free 免费版',
-      description: '适合入门交易者，体验核心功能',
+      displayName: '免费版',
+      description: '体验核心功能，感受 AI 分析的价值',
       priceMonthly: 0,
       priceYearly: 0,
-      maxRecords: 1,
-      maxTradesPerMonth: 100,
-      maxHistoryDays: 30,
-      maxAiAnalysisPerMonth: 3,
+      maxRecords: 1,           // 1 个账本
+      maxTradesPerMonth: 50,   // 每月 50 笔（制造痛点）
+      maxHistoryDays: 7,       // 仅 7 天历史（强烈痛点）
+      maxAiAnalysisPerMonth: 2, // 每月 2 次 AI（体验后想要更多）
       maxTeamMembers: 1,
       hasSmartDiagnosis: false,
       hasMonteCarlo: false,
@@ -1259,10 +1328,31 @@ async function initSubscriptionPlans() {
     {
       name: 'pro',
       displayName: 'Pro 专业版',
-      description: '面向活跃交易者，完整 AI 诊断功能',
-      priceMonthly: 19,
-      priceYearly: 149,
-      maxRecords: -1, // 无限
+      description: '专业交易者的完整工具箱，每天仅需 $1.3',
+      priceMonthly: 49,        // $49/月
+      priceYearly: 468,        // $39/月 × 12 = $468/年（省$120）
+      maxRecords: -1,          // 无限账本
+      maxTradesPerMonth: -1,   // 无限交易
+      maxHistoryDays: -1,      // 永久历史
+      maxAiAnalysisPerMonth: -1, // 无限 AI 分析
+      maxTeamMembers: 1,
+      hasSmartDiagnosis: true,
+      hasMonteCarlo: true,
+      hasOptimalStopLoss: true,
+      hasExpectancy: true,
+      hasBehaviorTags: true,
+      hasExport: true,
+      hasApi: false,
+      hasPrioritySupport: false,
+      sortOrder: 1,
+    },
+    {
+      name: 'elite',
+      displayName: 'Elite 精英版',
+      description: '为追求卓越的交易者打造，享受 VIP 服务',
+      priceMonthly: 149,       // $149/月（锚点价格）
+      priceYearly: 1188,       // $99/月 × 12 = $1188/年（省$600）
+      maxRecords: -1,
       maxTradesPerMonth: -1,
       maxHistoryDays: -1,
       maxAiAnalysisPerMonth: -1,
@@ -1273,29 +1363,8 @@ async function initSubscriptionPlans() {
       hasExpectancy: true,
       hasBehaviorTags: true,
       hasExport: true,
-      hasApi: false,
-      hasPrioritySupport: true,
-      sortOrder: 1,
-    },
-    {
-      name: 'team',
-      displayName: 'Team 团队版',
-      description: '面向交易团队和机构，多人协作',
-      priceMonthly: 49,
-      priceYearly: 399,
-      maxRecords: -1,
-      maxTradesPerMonth: -1,
-      maxHistoryDays: -1,
-      maxAiAnalysisPerMonth: -1,
-      maxTeamMembers: 5,
-      hasSmartDiagnosis: true,
-      hasMonteCarlo: true,
-      hasOptimalStopLoss: true,
-      hasExpectancy: true,
-      hasBehaviorTags: true,
-      hasExport: true,
-      hasApi: true,
-      hasPrioritySupport: true,
+      hasApi: true,            // API 访问
+      hasPrioritySupport: true, // 优先支持
       sortOrder: 2,
     },
   ];
@@ -1303,7 +1372,7 @@ async function initSubscriptionPlans() {
   for (const plan of defaultPlans) {
     await prisma.subscriptionPlan.create({ data: plan });
   }
-  console.log('Default subscription plans created');
+  console.log('Default subscription plans created (Psychology Pricing v2)');
 }
 
 // 初始化订阅计划（启动时执行）
