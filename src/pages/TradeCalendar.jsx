@@ -9,27 +9,16 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, Modal, Table, Tag, Row, Col,
-  Button, Spin, Input, Popover, Empty, Drawer, Rate, Select
+  Calendar, Table, Tag, Button, Spin, Input, Popover, Empty
 } from 'antd';
 import {
-  CalendarOutlined,
   LeftOutlined,
   RightOutlined,
-  RobotOutlined,
-  SendOutlined,
-  EyeOutlined,
   CheckCircleOutlined,
   RiseOutlined,
   FallOutlined,
   EditOutlined,
   SaveOutlined,
-  BulbOutlined,
-  HeartOutlined,
-  ThunderboltOutlined,
-  TrophyOutlined,
-  WarningOutlined,
-  CloseOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -220,27 +209,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [reviewDrawerVisible, setReviewDrawerVisible] = useState(false);
-  const [reviewStats, setReviewStats] = useState(null);
-  const [reviewQuestions, setReviewQuestions] = useState([]);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [userInput, setUserInput] = useState('');
   const [savedReviews, setSavedReviews] = useState({});
+  
+  // 视图模式: 'calendar' | 'review'
+  const [viewMode, setViewMode] = useState('calendar');
+  const [reviewStats, setReviewStats] = useState(null);
   
   // 结构化复盘表单状态
   const [reviewForm, setReviewForm] = useState({
-    marketCondition: '',      // 市场环境
-    emotionBefore: 3,         // 开盘前情绪 1-5
-    emotionDuring: 3,         // 交易中情绪 1-5
-    emotionAfter: 3,          // 收盘后情绪 1-5
-    followedPlan: null,       // 是否按计划执行
-    bestDecision: '',         // 最佳决策
-    worstDecision: '',        // 最差决策
-    lessonsLearned: '',       // 经验教训
-    improvementPlan: '',      // 改进计划
-    tags: [],                 // 标签
+    marketCondition: '',
+    followedPlan: null,
+    bestDecision: '',
+    worstDecision: '',
+    lessonsLearned: '',
+    improvementPlan: '',
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -364,7 +347,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     return weeks;
   }, [trades, currentMonth]);
 
-  const startReview = (date) => {
+  // 进入复盘页面
+  const enterReview = (date) => {
     const dayTrades = tradesByDate[date]?.trades || [];
     const stats = analyzeTradeData(dayTrades);
     setReviewStats(stats);
@@ -375,22 +359,23 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     if (existingReview) {
       setReviewForm(existingReview);
     } else {
-      // 重置表单
       setReviewForm({
         marketCondition: '',
-        emotionBefore: 3,
-        emotionDuring: 3,
-        emotionAfter: 3,
         followedPlan: null,
         bestDecision: '',
         worstDecision: '',
         lessonsLearned: '',
         improvementPlan: '',
-        tags: [],
       });
     }
     
-    setReviewDrawerVisible(true);
+    setViewMode('review');
+  };
+  
+  // 返回日历
+  const backToCalendar = () => {
+    setViewMode('calendar');
+    setSelectedDate(null);
   };
   
   // 保存复盘
@@ -458,8 +443,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               data={data}
               date={key}
               savedReview={savedReviews[key]}
-              onViewDetail={() => { setSelectedDate(key); setModalVisible(true); }}
-              onQuickReview={() => startReview(key)}
+              onViewDetail={() => enterReview(key)}
+              onQuickReview={() => enterReview(key)}
             />
           )
         }
@@ -496,7 +481,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             zIndex: 1,
             backdropFilter: data ? 'blur(4px)' : 'none',
           }}
-          onClick={() => { setSelectedDate(key); setModalVisible(true); }}
+          onClick={() => data && enterReview(key)}
           className="calendar-cell-inner"
         >
           {/* 复盘状态 - 呼吸灯效果 */}
@@ -557,6 +542,291 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     );
   }
 
+  // ==================== 复盘页面视图 ====================
+  if (viewMode === 'review' && selectedDate && reviewStats) {
+    const dayData = tradesByDate[selectedDate];
+    const isProfit = reviewStats.totalPnL >= 0;
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* 顶部导航 */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          padding: '12px 0',
+          borderBottom: '1px solid var(--border-primary)'
+        }}>
+          <Button 
+            icon={<LeftOutlined />} 
+            onClick={backToCalendar}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: 'var(--text-secondary)',
+              padding: '4px 8px'
+            }}
+          >
+            返回日历
+          </Button>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+            {dayjs(selectedDate).format('YYYY年M月D日')} 交易复盘
+          </div>
+          <div style={{ width: 80 }} />
+        </div>
+
+        {/* 两栏布局：左侧交易数据 + 右侧复盘表单 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24 }}>
+          {/* 左侧：交易数据 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* 当日摘要 */}
+            <div style={{ 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-primary)', 
+              borderRadius: 8, 
+              padding: 16 
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8 }}>当日盈亏</div>
+              <div style={{ 
+                fontSize: 28, 
+                fontWeight: 700, 
+                fontFamily: 'var(--font-mono)',
+                color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
+                marginBottom: 12
+              }}>
+                {isProfit ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toFixed(2)}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>交易</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{reviewStats.totalTrades}笔</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜率</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{reviewStats.winRate.toFixed(0)}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜/负</div>
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>
+                    <span style={{ color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
+                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+                    <span style={{ color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 交易列表 */}
+            <div style={{ 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-primary)', 
+              borderRadius: 8,
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                fontSize: 11, 
+                fontWeight: 600, 
+                color: 'var(--text-tertiary)', 
+                padding: '10px 12px',
+                borderBottom: '1px solid var(--border-primary)'
+              }}>
+                交易明细
+              </div>
+              <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                {dayData?.trades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime)).map((trade, i) => (
+                  <div 
+                    key={i} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderBottom: '1px solid var(--border-primary)',
+                      borderLeft: `2px solid ${trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}`
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {trade.instrumentCode}
+                        <span style={{ 
+                          fontSize: 10, 
+                          marginLeft: 6, 
+                          color: trade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' 
+                        }}>
+                          {trade.direction === 'LONG' ? '多' : '空'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                        {dayjs(trade.openTime).format('HH:mm:ss')}
+                      </div>
+                    </div>
+                    <div style={{ 
+                      fontSize: 13, 
+                      fontWeight: 600, 
+                      fontFamily: 'var(--font-mono)',
+                      color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                    }}>
+                      {trade.pnl >= 0 ? '+' : '-'}${Math.abs(trade.pnl).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 右侧：复盘表单 */}
+          <div style={{ 
+            background: 'var(--bg-secondary)', 
+            border: '1px solid var(--border-primary)', 
+            borderRadius: 8,
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ 
+              padding: '12px 16px', 
+              borderBottom: '1px solid var(--border-primary)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>复盘记录</div>
+              {savedReviews[selectedDate] && (
+                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                  已保存于 {dayjs(savedReviews[selectedDate].savedAt).format('MM-DD HH:mm')}
+                </span>
+              )}
+            </div>
+            
+            <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+              {/* 市场环境 */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>市场环境</div>
+                <Input.TextArea
+                  placeholder="描述今日市场状况..."
+                  value={reviewForm.marketCondition}
+                  onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 3 }}
+                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                />
+              </div>
+
+              {/* 计划执行 */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>是否按计划执行</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { value: 'yes', label: '完全执行' },
+                    { value: 'partial', label: '部分执行' },
+                    { value: 'no', label: '偏离计划' }
+                  ].map(opt => (
+                    <Button
+                      key={opt.value}
+                      size="small"
+                      onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
+                      style={{
+                        borderRadius: 6,
+                        fontSize: 11,
+                        background: reviewForm.followedPlan === opt.value ? 'var(--text-primary)' : 'var(--bg-tertiary)',
+                        borderColor: reviewForm.followedPlan === opt.value ? 'var(--text-primary)' : 'var(--border-primary)',
+                        color: reviewForm.followedPlan === opt.value ? 'var(--bg-primary)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 最佳/最差决策 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>做对了什么</div>
+                  <Input.TextArea
+                    placeholder="今日最佳决策..."
+                    value={reviewForm.bestDecision}
+                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
+                    autoSize={{ minRows: 2, maxRows: 3 }}
+                    style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>做错了什么</div>
+                  <Input.TextArea
+                    placeholder="今日最差决策..."
+                    value={reviewForm.worstDecision}
+                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
+                    autoSize={{ minRows: 2, maxRows: 3 }}
+                    style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                  />
+                </div>
+              </div>
+
+              {/* 经验教训 */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>经验教训</div>
+                <Input.TextArea
+                  placeholder="从今天学到了什么..."
+                  value={reviewForm.lessonsLearned}
+                  onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 3 }}
+                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                />
+              </div>
+
+              {/* 改进计划 */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>明日改进</div>
+                <Input.TextArea
+                  placeholder="明天要改进的行动..."
+                  value={reviewForm.improvementPlan}
+                  onChange={e => setReviewForm({...reviewForm, improvementPlan: e.target.value})}
+                  autoSize={{ minRows: 2, maxRows: 3 }}
+                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                />
+              </div>
+            </div>
+
+            {/* 底部操作 */}
+            <div style={{ 
+              padding: '12px 16px', 
+              borderTop: '1px solid var(--border-primary)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 10
+            }}>
+              <Button 
+                onClick={backToCalendar}
+                style={{ 
+                  borderRadius: 6,
+                  background: 'var(--bg-tertiary)',
+                  borderColor: 'var(--border-primary)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                取消
+              </Button>
+              <Button 
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={isSaving}
+                onClick={saveReview}
+                style={{ 
+                  borderRadius: 6,
+                  background: 'var(--text-primary)',
+                  borderColor: 'var(--text-primary)',
+                  color: 'var(--bg-primary)'
+                }}
+              >
+                保存
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== 日历视图 ====================
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 顶部：月份导航 + 核心数据 */}
@@ -566,22 +836,21 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: 20,
-        background: 'rgba(20, 20, 25, 0.6)', 
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.05)', 
-        borderRadius: 12, 
-        padding: '16px 24px' 
+        background: 'var(--bg-secondary)', 
+        border: '1px solid var(--border-primary)', 
+        borderRadius: 8, 
+        padding: '12px 20px' 
       }}>
         {/* 左侧：月份导航 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: 2 }}>
+          <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: 6, padding: 2 }}>
             <Button 
               icon={<LeftOutlined />} 
               onClick={() => setCurrentMonth(currentMonth.subtract(1, 'month'))} 
               size="small"
               style={{ border: 'none', background: 'transparent', color: 'var(--text-tertiary)' }} 
             />
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', minWidth: 90, textAlign: 'center', lineHeight: '24px' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', minWidth: 80, textAlign: 'center', lineHeight: '24px' }}>
               {currentMonth.format('YYYY.MM')}
             </div>
             <Button 
@@ -596,7 +865,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             size="small" 
             style={{ 
               fontSize: 11, 
-              background: 'var(--color-brand)', 
+              background: 'var(--bg-tertiary)', 
               border: 'none', 
               color: 'var(--bg-primary)', 
               borderRadius: 6,
@@ -894,704 +1163,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         </div>
       </div>
 
-      {/* 交易详情弹窗 - 专业版 */}
-      <Modal
-        title={null}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        width={900}
-        footer={null}
-        styles={{ 
-          body: { padding: 0 },
-          content: { 
-            background: 'rgba(15, 15, 20, 0.95)', 
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 16,
-            overflow: 'hidden'
-          }
-        }}
-      >
-        {selectedDate && tradesByDate[selectedDate] && (() => {
-          const dayData = tradesByDate[selectedDate];
-          const stats = analyzeTradeData(dayData.trades);
-          const isProfit = stats.totalPnL >= 0;
-          
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {/* 头部 - 大盈亏展示 */}
-              <div style={{ 
-                background: isProfit 
-                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)'
-                  : 'linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(244, 63, 94, 0.05) 100%)',
-                borderBottom: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
-                padding: '28px 32px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 12,
-                    marginBottom: 8
-                  }}>
-                    <div style={{ 
-                      width: 40, 
-                      height: 40, 
-                      borderRadius: 10, 
-                      background: isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <CalendarOutlined style={{ color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)', fontSize: 18 }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {dayjs(selectedDate).format('M月D日')} 交易报告
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                        {dayjs(selectedDate).format('dddd')} · {stats.totalTrades} 笔交易
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4, fontWeight: 600 }}>当日盈亏</div>
-                  <div style={{ 
-                    fontSize: 36, 
-                    fontWeight: 800, 
-                    fontFamily: 'var(--font-mono)',
-                    color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
-                    letterSpacing: '-2px',
-                    lineHeight: 1
-                  }}>
-                    {isProfit ? '+' : '-'}${Math.abs(stats.totalPnL).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              {/* 核心指标 */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(5, 1fr)', 
-                gap: 1,
-                background: 'rgba(255, 255, 255, 0.03)'
-              }}>
-                {[
-                  { label: '交易笔数', value: stats.totalTrades, unit: '笔' },
-                  { label: '胜率', value: `${stats.winRate.toFixed(0)}%`, color: stats.winRate >= 50 ? 'var(--color-profit)' : 'var(--color-loss)' },
-                  { label: '盈利交易', value: stats.winCount, unit: '笔', color: 'var(--color-profit)' },
-                  { label: '亏损交易', value: stats.lossCount, unit: '笔', color: 'var(--color-loss)' },
-                  { label: '盈亏比', value: stats.lossCount > 0 ? (Math.abs(stats.maxWinTrade?.pnl || 0) / Math.abs(stats.maxLossTrade?.pnl || 1)).toFixed(2) : '∞', unit: ':1' }
-                ].map((item, i) => (
-                  <div key={i} style={{ 
-                    padding: '16px 20px', 
-                    background: 'rgba(20, 20, 25, 0.8)',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
-                    <div style={{ 
-                      fontSize: 18, 
-                      fontWeight: 700, 
-                      fontFamily: 'var(--font-mono)', 
-                      color: item.color || 'var(--text-primary)'
-                    }}>
-                      {item.value}
-                      {item.unit && <span style={{ fontSize: 10, opacity: 0.5, marginLeft: 2 }}>{item.unit}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 最佳/最差交易 */}
-              {(stats.maxWinTrade || stats.maxLossTrade) && (
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
-                  gap: 16, 
-                  padding: '16px 24px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  {stats.maxWinTrade && (
-                    <div style={{ 
-                      padding: 16, 
-                      background: 'rgba(16, 185, 129, 0.06)', 
-                      border: '1px solid rgba(16, 185, 129, 0.15)',
-                      borderRadius: 10 
-                    }}>
-                      <div style={{ fontSize: 10, color: 'var(--color-profit)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🏆 最佳交易</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{stats.maxWinTrade.instrumentCode}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                            {stats.maxWinTrade.direction === 'LONG' ? '做多' : '做空'} · {dayjs(stats.maxWinTrade.openTime).format('HH:mm')}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-profit)' }}>
-                          +${stats.maxWinTrade.pnl.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {stats.maxLossTrade && (
-                    <div style={{ 
-                      padding: 16, 
-                      background: 'rgba(244, 63, 94, 0.06)', 
-                      border: '1px solid rgba(244, 63, 94, 0.15)',
-                      borderRadius: 10 
-                    }}>
-                      <div style={{ fontSize: 10, color: 'var(--color-loss)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚠️ 最差交易</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{stats.maxLossTrade.instrumentCode}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                            {stats.maxLossTrade.direction === 'LONG' ? '做多' : '做空'} · {dayjs(stats.maxLossTrade.openTime).format('HH:mm')}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--color-loss)' }}>
-                          -${Math.abs(stats.maxLossTrade.pnl).toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 交易列表 */}
-              <div style={{ padding: '16px 24px 24px' }}>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-tertiary)', 
-                  marginBottom: 12,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  交易明细
-                </div>
-                <Table
-                  dataSource={dayData.trades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime))}
-                  pagination={false}
-                  size="small"
-                  rowKey={(record, index) => index}
-                  rowClassName={(record) => record.pnl >= 0 ? 'trade-row-profit' : 'trade-row-loss'}
-                  columns={[
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>时间</span>, 
-                      dataIndex: 'openTime', 
-                      width: 70,
-                      render: t => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{dayjs(t).format('HH:mm')}</span>
-                    },
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>品种</span>, 
-                      dataIndex: 'instrumentCode', 
-                      render: c => <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13 }}>{c}</span>
-                    },
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>方向</span>, 
-                      dataIndex: 'direction', 
-                      width: 60,
-                      render: d => (
-                        <span style={{ 
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          background: d === 'LONG' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', 
-                          color: d === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)', 
-                          fontWeight: 700, 
-                          fontSize: 10,
-                          borderRadius: 4
-                        }}>
-                          {d === 'LONG' ? '多' : '空'}
-                        </span>
-                      )
-                    },
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>数量</span>, 
-                      dataIndex: 'quantity',
-                      width: 60,
-                      align: 'center',
-                      render: q => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{q || 1}</span>
-                    },
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>点数</span>, 
-                      dataIndex: 'ticks', 
-                      align: 'right',
-                      width: 70,
-                      render: t => (
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: t >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                          {t >= 0 ? '+' : ''}{t}
-                        </span>
-                      )
-                    },
-                    { 
-                      title: <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 700 }}>盈亏</span>, 
-                      dataIndex: 'pnl', 
-                      align: 'right',
-                      width: 100,
-                      render: p => (
-                        <span style={{ 
-                          fontFamily: 'var(--font-mono)', 
-                          fontWeight: 700, 
-                          fontSize: 13,
-                          color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' 
-                        }}>
-                          {p >= 0 ? '+' : '-'}${Math.abs(p).toFixed(2)}
-                        </span>
-                      )
-                    }
-                  ]}
-                />
-              </div>
-
-              {/* 底部操作栏 */}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                padding: '16px 24px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                background: 'rgba(20, 20, 25, 0.5)'
-              }}>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  {savedReviews[selectedDate] ? (
-                    <span style={{ color: 'var(--color-profit)' }}><CheckCircleOutlined /> 已完成复盘</span>
-                  ) : (
-                    <span style={{ color: 'var(--color-brand)' }}>📝 尚未复盘此交易日</span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <Button 
-                    onClick={() => setModalVisible(false)}
-                    style={{ 
-                      background: 'rgba(255, 255, 255, 0.05)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)', 
-                      color: 'var(--text-secondary)',
-                      borderRadius: 8,
-                      fontWeight: 600
-                    }}
-                  >
-                    关闭
-                  </Button>
-                  <Button 
-                    type="primary" 
-                    icon={<EditOutlined />} 
-                    onClick={() => { setModalVisible(false); startReview(selectedDate); }}
-                    style={{ 
-                      background: 'var(--color-brand)', 
-                      border: 'none', 
-                      color: 'var(--bg-primary)',
-                      borderRadius: 8,
-                      fontWeight: 700
-                    }}
-                  >
-                    手动复盘
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* 复盘抽屉面板 - 专业版 */}
-      <Drawer
-        title={null}
-        placement="right"
-        width={520}
-        open={reviewDrawerVisible}
-        onClose={() => setReviewDrawerVisible(false)}
-        closable={false}
-        styles={{
-          header: { display: 'none' },
-          body: { padding: 0, background: 'var(--bg-primary)' },
-          wrapper: { background: 'transparent' }
-        }}
-      >
-        {selectedDate && reviewStats && (
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            height: '100vh',
-            background: 'var(--bg-primary)'
-          }}>
-            {/* 头部 */}
-            <div style={{ 
-              padding: '20px 24px',
-              borderBottom: '1px solid var(--border-primary)',
-              background: reviewStats.totalPnL >= 0 
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%)'
-                : 'linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, transparent 100%)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 4 }}>交易复盘</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {dayjs(selectedDate).format('M月D日')} {dayjs(selectedDate).format('dddd')}
-                  </div>
-                </div>
-                <Button 
-                  type="text" 
-                  icon={<CloseOutlined />} 
-                  onClick={() => setReviewDrawerVisible(false)}
-                  style={{ color: 'var(--text-tertiary)' }}
-                />
-              </div>
-              
-              {/* 当日摘要 */}
-              <div style={{ 
-                display: 'flex', 
-                gap: 20, 
-                marginTop: 16,
-                padding: '12px 16px',
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: 8,
-                border: '1px solid var(--border-primary)'
-              }}>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>盈亏</div>
-                  <div style={{ 
-                    fontSize: 18, 
-                    fontWeight: 700, 
-                    fontFamily: 'var(--font-mono)',
-                    color: reviewStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                  }}>
-                    {reviewStats.totalPnL >= 0 ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toFixed(2)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>交易</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {reviewStats.totalTrades}笔
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜率</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {reviewStats.winRate.toFixed(0)}%
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜/负</div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>
-                    <span style={{ color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
-                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
-                    <span style={{ color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 复盘表单 - 可滚动区域 */}
-            <div style={{ 
-              flex: 1, 
-              overflowY: 'auto', 
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20
-            }}>
-              {/* 市场环境 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
-                  市场环境
-                </div>
-                <Input.TextArea
-                  placeholder="描述今日市场状况：趋势、波动性、重要事件..."
-                  value={reviewForm.marketCondition}
-                  onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 4 }}
-                  style={{ 
-                    background: 'var(--bg-tertiary)', 
-                    borderColor: 'var(--border-primary)',
-                    borderRadius: 8
-                  }}
-                />
-              </div>
-
-              {/* 情绪状态 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <HeartOutlined style={{ color: '#F43F5E' }} />
-                  情绪状态
-                </div>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(3, 1fr)', 
-                  gap: 12,
-                  background: 'var(--bg-tertiary)',
-                  padding: 16,
-                  borderRadius: 8,
-                  border: '1px solid var(--border-primary)'
-                }}>
-                  {[
-                    { key: 'emotionBefore', label: '开盘前' },
-                    { key: 'emotionDuring', label: '交易中' },
-                    { key: 'emotionAfter', label: '收盘后' }
-                  ].map(item => (
-                    <div key={item.key} style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 6 }}>{item.label}</div>
-                      <Rate 
-                        value={reviewForm[item.key]}
-                        onChange={v => setReviewForm({...reviewForm, [item.key]: v})}
-                        style={{ fontSize: 16 }}
-                        character={<HeartOutlined />}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 执行情况 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <CheckCircleOutlined style={{ color: '#10B981' }} />
-                  是否按计划执行？
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {[
-                    { value: 'yes', label: '完全执行', color: '#10B981' },
-                    { value: 'partial', label: '部分执行', color: '#FBBF24' },
-                    { value: 'no', label: '偏离计划', color: '#F43F5E' }
-                  ].map(opt => (
-                    <Button
-                      key={opt.value}
-                      onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
-                      style={{
-                        flex: 1,
-                        height: 36,
-                        borderRadius: 8,
-                        fontWeight: 600,
-                        fontSize: 12,
-                        background: reviewForm.followedPlan === opt.value ? opt.color : 'var(--bg-tertiary)',
-                        borderColor: reviewForm.followedPlan === opt.value ? opt.color : 'var(--border-primary)',
-                        color: reviewForm.followedPlan === opt.value ? '#fff' : 'var(--text-secondary)'
-                      }}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 最佳/最差决策 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <div style={{ 
-                    fontSize: 12, 
-                    fontWeight: 700, 
-                    color: 'var(--color-profit)', 
-                    marginBottom: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}>
-                    <TrophyOutlined />
-                    最佳决策
-                  </div>
-                  <Input.TextArea
-                    placeholder="今天做对了什么？"
-                    value={reviewForm.bestDecision}
-                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
-                    autoSize={{ minRows: 2, maxRows: 3 }}
-                    style={{ 
-                      background: 'var(--bg-tertiary)', 
-                      borderColor: 'var(--border-primary)',
-                      borderRadius: 8
-                    }}
-                  />
-                </div>
-                <div>
-                  <div style={{ 
-                    fontSize: 12, 
-                    fontWeight: 700, 
-                    color: 'var(--color-loss)', 
-                    marginBottom: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}>
-                    <WarningOutlined />
-                    最差决策
-                  </div>
-                  <Input.TextArea
-                    placeholder="今天做错了什么？"
-                    value={reviewForm.worstDecision}
-                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
-                    autoSize={{ minRows: 2, maxRows: 3 }}
-                    style={{ 
-                      background: 'var(--bg-tertiary)', 
-                      borderColor: 'var(--border-primary)',
-                      borderRadius: 8
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 经验教训 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <BulbOutlined style={{ color: '#FBBF24' }} />
-                  经验教训
-                </div>
-                <Input.TextArea
-                  placeholder="从今天的交易中学到了什么？"
-                  value={reviewForm.lessonsLearned}
-                  onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 4 }}
-                  style={{ 
-                    background: 'var(--bg-tertiary)', 
-                    borderColor: 'var(--border-primary)',
-                    borderRadius: 8
-                  }}
-                />
-              </div>
-
-              {/* 改进计划 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}>
-                  <RiseOutlined style={{ color: '#3B82F6' }} />
-                  明日改进
-                </div>
-                <Input.TextArea
-                  placeholder="明天要改进的具体行动..."
-                  value={reviewForm.improvementPlan}
-                  onChange={e => setReviewForm({...reviewForm, improvementPlan: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 3 }}
-                  style={{ 
-                    background: 'var(--bg-tertiary)', 
-                    borderColor: 'var(--border-primary)',
-                    borderRadius: 8
-                  }}
-                />
-              </div>
-
-              {/* 交易标签 */}
-              <div>
-                <div style={{ 
-                  fontSize: 12, 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  marginBottom: 8
-                }}>
-                  交易标签
-                </div>
-                <Select
-                  mode="multiple"
-                  placeholder="选择适用的标签"
-                  value={reviewForm.tags}
-                  onChange={tags => setReviewForm({...reviewForm, tags})}
-                  style={{ width: '100%' }}
-                  options={REVIEW_TAGS}
-                  tagRender={({ label, value, closable, onClose }) => {
-                    const tag = REVIEW_TAGS.find(t => t.value === value);
-                    return (
-                      <Tag 
-                        color={tag?.color} 
-                        closable={closable} 
-                        onClose={onClose}
-                        style={{ marginRight: 4, borderRadius: 4 }}
-                      >
-                        {label}
-                      </Tag>
-                    );
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* 底部操作栏 */}
-            <div style={{ 
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border-primary)',
-              background: 'var(--bg-secondary)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                {savedReviews[selectedDate] ? (
-                  <span style={{ color: 'var(--color-profit)' }}>
-                    <CheckCircleOutlined /> 已保存于 {dayjs(savedReviews[selectedDate].savedAt).format('HH:mm')}
-                  </span>
-                ) : (
-                  <span>未保存</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <Button 
-                  onClick={() => setReviewDrawerVisible(false)}
-                  style={{ 
-                    borderRadius: 8,
-                    background: 'var(--bg-tertiary)',
-                    borderColor: 'var(--border-primary)',
-                    color: 'var(--text-secondary)'
-                  }}
-                >
-                  取消
-                </Button>
-                <Button 
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  loading={isSaving}
-                  onClick={saveReview}
-                  style={{ 
-                    borderRadius: 8,
-                    background: 'var(--color-brand)',
-                    borderColor: 'var(--color-brand)',
-                    fontWeight: 600
-                  }}
-                >
-                  保存复盘
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Drawer>
+      
 
       <style>{`
         @keyframes pulse {
