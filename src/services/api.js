@@ -70,6 +70,26 @@ export const apiRequest = async (path, options = {}) => {
   return res.json();
 };
 
+// 认证 API 包装器（类 axios 风格）
+export const authApi = {
+  get: async (path) => {
+    const data = await apiRequest(path);
+    return { data };
+  },
+  post: async (path, body) => {
+    const data = await apiRequest(path, { method: 'POST', body });
+    return { data };
+  },
+  patch: async (path, body) => {
+    const data = await apiRequest(path, { method: 'PATCH', body });
+    return { data };
+  },
+  delete: async (path) => {
+    const data = await apiRequest(path, { method: 'DELETE' });
+    return { data };
+  },
+};
+
 // AI 分析 API
 export const aiApi = {
   // 分析交易数据
