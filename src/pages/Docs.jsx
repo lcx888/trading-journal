@@ -59,18 +59,16 @@ const DocCard = ({ icon, title, description, onClick, isActive }) => (
     onClick={onClick}
     className={`w-full text-left p-4 rounded-lg border transition-all ${
       isActive 
-        ? 'bg-[#c9a227]/10 border-[#c9a227]/40' 
-        : 'bg-[#111114] border-[#1a1a1f] hover:border-[#c9a227]/30'
+        ? 'bg-[#0a0a0c] border-[#252528]' 
+        : 'bg-[#111114] border-[#1a1a1f] hover:border-[#252528] hover:bg-[#0a0a0c]'
     }`}
   >
     <div className="flex items-center gap-3">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-        isActive ? 'bg-[#c9a227]/20' : 'bg-[#1a1a1f]'
-      }`}>
-        <span className="text-lg text-[#c9a227]">{icon}</span>
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1a1a1f] border border-[#252528]">
+        <span className="text-lg text-[#888]">{icon}</span>
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-[#fff]">{title}</h3>
+        <h3 className={`text-sm font-semibold ${isActive ? 'text-[#fff]' : 'text-[#888]'}`}>{title}</h3>
         <p className="text-xs text-[#666]">{description}</p>
       </div>
     </div>
@@ -80,8 +78,8 @@ const DocCard = ({ icon, title, description, onClick, isActive }) => (
 // 文档区块组件
 const DocSection = ({ icon, title, children }) => (
   <div className="mb-12">
-    <h2 className="text-xl font-bold text-[#fff] mb-6 flex items-center gap-3">
-      <span className="text-[#c9a227]">{icon}</span>
+    <h2 className="text-xl font-bold text-[#fff] mb-6 flex items-center gap-3 border-b border-[#1a1a1f] pb-3">
+      <span className="text-[#888]">{icon}</span>
       {title}
     </h2>
     {children}
@@ -91,8 +89,8 @@ const DocSection = ({ icon, title, children }) => (
 // 文档条目组件
 const DocItem = ({ title, children }) => (
   <div className="mb-8">
-    <h3 className="text-base font-semibold text-[#c9a227] mb-3">{title}</h3>
-    <div className="text-sm text-[#888] leading-relaxed space-y-3">
+    <h3 className="text-base font-semibold text-[#fff] mb-4 border-b border-[#1a1a1f] pb-2">{title}</h3>
+    <div className="text-sm text-[#888] leading-relaxed space-y-4">
       {children}
     </div>
   </div>
@@ -100,29 +98,26 @@ const DocItem = ({ title, children }) => (
 
 // 步骤组件
 const StepList = ({ steps }) => (
-  <div className="space-y-3">
+  <div className="space-y-2">
     {steps.map((step, i) => (
       <div key={i} className="flex gap-3">
-        <div className="w-6 h-6 rounded-full bg-[#c9a227]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <span className="text-xs font-bold text-[#c9a227]">{i + 1}</span>
+        <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 bg-[#1a1a1f] border border-[#252528]">
+          <span className="text-xs font-medium text-[#888]">{i + 1}</span>
         </div>
-        <div className="text-sm text-[#888]">{step}</div>
+        <div className="text-sm text-[#888] leading-relaxed">{step}</div>
       </div>
     ))}
   </div>
 );
 
-// 提示框组件
+// 提示框组件 - 统一灰色风格
 const Tip = ({ type = 'info', children }) => {
-  const styles = {
-    info: 'bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#60a5fa]',
-    warning: 'bg-[#eab308]/10 border-[#eab308]/30 text-[#facc15]',
-    success: 'bg-[#10b981]/10 border-[#10b981]/30 text-[#34d399]',
-  };
-  
   return (
-    <div className={`p-4 rounded-lg border ${styles[type]} text-sm`}>
-      {children}
+    <div className="p-4 rounded border border-[#1a1a1f] bg-[#0a0a0c] text-sm text-[#888]">
+      <div className="flex items-start gap-2">
+        <span className="text-[#666] mt-0.5">ℹ</span>
+        <div className="flex-1">{children}</div>
+      </div>
     </div>
   );
 };
@@ -425,8 +420,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<PlayCircleOutlined />} title="快速开始">
-              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
-                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么需要 MetworthAI？</p>
+              <div className="mb-6 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                <p className="text-sm text-[#fff] font-medium mb-2">为什么需要 MetworthAI？</p>
                 <p className="text-sm text-[#888] leading-relaxed">
                   作为交易者，您是否遇到过这些问题：不知道自己为什么亏损？不知道哪个时段交易最赚钱？不知道止损应该设在哪里？
                   MetworthAI 通过 AI 深度分析您的每笔交易，自动发现交易中的问题，给出科学的优化建议，帮您从"凭感觉交易"升级到"数据驱动交易"。
@@ -438,7 +433,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   <strong className="text-[#fff]">为什么需要注册？</strong> 注册后，您的所有交易数据将安全存储在云端，无论在哪里登录都能查看。
                   更重要的是，系统会记住您的分析历史，持续追踪您的进步轨迹。
                 </p>
-                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <p className="mb-3 text-[#fff] font-medium">带来的好处：</p>
                 <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
                   <li>数据永不丢失，换设备也能访问</li>
                   <li>自动保存分析报告，随时回顾</li>
@@ -463,7 +458,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   账本就像文件夹，帮您把不同来源的交易数据分类管理。
                   比如您有主账户和模拟账户，或者同时使用日内策略和波段策略，创建不同账本可以让您分别分析，互不干扰。
                 </p>
-                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <p className="mb-3 text-[#fff] font-medium">带来的好处：</p>
                 <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
                   <li>清晰区分不同账户或策略的表现</li>
                   <li>独立分析，避免数据混淆</li>
@@ -496,7 +491,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   MetworthAI 的强大之处在于它能分析您的真实交易数据。
                   导入数据后，系统会自动计算各种指标，识别交易模式，发现您自己可能都没意识到的问题。
                 </p>
-                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <p className="mb-3 text-[#fff] font-medium">带来的好处：</p>
                 <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
                   <li>自动计算胜率、利润因子、期望值等关键指标</li>
                   <li>识别您的"提款机时段"和"碎钞机时段"</li>
@@ -589,8 +584,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   '等待 5-10 秒，系统完成分析（数据越多时间稍长）',
                   '查看分析报告，重点关注"智能诊断"标签页',
                 ]} />
-                <div className="mt-4 p-4 bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 rounded-lg">
-                  <p className="text-sm text-[#8b5cf6] font-medium mb-2">💎 真实案例：</p>
+                <div className="mt-4 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                  <p className="text-sm text-[#fff] font-medium mb-2">真实案例：</p>
                   <p className="text-xs text-[#888] leading-relaxed mb-2">
                     <strong className="text-[#fff]">用户 A 的发现：</strong> 通过 AI 分析，发现自己 90% 的亏损都发生在上午 9:30-10:00 这个时段。
                     原因是开盘后情绪波动大，容易冲动交易。之后他避开这个时段，胜率从 45% 提升到 58%。
@@ -661,8 +656,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<CloudUploadOutlined />} title="数据导入">
-              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
-                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么数据导入很重要？</p>
+              <div className="mb-6 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                <p className="text-sm text-[#fff] font-medium mb-2">为什么数据导入很重要？</p>
                 <p className="text-sm text-[#888] leading-relaxed mb-3">
                   数据是分析的基础。导入的数据越完整，AI 分析的结果就越准确、越有价值。
                   特别是 MAE、MFE 这些高级字段，能让系统发现很多肉眼看不到的问题。
@@ -681,7 +676,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   MAE（最大逆向波动）、MFE（最大顺向波动）、Fills（成交次数）、持仓时间等。
                   这些数据能让 MetworthAI 进行最深入的分析。
                 </p>
-                <p className="mb-3 text-[#c9a227]">✓ 使用 Jigsaw 数据您能获得：</p>
+                <p className="mb-3 text-[#fff] font-medium">使用 Jigsaw 数据您能获得：</p>
                 <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
                   <li>完整的 MAE/MFE 分析（知道每笔交易的波动区间）</li>
                   <li>利润留存率计算（发现利润回吐问题）</li>
@@ -718,8 +713,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   '点击"导入"按钮，等待导入完成',
                   '导入成功后，系统会显示导入的交易数量',
                 ]} />
-                <div className="mt-4 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
-                  <p className="text-sm text-[#10b981] font-medium mb-2">✅ 导入成功后会看到：</p>
+                <div className="mt-4 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                  <p className="text-sm text-[#fff] font-medium mb-2">导入成功后会看到：</p>
                   <ul className="text-xs text-[#888] space-y-1 list-disc list-inside">
                     <li>导入的交易笔数（如"成功导入 127 笔交易"）</li>
                     <li>如果有重复数据，会提示"跳过 X 笔重复交易"</li>
@@ -879,8 +874,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<RobotOutlined />} title="AI 交易教练">
-              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
-                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么需要 AI 交易教练？</p>
+              <div className="mb-6 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                <p className="text-sm text-[#fff] font-medium mb-2">为什么需要 AI 交易教练？</p>
                 <p className="text-sm text-[#888] leading-relaxed mb-3">
                   作为交易者，您可能经常问自己："我为什么亏损？"、"我哪里做错了？"、"我应该怎么改进？"
                   但靠自己复盘，往往只能看到表面的盈亏，很难发现深层次的问题。
@@ -900,7 +895,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                 
                 <div className="grid md:grid-cols-2 gap-4 mb-6">
                   <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
-                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                    <div className="text-[#fff] font-semibold mb-2 text-base flex items-center gap-2">
                       <BulbOutlined /> 智能诊断
                     </div>
                     <p className="text-xs text-[#888] mb-3">自动识别交易行为模式和潜在问题</p>
@@ -912,11 +907,11 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                       <li>利润回吐（MFE 大但盈利小）</li>
                       <li>止损极点（总是在最低点止损）</li>
                     </ul>
-                    <p className="text-xs text-[#c9a227] mt-3 font-medium">✓ 价值：发现您自己意识不到的交易陋习</p>
+                    <p className="text-xs text-[#666] mt-3">价值：发现您自己意识不到的交易陋习</p>
                   </div>
                   
                   <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
-                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                    <div className="text-[#fff] font-semibold mb-2 text-base flex items-center gap-2">
                       <ExperimentOutlined /> 蒙特卡洛模拟
                     </div>
                     <p className="text-xs text-[#888] mb-3">预测未来交易的盈亏概率分布</p>
@@ -931,7 +926,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   </div>
                   
                   <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
-                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                    <div className="text-[#fff] font-semibold mb-2 text-base flex items-center gap-2">
                       <AimOutlined /> 最优止损分析
                     </div>
                     <p className="text-xs text-[#888] mb-3">回测不同止损位的效果，推荐最优策略</p>
@@ -946,7 +941,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   </div>
                   
                   <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
-                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                    <div className="text-[#fff] font-semibold mb-2 text-base flex items-center gap-2">
                       <BarChartOutlined /> 期望值分布
                     </div>
                     <p className="text-xs text-[#888] mb-3">按时段/方向/品种分析，找出优势时段</p>
@@ -980,8 +975,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   <strong>数据要求：</strong> 建议至少有 50 笔以上交易数据再进行 AI 分析。
                   数据越多，分析结果越准确。如果只有几笔交易，系统可能无法得出有价值的结论。
                 </Tip>
-                <div className="mt-4 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
-                  <p className="text-sm text-[#10b981] font-medium mb-2">✅ 分析完成后您将看到：</p>
+                <div className="mt-4 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
+                  <p className="text-sm text-[#fff] font-medium mb-2">分析完成后您将看到：</p>
                   <ul className="text-xs text-[#888] space-y-1 list-disc list-inside">
                     <li>综合操作建议（继续执行/早出策略/减仓/多看少动）</li>
                     <li>优化行动清单（按优先级排序的改进建议）</li>
