@@ -40,7 +40,7 @@ import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
 import { getSubscriptionStatus, getPlanDisplayInfo, clearSubscriptionCache } from './services/subscription';
-import { SubscriptionBadge, UpgradeModal, SidebarSubscriptionCard } from './components/UpgradePrompt';
+import { UpgradeModal, SidebarSubscriptionCard } from './components/UpgradePrompt';
 
 dayjs.locale('zh-cn');
 
@@ -579,50 +579,65 @@ function App() {
               )}
             </div>
             
-            {/* 右侧操作区 */}
-            <div className="flex items-center gap-3">
-              {/* 订阅状态 */}
-              {subscription && (
-                <SubscriptionBadge 
-                  plan={subscription.plan?.name || 'free'}
-                  usage={subscription.usage}
-                  onClick={goToPricing}
-                />
-              )}
-              
-              {/* 分隔线 */}
-              <div className="h-5 w-px bg-gray-700"></div>
-              
-              {/* 日期显示 */}
-              <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm px-3 py-1.5 bg-[var(--bg-tertiary)] rounded">
-                <ClockCircleOutlined className="text-xs" />
-                <span className="font-mono text-xs">{dayjs().format('YYYY-MM-DD')}</span>
+            {/* 右侧操作区 - 优化布局 */}
+            <div className="flex items-center gap-1">
+              {/* 日期 - 简洁展示 */}
+              <div className="flex items-center gap-1.5 text-[var(--text-tertiary)] text-xs px-2 py-1">
+                <span className="font-mono">{dayjs().format('MM/DD')}</span>
+                <span className="text-[var(--text-disabled)]">·</span>
+                <span className="font-mono">{dayjs().format('ddd')}</span>
               </div>
               
-              {/* 通知 */}
-              <Tooltip title="通知" placement="bottom">
-                <Button 
-                  type="text" 
-                  icon={<BellOutlined />} 
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                />
-              </Tooltip>
+              {/* 功能按钮组 */}
+              <div className="flex items-center">
+                {/* 通知 */}
+                <Tooltip title="通知" placement="bottom">
+                  <Button 
+                    type="text" 
+                    icon={<BellOutlined style={{ fontSize: 16 }} />} 
+                    className="w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
+                  />
+                </Tooltip>
+                
+                {/* 设置快捷入口 */}
+                <Tooltip title="设置" placement="bottom">
+                  <Button 
+                    type="text" 
+                    icon={<SettingOutlined style={{ fontSize: 16 }} />} 
+                    onClick={() => setCurrentPage('settings')}
+                    className="w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
+                  />
+                </Tooltip>
+              </div>
               
-              {/* 用户菜单 */}
+              {/* 分隔线 */}
+              <div className="h-5 w-px bg-[var(--border-primary)] mx-2"></div>
+              
+              {/* 用户头像 - 下拉菜单 */}
               <Dropdown
                 menu={{
                   items: [
                     { 
-                      key: 'email', 
+                      key: 'profile', 
                       label: (
-                        <div className="py-1">
-                          <div className="font-medium text-[var(--text-primary)]">{authUser.email}</div>
-                          <div className="text-xs text-[var(--text-tertiary)]">
-                            {authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}
+                        <div className="py-2 px-1">
+                          <div className="font-semibold text-[var(--text-primary)] text-sm">{authUser.email}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              authUser.role === 'admin' || authUser.role === 'superadmin' 
+                                ? 'bg-purple-500/20 text-purple-400' 
+                                : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
+                            }`}>
+                              {authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}
+                            </span>
+                            {subscription?.plan?.name === 'pro' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-brand-bg)] text-[var(--color-brand)]">
+                                PRO
+                              </span>
+                            )}
                           </div>
                         </div>
                       ), 
-                      icon: <img src={getAvatarUrl(authUser.email)} alt="avatar" className="w-5 h-5 rounded-full" />,
                       disabled: true,
                     },
                     { type: 'divider' },
@@ -631,6 +646,12 @@ function App() {
                       label: '账户设置', 
                       icon: <SettingOutlined />,
                       onClick: () => setCurrentPage('settings'),
+                    },
+                    { 
+                      key: 'pricing', 
+                      label: '订阅管理', 
+                      icon: <CrownOutlined />,
+                      onClick: goToPricing,
                     },
                     { type: 'divider' },
                     {
@@ -643,18 +664,18 @@ function App() {
                   ],
                 }}
                 placement="bottomRight"
+                trigger={['click']}
               >
-                <Button 
-                  type="text"
-                  className="flex items-center gap-2 h-8 px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-                >
+                <div className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
                   <img 
                     src={getAvatarUrl(authUser.email)} 
                     alt="avatar" 
-                    className="w-7 h-7 rounded-full" 
+                    className="w-8 h-8 rounded-full ring-2 ring-[var(--border-primary)]" 
                   />
-                  <span className="text-sm">{authUser.role === 'admin' || authUser.role === 'superadmin' ? '管理员' : '用户'}</span>
-                </Button>
+                  <svg className="w-3 h-3 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </Dropdown>
             </div>
           </Header>
