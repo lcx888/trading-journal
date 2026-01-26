@@ -560,6 +560,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             cursor: 'pointer',
             transition: 'all 0.2s',
             position: 'relative',
+            background: isProfit ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)',
+            borderRadius: 4,
+            border: `1px solid ${isProfit ? 'var(--color-profit)' : 'var(--color-loss)'}`,
+            borderWidth: '0 0 0 3px',
           }}
           onClick={() => { setSelectedDate(key); setModalVisible(true); }}
         >
@@ -1181,6 +1185,20 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         .binance-calendar .ant-picker-cell-inner:hover {
           background: var(--bg-secondary) !important;
           border-color: var(--border-secondary) !important;
+        }
+        .binance-calendar .ant-picker-cell-inner.profit-day {
+          background: var(--color-profit-bg) !important;
+          border-color: var(--color-profit) !important;
+        }
+        .binance-calendar .ant-picker-cell-inner.profit-day:hover {
+          background: var(--color-profit-hover) !important;
+        }
+        .binance-calendar .ant-picker-cell-inner.loss-day {
+          background: var(--color-loss-bg) !important;
+          border-color: var(--color-loss) !important;
+        }
+        .binance-calendar .ant-picker-cell-inner.loss-day:hover {
+          background: var(--color-loss-hover) !important;
         }
         .binance-calendar .ant-picker-cell-selected .ant-picker-cell-inner {
           background: var(--color-brand-bg) !important;
