@@ -2,7 +2,8 @@
  * 升级提示组件 - 用于功能限制时的软墙拦截
  */
 import { Modal, Button, Tag, Progress, Tooltip } from 'antd';
-import { CrownOutlined, CheckCircleOutlined, LockOutlined, ThunderboltOutlined, RocketOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { CrownOutlined, CheckCircleOutlined, LockOutlined, ThunderboltOutlined, RocketOutlined, MenuFoldOutlined, MenuUnfoldOutlined, CalendarOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 // 功能描述映射
 const FEATURE_INFO = {
@@ -273,7 +274,7 @@ export function SubscriptionBadge({ plan, usage, onClick }) {
  * Dashboard 订阅卡片
  */
 export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
-  const { plan, usage, status } = subscription || {};
+  const { plan, usage, status, currentPeriodStart, currentPeriodEnd } = subscription || {};
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   
@@ -302,6 +303,10 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
   const tradesLimit = plan?.maxTradesPerMonth || 100;
   const aiUsed = usage?.aiAnalysisUsedThisMonth || 0;
   const aiLimit = plan?.maxAiAnalysisPerMonth || 3;
+
+  // 格式化日期
+  const formatDate = (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-';
+  const daysRemaining = currentPeriodEnd ? dayjs(currentPeriodEnd).diff(dayjs(), 'day') : null;
   
   return (
     <div className="rounded-xl border border-gray-800 bg-gradient-to-br from-[#1a1a1e] to-[#0d0d10] overflow-hidden">
@@ -318,6 +323,31 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
       
       {/* Content */}
       <div className="p-4 space-y-4">
+        {/* 订阅时间信息 - 仅付费用户显示 */}
+        {!isFreePlan && (currentPeriodStart || currentPeriodEnd) && (
+          <div className="bg-[#1a1a1a] rounded-lg p-3 border border-[#262626]">
+            <div className="flex items-center gap-1.5 mb-2">
+              <CalendarOutlined className="text-gray-500" style={{ fontSize: 12 }} />
+              <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">订阅周期</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <div className="text-gray-500 text-[10px] mb-0.5">开始日期</div>
+                <div className="text-gray-300 font-mono text-[12px]">{formatDate(currentPeriodStart)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500 text-[10px] mb-0.5">到期日期</div>
+                <div className="text-gray-300 font-mono text-[12px]">
+                  {formatDate(currentPeriodEnd)}
+                  {daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0 && (
+                    <span className="text-amber-400 text-[10px] ml-1">({daysRemaining}天)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Usage Stats */}
         <div className="space-y-3">
           {/* Trades */}
@@ -396,7 +426,7 @@ export function SubscriptionCard({ subscription, onUpgrade, onManage }) {
  * 侧边栏底部区域（订阅状态 + 折叠按钮一体化设计）- 极简专业版
  */
 export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleCollapse }) {
-  const { plan, usage } = subscription || {};
+  const { plan, usage, currentPeriodStart, currentPeriodEnd, status } = subscription || {};
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
   const isElite = planName === 'elite';
@@ -411,6 +441,10 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
   const tradesPercent = tradesLimit === -1 ? 0 : Math.min(100, (tradesUsed / tradesLimit) * 100);
   const aiPercent = aiLimit === -1 ? 0 : Math.min(100, (aiUsed / aiLimit) * 100);
   const isNearLimit = tradesPercent > 80 || aiPercent > 80;
+
+  // 格式化日期
+  const formatDate = (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-';
+  const daysRemaining = currentPeriodEnd ? dayjs(currentPeriodEnd).diff(dayjs(), 'day') : null;
   
   // 折叠状态 - 极致简约
   if (collapsed) {
@@ -422,6 +456,14 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
               <div className="font-bold mb-1 text-white">{isElite ? 'Elite 精英版' : (isFreePlan ? '免费版' : 'Pro 专业版')}</div>
               <div className="text-gray-400">交易: {tradesUsed}/{tradesLimit === -1 ? '∞' : tradesLimit}</div>
               <div className="text-gray-400">AI: {aiUsed}/{aiLimit === -1 ? '∞' : aiLimit}</div>
+              {!isFreePlan && currentPeriodEnd && (
+                <div className="text-gray-400 mt-1 pt-1 border-t border-gray-700">
+                  到期: {formatDate(currentPeriodEnd)}
+                  {daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0 && (
+                    <span className="text-amber-400 ml-1">({daysRemaining}天)</span>
+                  )}
+                </div>
+              )}
             </div>
           } 
           placement="right"
@@ -500,6 +542,19 @@ export function SidebarFooter({ subscription, collapsed, onUpgrade, onToggleColl
             </div>
           </div>
         </div>
+        
+        {/* 订阅时间信息 - 仅付费用户显示 */}
+        {!isFreePlan && currentPeriodEnd && (
+          <div className="mt-2 pt-2 border-t border-[#262626] flex items-center gap-1.5">
+            <CalendarOutlined className="text-gray-600" style={{ fontSize: 10 }} />
+            <span className="text-[10px] text-gray-500">
+              到期: {formatDate(currentPeriodEnd)}
+              {daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0 && (
+                <span className="text-amber-400 ml-1">({daysRemaining}天后)</span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
       
       {/* 收起按钮 */}
