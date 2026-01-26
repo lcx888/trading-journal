@@ -448,21 +448,47 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       data.push(Number(cum.toFixed(2)));
     }
     const finalValue = data[data.length - 1] || 0;
-    const lineColor = finalValue >= 0 ? '#10b981' : '#f43f5e';
+    const lineColor = finalValue >= 0 ? 'var(--color-profit)' : 'var(--color-loss)';
     
     return {
-      grid: { left: 0, right: 0, bottom: 0, top: 10 },
-      xAxis: { type: 'category', show: false },
-      yAxis: { type: 'value', show: false },
+      grid: { left: 10, right: 10, bottom: 0, top: 10, containLabel: false },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'var(--bg-secondary)',
+        borderColor: 'var(--border-primary)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11 },
+        formatter: (params) => {
+          const val = params[0].value;
+          return `<div style="font-family: var(--font-mono)">累计盈亏: <span style="color: ${val >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}">${val >= 0 ? '+' : ''}${val}</span></div>`;
+        }
+      },
+      xAxis: { 
+        type: 'category', 
+        show: false,
+        boundaryGap: false 
+      },
+      yAxis: { 
+        type: 'value', 
+        show: false,
+        scale: true
+      },
       series: [{
-        type: 'line', data, smooth: true, symbol: 'none',
-        lineStyle: { color: lineColor, width: 2 },
+        type: 'line', 
+        data, 
+        smooth: 0.4, 
+        symbol: 'none',
+        lineStyle: { 
+          color: lineColor, 
+          width: 2.5,
+          shadowColor: lineColor,
+          shadowBlur: 10
+        },
         areaStyle: { 
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: finalValue >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)' },
+              { offset: 0, color: finalValue >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)' },
               { offset: 1, color: 'rgba(0, 0, 0, 0)' }
             ]
           }
@@ -476,30 +502,56 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const data = [];
     
     for (let h = 6; h < 24; h++) {
-      hours.push(`${h}:00`);
+      hours.push(`${h}h`);
       data.push(hourlyStats[h].pnl);
     }
     for (let h = 0; h < 6; h++) {
-      hours.push(`${h}:00`);
+      hours.push(`${h}h`);
       data.push(hourlyStats[h].pnl);
     }
     
     return {
-      grid: { left: 40, right: 10, bottom: 30, top: 10 },
+      grid: { left: 10, right: 10, bottom: 20, top: 10, containLabel: false },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'var(--bg-secondary)',
+        borderColor: 'var(--border-primary)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11 },
+        formatter: (params) => {
+          const val = params[0].value;
+          return `<div style="font-family: var(--font-mono)">${params[0].name} 盈亏: <span style="color: ${val >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}">${val >= 0 ? '+' : ''}${val.toFixed(2)}</span></div>`;
+        }
+      },
       xAxis: { 
         type: 'category', 
         data: hours,
-        axisLine: { lineStyle: { color: '#1e1e24' } },
-        axisLabel: { color: '#52525b', fontSize: 9, interval: 2 }
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { 
+          color: 'var(--text-tertiary)', 
+          fontSize: 9, 
+          interval: 2,
+          margin: 10
+        }
       },
-      yAxis: { type: 'value', show: false },
+      yAxis: { 
+        type: 'value', 
+        show: false 
+      },
       series: [{
         type: 'bar',
         data: data.map(v => ({
           value: v,
-          itemStyle: { color: v >= 0 ? '#10b981' : '#f43f5e' }
+          itemStyle: { 
+            color: v >= 0 ? 'var(--color-profit)' : 'var(--color-loss)',
+            borderRadius: v >= 0 ? [2, 2, 0, 0] : [0, 0, 2, 2],
+            opacity: 0.8
+          },
+          emphasis: {
+            itemStyle: { opacity: 1 }
+          }
         })),
-        barWidth: '60%',
+        barWidth: '50%',
       }]
     };
   };
