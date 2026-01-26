@@ -23,6 +23,10 @@ model User {
   lastLoginIp    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  
+  // 用量统计
+  aiAnalysisCount   Int      @default(0)    // 当月 AI 分析次数
+  aiAnalysisResetAt DateTime @default(now()) // 上次重置时间
 
   instruments   Instrument[]
   records       Record[]
@@ -32,6 +36,7 @@ model User {
   reviews       Review[]
   aiAnalyses    AIAnalysis[]
   subscription  Subscription?
+  redemptions   RedemptionRecord[]
 }
 
 // 订阅计划
@@ -147,6 +152,7 @@ model RedemptionRecord {
   codeId          String                    // 兑换码 ID
   userId          String                    // 兑换用户 ID
   code            RedemptionCode @relation(fields: [codeId], references: [id])
+  user            User @relation(fields: [userId], references: [id])
   redeemedAt      DateTime @default(now())
 
   @@index([codeId])

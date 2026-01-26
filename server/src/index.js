@@ -1126,6 +1126,12 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
             directionStats: JSON.stringify(result.tradeData?.direction || {}),
           },
         });
+        
+        // 更新用户的 AI 分析使用计数
+        await prisma.user.update({
+          where: { id: req.user.id },
+          data: { aiAnalysisCount: { increment: 1 } },
+        });
       } catch (saveError) {
         console.error('保存分析记录失败:', saveError);
         // 保存失败不影响返回结果
@@ -1510,6 +1516,49 @@ app.get('/subscription/plans', async (req, res) => {
   }
 });
 
+// 辅助函数：计算当月实际用量
+async function calculateMonthlyUsage(userId) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  // 计算当月交易数量
+  const tradesCount = await prisma.trade.count({
+    where: {
+      userId,
+      createdAt: {
+        gte: startOfMonth,
+        lte: endOfMonth,
+      },
+    },
+  });
+
+  // 获取用户信息中的 AI 分析次数
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { aiAnalysisCount: true, aiAnalysisResetAt: true },
+  });
+
+  // 检查是否需要重置 AI 分析次数（新月份）
+  let aiAnalysisCount = user?.aiAnalysisCount || 0;
+  if (user?.aiAnalysisResetAt) {
+    const resetDate = new Date(user.aiAnalysisResetAt);
+    if (resetDate.getFullYear() !== now.getFullYear() || resetDate.getMonth() !== now.getMonth()) {
+      // 新的月份，重置计数
+      aiAnalysisCount = 0;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { aiAnalysisCount: 0, aiAnalysisResetAt: now },
+      });
+    }
+  }
+
+  return {
+    tradesUsedThisMonth: tradesCount,
+    aiAnalysisUsedThisMonth: aiAnalysisCount,
+  };
+}
+
 // 获取当前用户订阅状态
 app.get('/subscription/current', authRequired, async (req, res) => {
   try {
@@ -1517,6 +1566,9 @@ app.get('/subscription/current', authRequired, async (req, res) => {
       where: { userId: req.user.id },
       include: { plan: true },
     });
+
+    // 实时计算用量
+    const usage = await calculateMonthlyUsage(req.user.id);
 
     if (!subscription) {
       // 未订阅，返回免费计划权限
@@ -1527,10 +1579,7 @@ app.get('/subscription/current', authRequired, async (req, res) => {
         hasSubscription: false,
         plan: freePlan,
         status: 'free',
-        usage: {
-          tradesUsedThisMonth: 0,
-          aiAnalysisUsedThisMonth: 0,
-        },
+        usage,
       });
     }
 
@@ -1550,10 +1599,7 @@ app.get('/subscription/current', authRequired, async (req, res) => {
         cancelledAt: subscription.cancelledAt,
       },
       plan: subscription.plan,
-      usage: {
-        tradesUsedThisMonth: subscription.tradesUsedThisMonth,
-        aiAnalysisUsedThisMonth: subscription.aiAnalysisUsedThisMonth,
-      },
+      usage,
     });
   } catch (error) {
     console.error('获取订阅状态失败:', error);
