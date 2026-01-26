@@ -634,36 +634,61 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* Modal - 深色主题 */
+/* ============================================================
+   Modal 深色主题 - 全局覆盖 (Ant Design 5.x)
+   ============================================================ */
+
+/* 遮罩层 */
+.ant-modal-root .ant-modal-mask,
 .ant-modal-mask {
   background: rgba(0, 0, 0, 0.75) !important;
   backdrop-filter: blur(4px) !important;
 }
 
-.ant-modal-content {
+/* 弹窗外层容器 (Ant Design 5.x 新增) */
+.ant-modal-container {
+  background: #141414 !important;
+}
+
+/* 弹窗主体容器 */
+.ant-modal-root .ant-modal-content,
+.ant-modal .ant-modal-content,
+.ant-modal-content,
+.ant-modal-container + .ant-modal-content,
+[class*="ant-modal"] .ant-modal-content {
   background: #141414 !important;
   border: 1px solid #262626 !important;
   border-radius: 12px !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
   padding: 0 !important;
+  color: #e5e5e5 !important;
 }
 
+/* 弹窗头部 */
+.ant-modal-root .ant-modal-header,
+.ant-modal .ant-modal-header,
 .ant-modal-header {
-  background: transparent !important;
+  background: #141414 !important;
   border-bottom: 1px solid #262626 !important;
   padding: 16px 24px !important;
   margin: 0 !important;
 }
 
+/* 弹窗标题 */
+.ant-modal-root .ant-modal-title,
+.ant-modal .ant-modal-title,
 .ant-modal-title {
   color: #fff !important;
   font-weight: 600 !important;
   font-size: 16px !important;
 }
 
+/* 关闭按钮 */
+.ant-modal-root .ant-modal-close,
+.ant-modal .ant-modal-close,
 .ant-modal-close {
-  top: 16px !important;
-  right: 16px !important;
+  top: 12px !important;
+  right: 12px !important;
   width: 32px !important;
   height: 32px !important;
   color: #737373 !important;
@@ -672,24 +697,35 @@ body {
   transition: all 0.2s !important;
 }
 
+.ant-modal-root .ant-modal-close:hover,
+.ant-modal .ant-modal-close:hover,
 .ant-modal-close:hover {
   color: #fff !important;
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* 弹窗内容区 */
+.ant-modal-root .ant-modal-body,
+.ant-modal .ant-modal-body,
 .ant-modal-body {
+  background: #141414 !important;
   padding: 24px !important;
   color: #e5e5e5 !important;
 }
 
+/* 弹窗底部 */
+.ant-modal-root .ant-modal-footer,
+.ant-modal .ant-modal-footer,
 .ant-modal-footer {
-  background: transparent !important;
+  background: #141414 !important;
   border-top: 1px solid #262626 !important;
   padding: 16px 24px !important;
   margin: 0 !important;
 }
 
-.ant-modal-footer .ant-btn {
+/* 底部按钮通用 */
+.ant-modal-footer .ant-btn,
+.ant-modal-confirm-btns .ant-btn {
   height: 36px !important;
   padding: 0 20px !important;
   border-radius: 6px !important;
@@ -697,39 +733,56 @@ body {
   font-size: 14px !important;
 }
 
-.ant-modal-footer .ant-btn-default {
+/* 默认按钮 */
+.ant-modal-footer .ant-btn-default,
+.ant-modal-confirm-btns .ant-btn-default,
+.ant-modal-confirm-btns .ant-btn-variant-outlined {
   background: #1f1f1f !important;
   border-color: #333 !important;
   color: #a3a3a3 !important;
 }
 
-.ant-modal-footer .ant-btn-default:hover {
+.ant-modal-footer .ant-btn-default:hover,
+.ant-modal-confirm-btns .ant-btn-default:hover,
+.ant-modal-confirm-btns .ant-btn-variant-outlined:hover {
   background: #292929 !important;
   border-color: #404040 !important;
   color: #fff !important;
 }
 
-.ant-modal-footer .ant-btn-primary {
+/* 主按钮 */
+.ant-modal-footer .ant-btn-primary,
+.ant-modal-confirm-btns .ant-btn-primary,
+.ant-modal-confirm-btns .ant-btn-variant-solid {
   background: #d97706 !important;
   border-color: #d97706 !important;
   color: #000 !important;
 }
 
-.ant-modal-footer .ant-btn-primary:hover {
+.ant-modal-footer .ant-btn-primary:hover,
+.ant-modal-confirm-btns .ant-btn-primary:hover,
+.ant-modal-confirm-btns .ant-btn-variant-solid:hover {
   background: #b45309 !important;
   border-color: #b45309 !important;
 }
 
-/* Modal.confirm 确认弹窗 */
-.ant-modal-confirm .ant-modal-content {
+/* ============================================================
+   Modal.confirm 确认弹窗专用样式
+   ============================================================ */
+
+/* 确认弹窗容器 */
+.ant-modal-confirm .ant-modal-content,
+.ant-modal-confirm .ant-modal-body {
   background: #141414 !important;
-  border: 1px solid #262626 !important;
-  padding: 0 !important;
-  border-radius: 12px !important;
 }
 
 .ant-modal-confirm .ant-modal-body {
   padding: 24px !important;
+}
+
+/* 确认弹窗内容区 */
+.ant-modal-confirm .ant-modal-confirm-body-wrapper {
+  background: #141414 !important;
 }
 
 .ant-modal-confirm .ant-modal-confirm-body {
@@ -737,24 +790,25 @@ body {
   flex-direction: column !important;
 }
 
-.ant-modal-confirm .ant-modal-confirm-body > .anticon {
-  color: #d97706 !important;
-  font-size: 22px !important;
-  margin-bottom: 16px !important;
+.ant-modal-confirm .ant-modal-confirm-paragraph {
+  max-width: 100% !important;
 }
 
+/* 确认弹窗标题 */
 .ant-modal-confirm .ant-modal-confirm-title {
   color: #fff !important;
   font-weight: 600 !important;
   font-size: 16px !important;
 }
 
+/* 确认弹窗内容文字 */
 .ant-modal-confirm .ant-modal-confirm-content {
   color: #a3a3a3 !important;
   font-size: 14px !important;
   margin-top: 8px !important;
 }
 
+/* 确认弹窗按钮区 */
 .ant-modal-confirm .ant-modal-confirm-btns {
   margin-top: 24px !important;
   display: flex !important;
@@ -762,46 +816,24 @@ body {
   gap: 12px !important;
 }
 
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn {
-  height: 36px !important;
-  padding: 0 20px !important;
-  border-radius: 6px !important;
-  font-weight: 500 !important;
-  font-size: 14px !important;
-}
-
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-default {
-  background: #1f1f1f !important;
-  border-color: #333 !important;
-  color: #a3a3a3 !important;
-}
-
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-default:hover {
-  background: #292929 !important;
-  border-color: #404040 !important;
-  color: #fff !important;
-}
-
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-primary {
-  background: #d97706 !important;
-  border-color: #d97706 !important;
-  color: #000 !important;
-}
-
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-primary:hover {
-  background: #b45309 !important;
-  border-color: #b45309 !important;
-}
-
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-dangerous {
+/* 危险按钮 */
+.ant-modal-confirm-btns .ant-btn-dangerous,
+.ant-modal-footer .ant-btn-dangerous {
   background: #f43f5e !important;
   border-color: #f43f5e !important;
   color: #fff !important;
 }
 
-.ant-modal-confirm .ant-modal-confirm-btns .ant-btn-dangerous:hover {
+.ant-modal-confirm-btns .ant-btn-dangerous:hover,
+.ant-modal-footer .ant-btn-dangerous:hover {
   background: #e11d48 !important;
   border-color: #e11d48 !important;
+}
+
+/* 确认弹窗图标 */
+.ant-modal-confirm .ant-modal-confirm-body > .anticon {
+  color: #d97706 !important;
+  font-size: 22px !important;
 }
 
 /* Dropdown */
