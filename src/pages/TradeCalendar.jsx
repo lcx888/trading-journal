@@ -311,10 +311,52 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const dateCellRender = (date) => {
     const key = date.format('YYYY-MM-DD');
     const data = tradesByDate[key];
+    const isCurrentMonth = date.month() === currentMonth.month();
+    const isWeekend = date.day() === 0 || date.day() === 6;
+    const isToday = date.isSame(dayjs(), 'day');
+    const isFuture = date.isAfter(dayjs(), 'day');
     
-    // 无交易日显示空状态
+    // 非当前月份的日期 - 完全隐藏内容
+    if (!isCurrentMonth) {
+      return (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'var(--bg-primary)',
+          opacity: 0.5
+        }} />
+      );
+    }
+    
+    // 无交易日
     if (!data) {
-      return null;
+      return (
+        <div style={{
+          position: 'absolute',
+          top: '22px',
+          bottom: '4px',
+          left: '4px',
+          right: '4px',
+          background: isWeekend ? 'rgba(255,255,255,0.02)' : 'transparent',
+          borderRadius: 4,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          {/* 周末标识 */}
+          {isWeekend && !isFuture && (
+            <span style={{ 
+              fontSize: 9, 
+              color: 'var(--text-tertiary)', 
+              opacity: 0.4,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              休市
+            </span>
+          )}
+        </div>
+      );
     }
     
     const isProfit = data.totalPnL > 0;
@@ -778,6 +820,37 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         .minimal-calendar .ant-picker-cell-selected .ant-picker-cell-inner {
           border-color: var(--color-brand) !important;
         }
+        
+        /* 非当前月份的日期 - 淡化处理 */
+        .minimal-calendar .ant-picker-cell-in-view .ant-picker-cell-inner {
+          background: var(--bg-tertiary) !important;
+        }
+        .minimal-calendar .ant-picker-cell:not(.ant-picker-cell-in-view) .ant-picker-cell-inner {
+          background: var(--bg-primary) !important;
+          border-color: transparent !important;
+          opacity: 0.3 !important;
+        }
+        .minimal-calendar .ant-picker-cell:not(.ant-picker-cell-in-view) .ant-picker-calendar-date-value {
+          opacity: 0.3 !important;
+        }
+        
+        /* 周末样式 - 周六和周日列 */
+        .minimal-calendar .ant-picker-content td:nth-child(6) .ant-picker-cell-inner,
+        .minimal-calendar .ant-picker-content td:nth-child(7) .ant-picker-cell-inner {
+          background: rgba(255, 255, 255, 0.02) !important;
+        }
+        .minimal-calendar .ant-picker-content th:nth-child(6),
+        .minimal-calendar .ant-picker-content th:nth-child(7) {
+          color: var(--text-tertiary) !important;
+          opacity: 0.6 !important;
+        }
+        
+        /* 今天的特殊样式 */
+        .minimal-calendar .ant-picker-cell-today .ant-picker-cell-inner {
+          border-color: var(--color-brand) !important;
+          box-shadow: 0 0 0 1px var(--color-brand) !important;
+        }
+        
         .minimal-calendar .ant-picker-calendar-date-value {
           position: absolute !important;
           top: 4px !important;
