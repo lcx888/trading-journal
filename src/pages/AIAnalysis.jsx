@@ -850,6 +850,10 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewingHistory, setViewingHistory] = useState(null);
   
+  // 编辑标题状态
+  const [editingTitleId, setEditingTitleId] = useState(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [reviewForm] = Form.useForm();
@@ -949,6 +953,45 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
     } catch (e) {
       message.error('删除失败');
     }
+  };
+
+  // 开始编辑标题
+  const startEditTitle = (e, item) => {
+    e.stopPropagation();
+    setEditingTitleId(item.id);
+    setEditingTitleValue(item.title);
+  };
+
+  // 保存标题
+  const saveTitle = async (e) => {
+    e?.stopPropagation();
+    if (!editingTitleValue.trim()) {
+      message.warning('标题不能为空');
+      return;
+    }
+    try {
+      await aiApi.updateAnalysisTitle(editingTitleId, editingTitleValue.trim());
+      message.success('标题已更新');
+      // 更新本地列表
+      setHistoryList(prev => prev.map(item => 
+        item.id === editingTitleId ? { ...item, title: editingTitleValue.trim() } : item
+      ));
+      // 如果正在查看这条记录，也更新 viewingHistory
+      if (viewingHistory?.id === editingTitleId) {
+        setViewingHistory(prev => ({ ...prev, title: editingTitleValue.trim() }));
+      }
+      setEditingTitleId(null);
+      setEditingTitleValue('');
+    } catch (e) {
+      message.error('更新失败');
+    }
+  };
+
+  // 取消编辑
+  const cancelEditTitle = (e) => {
+    e?.stopPropagation();
+    setEditingTitleId(null);
+    setEditingTitleValue('');
   };
 
   const handleAnalyze = async () => {
@@ -1311,9 +1354,55 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                 >
                   {/* 头部 */}
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium text-sm truncate flex-1 pr-2" style={{ color: 'var(--text-primary)' }}>
-                      {item.title}
-                    </div>
+                    {editingTitleId === item.id ? (
+                      <div className="flex items-center gap-1 flex-1 pr-2" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          size="small"
+                          value={editingTitleValue}
+                          onChange={(e) => setEditingTitleValue(e.target.value)}
+                          onPressEnter={saveTitle}
+                          onKeyDown={(e) => e.key === 'Escape' && cancelEditTitle(e)}
+                          autoFocus
+                          style={{ 
+                            flex: 1,
+                            background: 'var(--bg-secondary)',
+                            borderColor: 'var(--color-brand)',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<CheckCircle size={12} />}
+                          onClick={saveTitle}
+                          style={{ height: 24, width: 24, padding: 0 }}
+                        />
+                        <Button
+                          type="text"
+                          size="small"
+                          onClick={cancelEditTitle}
+                          style={{ height: 24, width: 24, padding: 0, color: 'var(--text-secondary)' }}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 flex-1 pr-2 group">
+                        <div className="font-medium text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
+                          {item.title}
+                        </div>
+                        <Tooltip title="编辑名称">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<Edit size={12} />}
+                            onClick={(e) => startEditTitle(e, item)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ height: 24, width: 24, padding: 0, color: 'var(--text-secondary)' }}
+                          />
+                        </Tooltip>
+                      </div>
+                    )}
                     <Popconfirm
                       title={<span style={{ color: 'var(--text-primary)' }}>确定删除？</span>}
                       onConfirm={(e) => { e?.stopPropagation(); deleteHistory(item.id); }}

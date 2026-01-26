@@ -119,4 +119,8 @@ export const aiApi = {
   // 删除分析记录
   deleteAnalysis: (id) => 
     apiRequest(`/ai/history/${id}`, { method: 'DELETE' }),
+  
+  // 更新分析记录标题
+  updateAnalysisTitle: (id, title) => 
+    apiRequest(`/ai/history/${id}`, { method: 'PATCH', body: { title } }),
 };

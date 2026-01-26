@@ -521,7 +521,7 @@ const Admin = () => {
           locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: 'var(--text-tertiary)' }}>暂无用户数据</span>} /> }}
         />
       </div>
-    </div>
+          </div>
   );
 
   // 渲染订阅管理内容

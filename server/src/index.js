@@ -1076,6 +1076,33 @@ app.get('/ai/history/:id', authRequired, async (req, res) => {
   }
 });
 
+// 更新 AI 分析记录标题
+app.patch('/ai/history/:id', authRequired, async (req, res) => {
+  try {
+    const { title } = req.body;
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ success: false, message: '标题不能为空' });
+    }
+    
+    const analysis = await prisma.aIAnalysis.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!analysis || analysis.userId !== req.user.id) {
+      return res.status(404).json({ success: false, message: '分析记录不存在' });
+    }
+    
+    const updated = await prisma.aIAnalysis.update({
+      where: { id: req.params.id },
+      data: { title: title.trim() },
+    });
+    
+    return res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('更新分析记录失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // 删除 AI 分析记录
 app.delete('/ai/history/:id', authRequired, async (req, res) => {
   try {
