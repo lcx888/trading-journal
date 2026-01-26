@@ -341,6 +341,11 @@ const Pricing = () => {
                   <div style={styles.priceSection}>
                     <span style={styles.price}>${monthlyPrice}</span>
                     <span style={styles.period}>/月</span>
+                    {billingCycle === 'yearly' && price > 0 && (
+                      <div style={{ fontSize: '13px', color: THEME.textMuted, marginTop: '8px' }}>
+                        年付总价 ${price}
+                      </div>
+                    )}
                   </div>
 
                   <ul style={styles.featureList}>
