@@ -25,7 +25,8 @@ import StorageService from '../services/storage';
 import { isUSDaylightSavingTime, isEUDaylightSavingTime, formatCSTTime } from '../utils/timezone';
 import { fixHoldingTimes } from '../utils/debugHoldingTime';
 import { changePassword, changeEmail, deleteAccount, resendVerification, getMe } from '../services/auth';
-import { CrownOutlined, RocketOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { CrownOutlined, RocketOutlined, CheckCircleOutlined, ThunderboltOutlined, GiftOutlined } from '@ant-design/icons';
+import { redeemCode, clearSubscriptionCache } from '../services/subscription';
 
 const { TextArea } = Input;
 
@@ -47,6 +48,11 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const [passwordForm] = Form.useForm();
   const [emailForm] = Form.useForm();
   const [deleteForm] = Form.useForm();
+
+  // 兑换码状态
+  const [redeemModalVisible, setRedeemModalVisible] = useState(false);
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -132,6 +138,25 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
       message.error(e.message || '注销失败');
     } finally {
       setSecurityLoading(false);
+    }
+  };
+
+  // 兑换码兑换
+  const handleRedeemCode = async () => {
+    try {
+      const values = await redeemForm.validateFields();
+      setRedeemLoading(true);
+      const result = await redeemCode(values.code);
+      message.success(result.message || '兑换成功！');
+      setRedeemModalVisible(false);
+      redeemForm.resetFields();
+      // 清除缓存并刷新页面以更新订阅状态
+      clearSubscriptionCache();
+      window.location.reload();
+    } catch (e) {
+      message.error(e.response?.data?.message || e.message || '兑换失败');
+    } finally {
+      setRedeemLoading(false);
     }
   };
 
@@ -679,39 +704,54 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                   </div>
                   
                   {/* 操作按钮 */}
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    {isFreePlan ? (
-                      <Button
-                        type="primary"
-                        icon={<RocketOutlined />}
-                        onClick={onUpgrade}
-                        style={{
-                          flex: 1,
-                          background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-                          border: 'none',
-                          height: 40,
-                          fontWeight: 600,
-                        }}
-                      >
-                        升级到 Pro · $19/月
-                      </Button>
-                    ) : (
-                      <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      {isFreePlan ? (
                         <Button
+                          type="primary"
+                          icon={<RocketOutlined />}
                           onClick={onUpgrade}
-                          style={{ flex: 1, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                          style={{
+                            flex: 1,
+                            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                            border: 'none',
+                            height: 40,
+                            fontWeight: 600,
+                          }}
                         >
-                          管理订阅
+                          升级到 Pro · $49/月
                         </Button>
-                        <Button
-                          icon={<ThunderboltOutlined />}
-                          onClick={onUpgrade}
-                          style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
-                        >
-                          升级
-                        </Button>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <Button
+                            onClick={onUpgrade}
+                            style={{ flex: 1, borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                          >
+                            管理订阅
+                          </Button>
+                          <Button
+                            icon={<ThunderboltOutlined />}
+                            onClick={onUpgrade}
+                            style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+                          >
+                            升级
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {/* 兑换码入口 */}
+                    <Button
+                      icon={<GiftOutlined />}
+                      onClick={() => setRedeemModalVisible(true)}
+                      style={{ 
+                        width: '100%',
+                        borderColor: 'var(--border-primary)', 
+                        color: 'var(--text-secondary)',
+                        background: 'var(--bg-tertiary)',
+                      }}
+                    >
+                      使用兑换码
+                    </Button>
                   </div>
                 </>
               );
@@ -1155,6 +1195,77 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
           >
             <Input placeholder='请输入"确认注销"' />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 兑换码弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.2), rgba(180, 83, 9, 0.1))', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <GiftOutlined style={{ color: '#d97706', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>使用兑换码</span>
+          </div>
+        }
+        open={redeemModalVisible}
+        onOk={handleRedeemCode}
+        onCancel={() => { setRedeemModalVisible(false); redeemForm.resetFields(); }}
+        okText="兑换"
+        cancelText="取消"
+        confirmLoading={redeemLoading}
+        destroyOnClose
+        okButtonProps={{
+          style: {
+            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+            border: 'none',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
+      >
+        <Form form={redeemForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="code"
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>兑换码</span>}
+            rules={[{ required: true, message: '请输入兑换码' }]}
+          >
+            <Input 
+              prefix={<GiftOutlined style={{ color: 'var(--text-tertiary)' }} />} 
+              placeholder="请输入兑换码，例如：XXXX-XXXX-XXXX" 
+              style={{ 
+                fontFamily: 'var(--font-mono)', 
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+              }}
+              maxLength={20}
+            />
+          </Form.Item>
+          <div style={{ 
+            padding: 12, 
+            background: 'var(--bg-tertiary)', 
+            borderRadius: 6, 
+            border: '1px solid var(--border-primary)',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+          }}>
+            💡 兑换码将为您的账户添加相应的订阅时长。如果您已有订阅，将在现有时长基础上延长。
+          </div>
         </Form>
       </Modal>
     </div>

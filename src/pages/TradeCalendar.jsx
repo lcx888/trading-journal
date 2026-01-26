@@ -20,6 +20,7 @@ import {
   EditOutlined,
   SaveOutlined,
   CalendarOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -166,7 +167,7 @@ const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview
         <Button 
           size="small" 
           type="primary"
-          icon={<RobotOutlined />}
+          icon={<EditOutlined />}
           onClick={onQuickReview}
           style={{ 
             flex: 1, 
@@ -212,6 +213,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [savedReviews, setSavedReviews] = useState({});
+  const [instruments, setInstruments] = useState([]); // 品种配置
   
   // 视图模式: 'calendar' | 'review'
   const [viewMode, setViewMode] = useState('calendar');
@@ -227,10 +229,19 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     improvementPlan: '',
   });
   const [isSaving, setIsSaving] = useState(false);
+  
+  // 根据品种配置计算单笔交易手续费
+  const calculateTradeFee = (trade) => {
+    const instrument = instruments.find(i => i.code === trade.instrumentCode);
+    const feeRate = instrument?.feeRate || 0; // 每手手续费
+    const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+    return feeRate * quantity;
+  };
 
   useEffect(() => {
     loadTrades();
     loadSavedReviews();
+    loadInstruments();
   }, [activeRecordId]);
 
   const loadSavedReviews = async () => {
@@ -238,6 +249,11 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const map = {};
     reviews.forEach(r => map[r.date] = r);
     setSavedReviews(map);
+  };
+
+  const loadInstruments = async () => {
+    const instrumentsData = await StorageService.getInstruments();
+    setInstruments(instrumentsData || []);
   };
 
   const loadTrades = async () => {
@@ -350,8 +366,17 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
   // 进入复盘页面
   const enterReview = (date) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'enterReview called',data:{date,tradesByDateKeys:Object.keys(tradesByDate)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const dayTrades = tradesByDate[date]?.trades || [];
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'dayTrades extracted',data:{date,dayTradesLength:dayTrades.length,hasTrades:!!tradesByDate[date]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     const stats = analyzeTradeData(dayTrades);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'stats computed',data:{stats,statsIsNull:stats===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     setReviewStats(stats);
     setSelectedDate(date);
     
@@ -371,6 +396,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     }
     
     setViewMode('review');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'viewMode set to review',data:{date,viewModeSetTo:'review'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   };
   
   // 返回日历
@@ -485,19 +513,40 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           onClick={() => data && enterReview(key)}
           className="calendar-cell-inner"
         >
-          {/* 复盘状态 - 呼吸灯效果 */}
-          {data && !isReviewed && (
-            <div style={{
-              position: 'absolute',
-              top: 6,
-              right: 6,
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: 'var(--color-brand)',
-              boxShadow: '0 0 8px var(--color-brand)',
-              animation: 'pulse 2s infinite'
-            }} />
+          {/* 复盘状态 - 呼吸灯效果或已复盘图标 */}
+          {data && (
+            isReviewed ? (
+              <div style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                color: 'var(--color-profit)',
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '50%',
+                width: 16,
+                height: 16,
+                zIndex: 2
+              }}>
+                <CheckCircleOutlined />
+              </div>
+            ) : (
+              <div style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: 'var(--color-brand)',
+                boxShadow: '0 0 8px var(--color-brand)',
+                animation: 'pulse 2s infinite',
+                zIndex: 2
+              }} />
+            )
           )}
 
           {/* 盈亏金额 */}
@@ -544,264 +593,458 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   }
 
   // ==================== 复盘页面视图 ====================
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:render',message:'checking review condition',data:{viewMode,selectedDate,reviewStatsExists:!!reviewStats,conditionMet:viewMode==='review'&&!!selectedDate&&!!reviewStats},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BCD'})}).catch(()=>{});
+  // #endregion
   if (viewMode === 'review' && selectedDate && reviewStats) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:reviewView',message:'rendering review view',data:{selectedDate,reviewStats},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SUCCESS'})}).catch(()=>{});
+    // #endregion
     const dayData = tradesByDate[selectedDate];
     const isProfit = reviewStats.totalPnL >= 0;
     
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 24,
+        animation: 'fadeIn 0.4s ease-out',
+        maxWidth: 1400,
+        margin: '0 auto',
+        width: '100%'
+      }}>
         {/* 顶部导航 */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          padding: '12px 0',
+          padding: '8px 0',
           borderBottom: '1px solid var(--border-primary)'
         }}>
           <Button 
             icon={<LeftOutlined />} 
             onClick={backToCalendar}
             style={{ 
-              background: 'transparent', 
-              border: 'none', 
+              background: 'rgba(255,255,255,0.03)', 
+              border: '1px solid var(--border-primary)', 
               color: 'var(--text-secondary)',
-              padding: '4px 8px'
+              borderRadius: 8,
+              fontSize: 12
             }}
           >
             返回日历
           </Button>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-            {dayjs(selectedDate).format('YYYY年M月D日')} 交易复盘
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            gap: 2
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
+              {dayjs(selectedDate).format('YYYY年M月D日')}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Daily Trade Performance Review
+            </div>
           </div>
-          <div style={{ width: 80 }} />
+          <div style={{ width: 88 }} />
         </div>
 
-        {/* 两栏布局：左侧交易数据 + 右侧复盘表单 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24 }}>
-          {/* 左侧：交易数据 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 当日摘要 */}
+        {/* 三栏布局：统计摘要 + 交易列表 + 复盘表单 */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '280px 380px 1fr', 
+          gap: 24, 
+          alignItems: 'stretch', // 确保三栏高度一致
+          minHeight: 'calc(100vh - 220px)' 
+        }}>
+          
+          {/* 第一栏：核心指标卡片 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* 盈亏大卡片 */}
             <div style={{ 
-              background: 'var(--bg-secondary)', 
-              border: '1px solid var(--border-primary)', 
-              borderRadius: 8, 
-              padding: 16 
+              background: isProfit 
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)' 
+                : 'linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(244, 63, 94, 0.02) 100%)',
+              border: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
+              borderRadius: 16,
+              padding: 24,
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8 }}>当日盈亏</div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600 }}>当日净盈亏</div>
               <div style={{ 
-                fontSize: 28, 
-                fontWeight: 700, 
+                fontSize: 32, 
+                fontWeight: 800, 
                 fontFamily: 'var(--font-mono)',
                 color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
-                marginBottom: 12
+                letterSpacing: '-1px'
               }}>
-                {isProfit ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toFixed(2)}
+                {isProfit ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              
+              <div style={{ 
+                marginTop: 24, 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: 16,
+                borderTop: '1px solid rgba(255,255,255,0.05)',
+                paddingTop: 16
+              }}>
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>交易</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{reviewStats.totalTrades}笔</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>交易总数</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{reviewStats.totalTrades}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜率</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{reviewStats.winRate.toFixed(0)}%</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>胜/负</div>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>
-                    <span style={{ color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
-                    <span style={{ color: 'var(--text-tertiary)' }}>/</span>
-                    <span style={{ color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>当日胜率</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-brand)' }}>
+                    {reviewStats.winRate.toFixed(0)}%
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 交易列表 */}
+            {/* 交易分布卡片 */}
             <div style={{ 
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
-              borderRadius: 8,
-              overflow: 'hidden'
+              borderRadius: 16, 
+              padding: 20,
+              flex: 1 // 撑满剩余空间
             }}>
-              <div style={{ 
-                fontSize: 11, 
-                fontWeight: 600, 
-                color: 'var(--text-tertiary)', 
-                padding: '10px 12px',
-                borderBottom: '1px solid var(--border-primary)'
-              }}>
-                交易明细
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>交易结果分布</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>盈利交易</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
+                </div>
+                <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${(reviewStats.winCount / reviewStats.totalTrades) * 100}%`, 
+                    height: '100%', 
+                    background: 'var(--color-profit)' 
+                  }} />
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>亏损交易</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                </div>
+                <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${(reviewStats.lossCount / reviewStats.totalTrades) * 100}%`, 
+                    height: '100%', 
+                    background: 'var(--color-loss)' 
+                  }} />
+                </div>
               </div>
-              <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                {dayData?.trades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime)).map((trade, i) => (
+            </div>
+          </div>
+
+          {/* 第二栏：交易明细列表 */}
+          <div style={{ 
+            background: 'var(--bg-secondary)', 
+            border: '1px solid var(--border-primary)', 
+            borderRadius: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%', // 撑满容器高度
+            overflow: 'hidden'
+          }}>
+            <div style={{ 
+              padding: '16px 20px', 
+              borderBottom: '1px solid var(--border-primary)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>交易明细</div>
+              <Tag style={{ margin: 0, borderRadius: 4, fontSize: 10, background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-tertiary)' }}>
+                {dayData?.trades.length} 笔记录
+              </Tag>
+            </div>
+            
+            {/* 手续费汇总 - 根据品种配置自动计算 */}
+            {(() => {
+              const totalFee = dayData?.trades.reduce((sum, t) => sum + calculateTradeFee(t), 0) || 0;
+              const grossPnL = reviewStats.totalPnL + totalFee; // 毛盈亏 = 净盈亏 + 手续费
+              const feeRatio = grossPnL !== 0 ? Math.abs(totalFee / grossPnL * 100) : 0;
+              
+              return (
+                <div style={{ 
+                  padding: '12px 20px', 
+                  borderBottom: '1px solid var(--border-primary)',
+                  background: 'rgba(255,255,255,0.01)',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>总手续费 (自动)</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-loss)' }}>
+                      {totalFee > 0 ? `-$${totalFee.toFixed(2)}` : '$0.00'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>手续费占比</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: feeRatio > 30 ? 'var(--color-loss)' : 'var(--text-secondary)' }}>
+                      {totalFee > 0 ? `${feeRatio.toFixed(1)}%` : '-'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+              {dayData?.trades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime)).map((trade, i) => {
+                const fee = calculateTradeFee(trade);
+                const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+                
+                return (
                   <div 
                     key={i} 
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      borderBottom: '1px solid var(--border-primary)',
-                      borderLeft: `2px solid ${trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}`
+                      padding: '12px 20px',
+                      transition: 'all 0.2s',
+                      cursor: 'default',
+                      borderBottom: i === dayData.trades.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.02)'
                     }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {trade.instrumentCode}
-                        <span style={{ 
-                          fontSize: 10, 
-                          marginLeft: 6, 
-                          color: trade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' 
-                        }}>
-                          {trade.direction === 'LONG' ? '多' : '空'}
-                        </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 8, 
+                        background: trade.pnl >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                      }}>
+                        {trade.direction === 'LONG' ? 'BUY' : 'SEL'}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                        {dayjs(trade.openTime).format('HH:mm:ss')}
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {trade.instrumentCode}
+                          {quantity > 1 && (
+                            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 4 }}>
+                              ×{quantity}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                          {dayjs(trade.openTime).format('HH:mm:ss')}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ 
-                      fontSize: 13, 
-                      fontWeight: 600, 
-                      fontFamily: 'var(--font-mono)',
-                      color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                    }}>
-                      {trade.pnl >= 0 ? '+' : '-'}${Math.abs(trade.pnl).toFixed(2)}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ 
+                        fontSize: 14, 
+                        fontWeight: 700, 
+                        fontFamily: 'var(--font-mono)',
+                        color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                      }}>
+                        {trade.pnl >= 0 ? '+' : '-'}${Math.abs(trade.pnl).toFixed(2)}
+                      </div>
+                      {fee > 0 && (
+                        <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                          费 ${fee.toFixed(2)}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* 右侧：复盘表单 */}
+          {/* 第三栏：复盘表单 */}
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
-            borderRadius: 8,
+            borderRadius: 16,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            height: '100%' // 撑满容器高度
           }}>
             <div style={{ 
-              padding: '12px 16px', 
+              padding: '16px 24px', 
               borderBottom: '1px solid var(--border-primary)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>复盘记录</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <EditOutlined style={{ color: 'var(--color-brand)' }} />
+                <div style={{ fontSize: 14, fontWeight: 700 }}>手动复盘</div>
+              </div>
               {savedReviews[selectedDate] && (
-                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                  已保存于 {dayjs(savedReviews[selectedDate].savedAt).format('MM-DD HH:mm')}
-                </span>
+                <Tag icon={<CheckCircleOutlined />} color="success" style={{ borderRadius: 4, fontSize: 10, margin: 0 }}>
+                  已保存
+                </Tag>
               )}
             </div>
             
-            <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
-              {/* 市场环境 */}
+            <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+              {/* 计划执行状态 - 视觉优化 */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>市场环境</div>
-                <Input.TextArea
-                  placeholder="描述今日市场状况..."
-                  value={reviewForm.marketCondition}
-                  onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 3 }}
-                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
-                />
-              </div>
-
-              {/* 计划执行 */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>是否按计划执行</div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>执行纪律</div>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(3, 1fr)', 
+                  gap: 12,
+                  background: 'rgba(255,255,255,0.02)',
+                  padding: 4,
+                  borderRadius: 10
+                }}>
                   {[
-                    { value: 'yes', label: '完全执行' },
-                    { value: 'partial', label: '部分执行' },
-                    { value: 'no', label: '偏离计划' }
+                    { value: 'yes', label: '完全执行', color: 'var(--color-profit)' },
+                    { value: 'partial', label: '部分执行', color: 'var(--color-brand)' },
+                    { value: 'no', label: '偏离计划', color: 'var(--color-loss)' }
                   ].map(opt => (
-                    <Button
+                    <div
                       key={opt.value}
-                      size="small"
                       onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
                       style={{
-                        borderRadius: 6,
+                        padding: '10px 0',
+                        textAlign: 'center',
+                        borderRadius: 8,
                         fontSize: 11,
-                        background: reviewForm.followedPlan === opt.value ? 'var(--text-primary)' : 'var(--bg-tertiary)',
-                        borderColor: reviewForm.followedPlan === opt.value ? 'var(--text-primary)' : 'var(--border-primary)',
-                        color: reviewForm.followedPlan === opt.value ? 'var(--bg-primary)' : 'var(--text-secondary)'
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        background: reviewForm.followedPlan === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        color: reviewForm.followedPlan === opt.value ? opt.color : 'var(--text-tertiary)',
+                        border: reviewForm.followedPlan === opt.value ? `1px solid ${opt.color}44` : '1px solid transparent'
                       }}
                     >
                       {opt.label}
-                    </Button>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* 最佳/最差决策 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>做对了什么</div>
+              {/* 市场与决策 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>市场环境</div>
                   <Input.TextArea
-                    placeholder="今日最佳决策..."
-                    value={reviewForm.bestDecision}
-                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
-                    autoSize={{ minRows: 2, maxRows: 3 }}
-                    style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                    placeholder="今日行情特征、波动率、关键位置..."
+                    value={reviewForm.marketCondition}
+                    onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
+                    autoSize={{ minRows: 4, maxRows: 8 }} // 增加最小行数
+                    style={{ 
+                      background: 'rgba(255,255,255,0.02)', 
+                      borderColor: 'var(--border-primary)', 
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 13
+                    }}
                   />
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>做错了什么</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>经验教训</div>
                   <Input.TextArea
-                    placeholder="今日最差决策..."
-                    value={reviewForm.worstDecision}
-                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
-                    autoSize={{ minRows: 2, maxRows: 3 }}
-                    style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                    placeholder="今日核心感悟、需要警惕的信号..."
+                    value={reviewForm.lessonsLearned}
+                    onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
+                    autoSize={{ minRows: 4, maxRows: 8 }} // 增加最小行数
+                    style={{ 
+                      background: 'rgba(255,255,255,0.02)', 
+                      borderColor: 'var(--border-primary)', 
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 13
+                    }}
                   />
                 </div>
               </div>
 
-              {/* 经验教训 */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>经验教训</div>
-                <Input.TextArea
-                  placeholder="从今天学到了什么..."
-                  value={reviewForm.lessonsLearned}
-                  onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 3 }}
-                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
-                />
+              {/* 决策分析 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-profit)', opacity: 0.8 }}>最佳决策 (Keep)</div>
+                  <Input.TextArea
+                    placeholder="哪些操作符合预期且值得坚持..."
+                    value={reviewForm.bestDecision}
+                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
+                    autoSize={{ minRows: 4, maxRows: 6 }} // 增加最小行数
+                    style={{ 
+                      background: 'rgba(16, 185, 129, 0.02)', 
+                      borderColor: 'rgba(16, 185, 129, 0.1)', 
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 13
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-loss)', opacity: 0.8 }}>最差决策 (Change)</div>
+                  <Input.TextArea
+                    placeholder="哪些操作属于失误或情绪化交易..."
+                    value={reviewForm.worstDecision}
+                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
+                    autoSize={{ minRows: 4, maxRows: 6 }} // 增加最小行数
+                    style={{ 
+                      background: 'rgba(244, 63, 94, 0.02)', 
+                      borderColor: 'rgba(244, 63, 94, 0.1)', 
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 13
+                    }}
+                  />
+                </div>
               </div>
 
               {/* 改进计划 */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6 }}>明日改进</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-brand)' }}>明日行动指南</div>
                 <Input.TextArea
-                  placeholder="明天要改进的行动..."
+                  placeholder="具体、可量化的改进措施..."
                   value={reviewForm.improvementPlan}
                   onChange={e => setReviewForm({...reviewForm, improvementPlan: e.target.value})}
-                  autoSize={{ minRows: 2, maxRows: 3 }}
-                  style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', borderRadius: 6 }}
+                  autoSize={{ minRows: 3, maxRows: 6 }} // 增加最小行数
+                  style={{ 
+                    background: 'rgba(212, 175, 55, 0.02)', 
+                    borderColor: 'rgba(212, 175, 55, 0.1)', 
+                    borderRadius: 12,
+                    padding: 12,
+                    fontSize: 13,
+                    fontWeight: 500
+                  }}
                 />
               </div>
             </div>
 
-            {/* 底部操作 */}
+            {/* 底部操作区 */}
             <div style={{ 
-              padding: '12px 16px', 
+              padding: '20px 24px', 
               borderTop: '1px solid var(--border-primary)',
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 10
+              gap: 12,
+              background: 'rgba(255,255,255,0.01)',
+              borderBottomLeftRadius: 16,
+              borderBottomRightRadius: 16
             }}>
               <Button 
                 onClick={backToCalendar}
                 style={{ 
-                  borderRadius: 6,
-                  background: 'var(--bg-tertiary)',
+                  borderRadius: 8,
+                  height: 38,
+                  padding: '0 20px',
+                  background: 'transparent',
                   borderColor: 'var(--border-primary)',
-                  color: 'var(--text-secondary)'
+                  color: 'var(--text-secondary)',
+                  fontSize: 13
                 }}
               >
                 取消
@@ -812,13 +1055,18 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                 loading={isSaving}
                 onClick={saveReview}
                 style={{ 
-                  borderRadius: 6,
-                  background: 'var(--text-primary)',
-                  borderColor: 'var(--text-primary)',
-                  color: 'var(--bg-primary)'
+                  borderRadius: 8,
+                  height: 38,
+                  padding: '0 24px',
+                  background: 'var(--color-brand)',
+                  borderColor: 'var(--color-brand)',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)'
                 }}
               >
-                保存
+                保存复盘
               </Button>
             </div>
           </div>

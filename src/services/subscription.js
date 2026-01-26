@@ -215,6 +215,21 @@ export function clearSubscriptionCache() {
   cacheTime = 0;
 }
 
+/**
+ * 使用兑换码兑换订阅
+ */
+export async function redeemCode(code) {
+  try {
+    const response = await authApi.post('/subscription/redeem', { code });
+    // 清除缓存
+    cachedSubscription = null;
+    return response.data;
+  } catch (error) {
+    console.error('兑换码兑换失败:', error);
+    throw error;
+  }
+}
+
 export default {
   getSubscriptionStatus,
   hasFeature,
@@ -225,5 +240,6 @@ export default {
   recordUsage,
   getPlanDisplayInfo,
   clearSubscriptionCache,
+  redeemCode,
   FEATURES,
 };

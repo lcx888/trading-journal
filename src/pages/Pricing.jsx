@@ -16,9 +16,10 @@ import {
   CreditCard,
   RefreshCw,
   Headphones,
-  ArrowRight
+  ArrowRight,
+  Gift
 } from 'lucide-react';
-import { getPlans, getSubscriptionStatus } from '../services/subscription';
+import { getPlans, getSubscriptionStatus, redeemCode, clearSubscriptionCache } from '../services/subscription';
 
 // 对比表格行组件
 const CompareRow = ({ feature, pain, free, pro, elite, isLast = false }) => {
@@ -216,6 +217,11 @@ const Pricing = () => {
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState('yearly');
+  
+  // 兑换码状态
+  const [redeemModalVisible, setRedeemModalVisible] = useState(false);
+  const [redeemCodeValue, setRedeemCodeValue] = useState('');
+  const [redeemLoading, setRedeemLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -297,6 +303,26 @@ const Pricing = () => {
     });
   };
 
+  const handleRedeem = async () => {
+    if (!redeemCodeValue.trim()) {
+      message.warning('请输入兑换码');
+      return;
+    }
+    setRedeemLoading(true);
+    try {
+      const result = await redeemCode(redeemCodeValue);
+      message.success(result.message || '兑换成功！');
+      setRedeemModalVisible(false);
+      setRedeemCodeValue('');
+      clearSubscriptionCache();
+      loadData(); // 重新加载数据以更新订阅状态
+    } catch (error) {
+      message.error(error.response?.data?.message || error.message || '兑换失败');
+    } finally {
+      setRedeemLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: THEME.bg }}>
@@ -312,10 +338,27 @@ const Pricing = () => {
       <div style={styles.page}>
         <div style={styles.container}>
           <header style={styles.header}>
-            <h1 style={styles.title}>订阅方案</h1>
-            <p style={styles.subtitle}>
-              选择适合您的专业交易工具集。所有付费方案均包含完整的 AI 诊断能力。
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h1 style={styles.title}>订阅方案</h1>
+                <p style={styles.subtitle}>
+                  选择适合您的专业交易工具集。所有付费方案均包含完整的 AI 诊断能力。
+                </p>
+              </div>
+              <Button 
+                icon={<Gift size={16} />} 
+                onClick={() => setRedeemModalVisible(true)}
+                style={{ 
+                  background: 'transparent', 
+                  borderColor: THEME.border, 
+                  color: THEME.textSecondary,
+                  fontSize: '13px',
+                  height: '36px'
+                }}
+              >
+                使用兑换码
+              </Button>
+            </div>
 
             <div style={styles.toggleWrapper}>
               <button 
@@ -568,6 +611,86 @@ const Pricing = () => {
             </a>
           </footer>
         </div>
+
+        {/* 兑换码弹窗 */}
+        <Modal
+          title={null}
+          footer={null}
+          open={redeemModalVisible}
+          onCancel={() => setRedeemModalVisible(false)}
+          centered
+          width={400}
+          styles={{
+            content: {
+              background: '#111',
+              border: '1px solid #222',
+              borderRadius: '8px',
+              padding: '24px',
+            }
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ 
+              width: '48px', 
+              height: '48px', 
+              background: '#1a1a1a', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <Gift size={24} color="#fff" />
+            </div>
+            <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>使用兑换码</h3>
+            <p style={{ color: '#666', fontSize: '13px' }}>输入您的兑换码以激活订阅时长</p>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <input 
+              type="text"
+              placeholder="XXXX-XXXX-XXXX"
+              value={redeemCodeValue}
+              onChange={(e) => setRedeemCodeValue(e.target.value.toUpperCase())}
+              style={{
+                width: '100%',
+                height: '44px',
+                background: '#000',
+                border: '1px solid #222',
+                borderRadius: '4px',
+                padding: '0 16px',
+                color: '#fff',
+                fontSize: '15px',
+                fontFamily: 'JetBrains Mono, monospace',
+                letterSpacing: '1px',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <Button 
+            type="primary" 
+            block 
+            loading={redeemLoading}
+            onClick={handleRedeem}
+            style={{
+              height: '44px',
+              background: '#fff',
+              color: '#000',
+              fontWeight: 600,
+              border: 'none',
+              borderRadius: '4px',
+              marginBottom: '12px'
+            }}
+          >
+            立即兑换
+          </Button>
+          
+          <p style={{ color: '#444', fontSize: '11px', textAlign: 'center', lineHeight: 1.5 }}>
+            兑换成功后，订阅时长将立即添加到您的账户。<br/>
+            如果您已有活跃订阅，将在现有时长基础上顺延。
+          </p>
+        </Modal>
       </div>
     </ConfigProvider>
   );

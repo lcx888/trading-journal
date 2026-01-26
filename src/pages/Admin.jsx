@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Table, Tag, Select, message, Button, Input, Space, Row, Col, Empty, Tabs, Modal, InputNumber, Popconfirm, Tooltip } from 'antd';
+import { Table, Tag, Select, message, Button, Input, Space, Row, Col, Empty, Tabs, Modal, InputNumber, Popconfirm, Tooltip, Form, DatePicker } from 'antd';
 import { 
   UserOutlined, 
   ReloadOutlined, 
@@ -16,6 +16,8 @@ import {
   DeleteOutlined,
   PlusOutlined,
   HistoryOutlined,
+  GiftOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import { apiRequest } from '../services/api';
 import dayjs from 'dayjs';
@@ -44,6 +46,12 @@ const Admin = () => {
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [editSubModal, setEditSubModal] = useState({ visible: false, subscription: null });
   const [addSubModal, setAddSubModal] = useState({ visible: false, userId: '' });
+
+  // 兑换码管理状态
+  const [redemptionCodes, setRedemptionCodes] = useState([]);
+  const [loadingCodes, setLoadingCodes] = useState(false);
+  const [generateCodeModal, setGenerateCodeModal] = useState(false);
+  const [generateForm] = Form.useForm();
 
   const loadUsers = async () => {
     setLoading(true);
@@ -75,6 +83,77 @@ const Admin = () => {
     }
   };
 
+  // 加载兑换码
+  const loadRedemptionCodes = async () => {
+    setLoadingCodes(true);
+    try {
+      const codes = await apiRequest('/admin/redemption-codes');
+      setRedemptionCodes(codes);
+    } catch (e) {
+      console.error('加载兑换码失败:', e);
+    } finally {
+      setLoadingCodes(false);
+    }
+  };
+
+  // 生成兑换码
+  const handleGenerateCodes = async () => {
+    try {
+      const values = await generateForm.validateFields();
+      const result = await apiRequest('/admin/redemption-codes/generate', {
+        method: 'POST',
+        body: {
+          planName: values.planName,
+          durationDays: values.durationDays,
+          count: values.count || 1,
+          maxUses: values.maxUses || 1,
+          expiresAt: values.expiresAt ? values.expiresAt.toISOString() : null,
+          note: values.note || null,
+        },
+      });
+      message.success(`成功生成 ${result.count} 个兑换码`);
+      setGenerateCodeModal(false);
+      generateForm.resetFields();
+      loadRedemptionCodes();
+    } catch (e) {
+      message.error(e.message || '生成兑换码失败');
+    }
+  };
+
+  // 删除兑换码
+  const handleDeleteCode = async (id) => {
+    try {
+      await apiRequest(`/admin/redemption-codes/${id}`, { method: 'DELETE' });
+      message.success('兑换码已删除');
+      loadRedemptionCodes();
+    } catch (e) {
+      message.error(e.message || '删除失败');
+    }
+  };
+
+  // 切换兑换码状态
+  const handleToggleCodeStatus = async (id, isActive) => {
+    try {
+      await apiRequest(`/admin/redemption-codes/${id}`, { 
+        method: 'PATCH', 
+        body: { isActive: !isActive } 
+      });
+      message.success(isActive ? '已禁用' : '已启用');
+      loadRedemptionCodes();
+    } catch (e) {
+      message.error(e.message || '更新失败');
+    }
+  };
+
+  // 复制兑换码到剪贴板
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      message.success('已复制到剪贴板');
+    }).catch(() => {
+      message.error('复制失败');
+    });
+  };
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -82,6 +161,12 @@ const Admin = () => {
   useEffect(() => {
     if (activeTab === 'subscriptions') {
       loadSubscriptions();
+    } else if (activeTab === 'redemption') {
+      loadRedemptionCodes();
+      // 也需要加载 plans 用于生成兑换码
+      if (plans.length === 0) {
+        apiRequest('/admin/plans').then(setPlans).catch(console.error);
+      }
     }
   }, [activeTab]);
 
@@ -694,6 +779,255 @@ const Admin = () => {
     );
   };
 
+  // 渲染兑换码管理内容
+  const renderRedemptionTab = () => {
+    const codeStats = {
+      total: redemptionCodes.length,
+      active: redemptionCodes.filter(c => c.isActive && c.usedCount < c.maxUses).length,
+      used: redemptionCodes.reduce((sum, c) => sum + c.usedCount, 0),
+      expired: redemptionCodes.filter(c => !c.isActive || (c.expiresAt && new Date(c.expiresAt) < new Date())).length,
+    };
+
+    const codeColumns = [
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>兑换码</span>,
+        dataIndex: 'code',
+        key: 'code',
+        render: (code) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <code style={{ 
+              fontSize: 12, 
+              fontFamily: 'var(--font-mono)', 
+              fontWeight: 600, 
+              color: 'var(--color-brand)',
+              background: 'var(--color-brand-bg)',
+              padding: '4px 8px',
+              borderRadius: 4,
+              letterSpacing: '0.05em',
+            }}>
+              {code}
+            </code>
+            <Tooltip title="复制">
+              <Button 
+                type="text" 
+                size="small" 
+                icon={<CopyOutlined />}
+                onClick={() => copyToClipboard(code)}
+                style={{ color: 'var(--text-tertiary)' }}
+              />
+            </Tooltip>
+          </div>
+        ),
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>计划</span>,
+        dataIndex: 'planName',
+        key: 'planName',
+        width: 100,
+        render: (planName) => {
+          const colors = {
+            free: { bg: 'var(--bg-tertiary)', color: 'var(--text-secondary)' },
+            pro: { bg: 'var(--color-brand-bg)', color: 'var(--color-brand)' },
+            elite: { bg: 'rgba(124, 58, 237, 0.15)', color: '#a855f7' },
+          };
+          const style = colors[planName] || colors.pro;
+          const labels = { free: '免费版', pro: '专业版', elite: '精英版' };
+          return <Tag style={{ background: style.bg, color: style.color, border: 'none' }}>{labels[planName] || planName}</Tag>;
+        },
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>时长</span>,
+        dataIndex: 'durationDays',
+        key: 'durationDays',
+        width: 80,
+        render: (days) => <span style={{ color: 'var(--text-secondary)' }}>{days} 天</span>,
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>使用次数</span>,
+        key: 'usage',
+        width: 100,
+        render: (_, record) => (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+            <span style={{ color: record.usedCount >= record.maxUses ? 'var(--color-loss)' : 'var(--color-profit)' }}>{record.usedCount}</span>
+            <span style={{ color: 'var(--text-tertiary)' }}> / {record.maxUses}</span>
+          </span>
+        ),
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>状态</span>,
+        key: 'status',
+        width: 80,
+        render: (_, record) => {
+          const isExpired = record.expiresAt && new Date(record.expiresAt) < new Date();
+          const isUsedUp = record.usedCount >= record.maxUses;
+          const isActive = record.isActive && !isExpired && !isUsedUp;
+          
+          let status = { label: '有效', bg: 'var(--color-profit-bg)', color: 'var(--color-profit)' };
+          if (!record.isActive) {
+            status = { label: '已禁用', bg: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' };
+          } else if (isExpired) {
+            status = { label: '已过期', bg: 'var(--color-loss-bg)', color: 'var(--color-loss)' };
+          } else if (isUsedUp) {
+            status = { label: '已用完', bg: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' };
+          }
+          
+          return <Tag style={{ background: status.bg, color: status.color, border: 'none' }}>{status.label}</Tag>;
+        },
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>过期时间</span>,
+        dataIndex: 'expiresAt',
+        key: 'expiresAt',
+        width: 120,
+        render: (date) => (
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+            {date ? dayjs(date).format('YYYY-MM-DD') : '永不过期'}
+          </span>
+        ),
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>备注</span>,
+        dataIndex: 'note',
+        key: 'note',
+        ellipsis: true,
+        render: (note) => <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>{note || '-'}</span>,
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>创建时间</span>,
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        width: 120,
+        render: (date) => (
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+            {dayjs(date).format('YYYY-MM-DD HH:mm')}
+          </span>
+        ),
+      },
+      {
+        title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>操作</span>,
+        key: 'actions',
+        width: 120,
+        render: (_, record) => (
+          <Space size={4}>
+            <Tooltip title={record.isActive ? '禁用' : '启用'}>
+              <Button 
+                type="text" 
+                size="small" 
+                icon={record.isActive ? <StopOutlined /> : <CheckCircleOutlined />}
+                onClick={() => handleToggleCodeStatus(record.id, record.isActive)}
+                style={{ color: record.isActive ? 'var(--color-loss)' : 'var(--color-profit)' }}
+              />
+            </Tooltip>
+            <Popconfirm
+              title="确定删除此兑换码？"
+              onConfirm={() => handleDeleteCode(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Tooltip title="删除">
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<DeleteOutlined />}
+                  danger
+                />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* 兑换码统计 */}
+        <Row gutter={16}>
+          <Col xs={24} sm={12} md={6}>
+            <div style={statCardStyle}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--color-brand-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GiftOutlined style={{ fontSize: 22, color: 'var(--color-brand)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{codeStats.total}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>总兑换码</div>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={statCardStyle}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--color-profit-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircleOutlined style={{ fontSize: 22, color: 'var(--color-profit)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{codeStats.active}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>可用</div>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={statCardStyle}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--color-brand-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HistoryOutlined style={{ fontSize: 22, color: 'var(--color-brand)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{codeStats.used}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>已使用次数</div>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={statCardStyle}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <StopOutlined style={{ fontSize: 22, color: 'var(--text-tertiary)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{codeStats.expired}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>已失效</div>
+              </div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* 兑换码列表 */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--color-brand-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GiftOutlined style={{ color: 'var(--color-brand)', fontSize: 18 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 15 }}>兑换码管理</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>生成和管理订阅兑换码</div>
+              </div>
+            </div>
+            <Space size={12}>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={() => setGenerateCodeModal(true)}
+              >
+                生成兑换码
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={loadRedemptionCodes} loading={loadingCodes}>
+                刷新
+              </Button>
+            </Space>
+          </div>
+          <Table
+            rowKey="id"
+            columns={codeColumns}
+            dataSource={redemptionCodes}
+            loading={loadingCodes}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            className="binance-table"
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: 'var(--text-tertiary)' }}>暂无兑换码</span>} /> }}
+            scroll={{ x: 1000 }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Tabs
@@ -702,6 +1036,7 @@ const Admin = () => {
         items={[
           { key: 'users', label: <span><UserOutlined /> 用户管理</span>, children: renderUsersTab() },
           { key: 'subscriptions', label: <span><DollarOutlined /> 订阅管理</span>, children: renderSubscriptionsTab() },
+          { key: 'redemption', label: <span><GiftOutlined /> 兑换码</span>, children: renderRedemptionTab() },
         ]}
       />
 
@@ -797,6 +1132,121 @@ const Admin = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* 生成兑换码模态框 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <GiftOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>生成兑换码</span>
+          </div>
+        }
+        open={generateCodeModal}
+        onOk={handleGenerateCodes}
+        onCancel={() => { setGenerateCodeModal(false); generateForm.resetFields(); }}
+        okText="生成"
+        cancelText="取消"
+        destroyOnClose
+        width={480}
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
+      >
+        <Form form={generateForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="planName"
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>订阅计划</span>}
+                rules={[{ required: true, message: '请选择订阅计划' }]}
+              >
+                <Select
+                  placeholder="选择计划"
+                  options={plans.filter(p => p.name !== 'free').map(p => ({ value: p.name, label: p.displayName }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="durationDays"
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>订阅时长 (天)</span>}
+                rules={[{ required: true, message: '请输入订阅时长' }]}
+              >
+                <InputNumber min={1} max={3650} style={{ width: '100%' }} placeholder="例如：30" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="count"
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>生成数量</span>}
+                initialValue={1}
+              >
+                <InputNumber min={1} max={100} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="maxUses"
+                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>每码使用次数</span>}
+                initialValue={1}
+              >
+                <InputNumber min={1} max={10000} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            name="expiresAt"
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>过期时间 (可选)</span>}
+          >
+            <DatePicker 
+              style={{ width: '100%' }} 
+              placeholder="留空则永不过期"
+              showTime={false}
+            />
+          </Form.Item>
+          <Form.Item
+            name="note"
+            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>备注 (可选)</span>}
+          >
+            <Input placeholder="例如：活动赠送、测试用" />
+          </Form.Item>
+          <div style={{ 
+            padding: 12, 
+            background: 'var(--bg-tertiary)', 
+            borderRadius: 6, 
+            border: '1px solid var(--border-primary)',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+          }}>
+            💡 提示：生成的兑换码格式为 XXXX-XXXX-XXXX，用户可在设置页面进行兑换。
+          </div>
+        </Form>
       </Modal>
     </div>
   );

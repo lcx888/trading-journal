@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Table, Tag, Space, Select, DatePicker, Input, Button, 
-  Modal, Form, message, Popconfirm, Tooltip, Dropdown, Progress
+  Modal, Form, message, Popconfirm, Tooltip, Dropdown, Progress,
+  Switch, Radio, Drawer, Checkbox
 } from 'antd';
 import {
   SearchOutlined,
@@ -22,6 +23,10 @@ import {
   AlertOutlined,
   BulbOutlined,
   BarChartOutlined,
+  SettingOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  ColumnHeightOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
@@ -59,17 +64,30 @@ const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
   return ticks * tickValue * Math.abs(quantity || 1);
 };
 
+// 根据品种配置计算手续费
+const calculateTradeFee = (trade, instruments) => {
+  // 兼容多种品种代码字段名
+  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
+  const instrument = instruments.find(i => 
+    i.code === tradeCode || 
+    i.code?.toUpperCase() === tradeCode?.toUpperCase()
+  );
+  const feeRate = instrument?.feeRate || 0; // 每手手续费
+  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+  return feeRate * quantity;
+};
+
 // ========== 高级分析指标计算函数 ==========
 
 /**
- * 利润留存率 (Profit Retention Rate)
- * 公式：(MFE - max(0, PnL)) / MFE
- * 意义：反映止盈保护机制，值越高说明越容易"见证过暴利但最后平在亏损"
+ * 利润捕获率 (Profit Capture Rate)
+ * 公式：max(0, PnL) / MFE × 100%
+ * 意义：反映你能留住多少浮盈。100% = 完美止盈在最高点，0% = 浮盈全部回吐
+ * 越高越好
  */
-const calcProfitRetentionRate = (mfeUSD, pnl) => {
+const calcProfitCaptureRate = (mfeUSD, pnl) => {
   if (!mfeUSD || mfeUSD <= 0) return null;
-  const retainedProfit = mfeUSD - Math.max(0, pnl);
-  return (retainedProfit / mfeUSD) * 100;
+  return (Math.max(0, pnl) / mfeUSD) * 100;
 };
 
 /**
@@ -92,30 +110,34 @@ const calcRiskExposureIndex = (maeUSD, mfeUSD, pnl) => {
 };
 
 /**
- * 心理压力系数 (Psychological Stress Score)
- * 逻辑：根据 MAE 占 PnL 的比例以及持仓时长，计算交易者在持仓期间承受的心理压力等级
+ * 回撤压力指数 (Drawdown Stress Index)
+ * 逻辑：根据 MAE 的绝对金额以及持仓时长，计算交易者在持仓期间承受的压力等级
  * 评分标准：1-5级，5级最高压力
+ * 
+ * 改进点：
+ * - 使用 MAE 绝对值（而非与 PnL 的比例）避免 PnL 接近 0 时的异常
+ * - 设置 $50 作为最低基准，避免小单的比例失真
+ * - 综合考虑 MAE 金额和持仓时间
  */
-const calcPsychologicalStressScore = (maeUSD, pnl, holdingSeconds) => {
-  if (!maeUSD) return null;
+const calcDrawdownStressIndex = (maeUSD, pnl, holdingSeconds) => {
+  if (!maeUSD || maeUSD === 0) return null;
   const absMAE = Math.abs(maeUSD);
-  const absPnL = Math.abs(pnl) || 1;
   
-  // MAE占PnL的比例
-  const maeRatio = absMAE / absPnL;
-  
-  // 持仓时间因子（超过10分钟开始累加压力）
-  const timeFactor = holdingSeconds > 600 ? Math.min((holdingSeconds - 600) / 1800, 1) : 0;
-  
-  // 基础压力分（根据MAE比例）
+  // 使用 MAE 绝对金额评估压力（而不是与 PnL 的比例）
+  // $50 以下 = 1级，$100 = 2级，$200 = 3级，$400 = 4级，$800+ = 5级
   let baseScore = 1;
-  if (maeRatio > 3) baseScore = 5;
-  else if (maeRatio > 2) baseScore = 4;
-  else if (maeRatio > 1.5) baseScore = 3;
-  else if (maeRatio > 1) baseScore = 2;
+  if (absMAE >= 800) baseScore = 5;
+  else if (absMAE >= 400) baseScore = 4;
+  else if (absMAE >= 200) baseScore = 3;
+  else if (absMAE >= 100) baseScore = 2;
   
-  // 时间加成
-  const finalScore = Math.min(5, baseScore + timeFactor);
+  // 持仓时间因子（超过5分钟开始累加压力，最多+1）
+  const timeFactor = holdingSeconds > 300 ? Math.min((holdingSeconds - 300) / 1200, 1) : 0;
+  
+  // 如果最终亏损且 MAE 很大，额外加压
+  const lossBonus = (pnl < 0 && absMAE > Math.abs(pnl) * 1.5) ? 0.5 : 0;
+  
+  const finalScore = Math.min(5, baseScore + timeFactor + lossBonus);
   return finalScore;
 };
 
@@ -130,74 +152,144 @@ const calcExecutionComplexity = (fills, quantity) => {
 };
 
 /**
- * R倍数 (R-Multiple)
- * 逻辑：假设初始风险为 |MAE|，计算 PnL / |MAE|
+ * 风险回报比 (Risk-Reward Ratio based on MAE)
+ * 逻辑：PnL / |MAE|，使用实际最大回撤作为风险基准
+ * 注意：这是事后计算，基于实际 MAE 而非预设止损
+ * 正值表示盈利超过最大浮亏，负值表示亏损
  */
-const calcRMultiple = (pnl, maeUSD) => {
+const calcRiskRewardRatio = (pnl, maeUSD) => {
   if (!maeUSD || maeUSD === 0) return null;
   return pnl / Math.abs(maeUSD);
 };
 
 /**
- * 自动归因诊断
- * 返回诊断标签数组
+ * 自动归因诊断 - 精简版
+ * 每笔交易只返回1个最核心的标签
  */
 const getAutoDiagnosis = (trade, maeUSD, mfeUSD) => {
-  const diagnoses = [];
+  const { pnl } = trade;
+  const absMAE = Math.abs(maeUSD || 0);
+  const absMFE = Math.abs(mfeUSD || 0);
+  const absPnL = Math.abs(pnl || 0);
+  
+  // 盈利交易
+  if (pnl > 0) {
+    // 完美交易 - 入场好 + 止盈好
+    if (maeUSD && mfeUSD && absMAE < pnl * 0.3 && pnl >= absMFE * 0.7) {
+      return [{ type: 'perfect', label: '完美', color: 'var(--color-profit)' }];
+    }
+    // 扛单盈利 - 经历大回撤
+    if (maeUSD && absMAE > pnl) {
+      return [{ type: 'roller', label: '扛赢', color: 'var(--text-secondary)' }];
+    }
+    // 小赚就跑
+    if (mfeUSD && pnl < absMFE * 0.3 && absMFE > 50) {
+      return [{ type: 'earlyExit', label: '跑早', color: 'var(--text-secondary)' }];
+    }
+    return [];
+  }
+  
+  // 亏损交易
+  if (pnl < 0) {
+    // 入场即亏 - 方向错误
+    if (mfeUSD && absMFE < absPnL * 0.2) {
+      return [{ type: 'badEntry', label: '方向错', color: 'var(--color-loss)' }];
+    }
+    // 浮盈变亏 - 贪婪
+    if (mfeUSD && absMFE > absPnL * 0.5) {
+      return [{ type: 'greed', label: '浮盈亏', color: 'var(--color-loss)' }];
+    }
+    // 扛单割肉 - 割在低点
+    if (maeUSD && absPnL >= absMAE * 0.8 && absMAE > 100) {
+      return [{ type: 'badExit', label: '扛亏', color: 'var(--color-loss)' }];
+    }
+    // 果断止损 - 控制得好
+    if (maeUSD && absPnL >= absMAE * 0.9 && absMAE <= 150) {
+      return [{ type: 'goodStop', label: '止损好', color: 'var(--text-secondary)' }];
+    }
+    return [];
+  }
+  
+  return [];
+};
+
+/**
+ * 订单评级函数
+ * 基于多维度综合评分：A/B/C/D/F
+ * 
+ * 评分维度：
+ * 1. 盈亏结果 (+40分)
+ * 2. 风险控制 (+30分) - 基于MAE/PnL
+ * 3. 利润捕获 (+20分) - 基于PnL/MFE
+ * 4. 执行质量 (+10分) - 基于成交次数
+ */
+const getTradeRating = (trade, maeUSD, mfeUSD) => {
+  let score = 0;
   const { pnl, fills, openQuantity } = trade;
   const quantity = Math.abs(openQuantity || 1);
+  const absMAE = Math.abs(maeUSD || 0);
+  const absMFE = Math.abs(mfeUSD || 0);
+  const absPnL = Math.abs(pnl || 0);
   
-  // 1. 贪婪导致的获利回吐
-  if (pnl < 0 && mfeUSD && mfeUSD > Math.abs(pnl)) {
-    diagnoses.push({
-      type: 'greed',
-      label: '获利回吐',
-      color: '#f59e0b',
-      description: '曾经有盈利但最终亏损离场，可能是贪婪导致'
-    });
+  // 1. 盈亏结果 (0-40分)
+  if (pnl > 0) {
+    score += 40; // 盈利满分
+  } else if (pnl === 0) {
+    score += 20; // 平局
+  } else {
+    // 亏损根据幅度扣分
+    score += Math.max(0, 20 - (absPnL / 100) * 5);
   }
   
-  // 2. 割肉位置不佳
-  if (maeUSD && pnl < 0 && Math.abs(maeUSD) > Math.abs(pnl) * 1.5) {
-    diagnoses.push({
-      type: 'badExit',
-      label: '止损极点',
-      color: '#ef4444',
-      description: '扛单后止损在接近最低点，割肉位置不佳'
-    });
+  // 2. 风险控制 (0-30分) - MAE越小越好
+  if (maeUSD) {
+    if (pnl > 0) {
+      // 盈利时：MAE/PnL 越小越好
+      const riskRatio = absMAE / Math.max(pnl, 1);
+      if (riskRatio < 0.5) score += 30;
+      else if (riskRatio < 1) score += 25;
+      else if (riskRatio < 2) score += 15;
+      else score += 5;
+    } else {
+      // 亏损时：亏损/MAE 越小越好（说明没割在最低点）
+      const exitRatio = absPnL / Math.max(absMAE, 1);
+      if (exitRatio < 0.5) score += 25; // 反弹后跑
+      else if (exitRatio < 0.8) score += 15;
+      else score += 5; // 割在低点
+    }
+  } else {
+    score += 15; // 无数据给中间分
   }
   
-  // 3. 执行过程犹豫
-  if (fills && quantity && fills > quantity * 2) {
-    diagnoses.push({
-      type: 'hesitation',
-      label: '过度操作',
-      color: '#8b5cf6',
-      description: '成交次数远超仓位数量，存在频繁加减仓'
-    });
+  // 3. 利润捕获 (0-20分)
+  if (mfeUSD && pnl > 0) {
+    const captureRate = pnl / Math.max(absMFE, 1);
+    if (captureRate >= 0.8) score += 20;
+    else if (captureRate >= 0.5) score += 15;
+    else if (captureRate >= 0.3) score += 10;
+    else score += 5;
+  } else if (pnl <= 0) {
+    score += 5; // 亏损单基础分
+  } else {
+    score += 10;
   }
   
-  // 4. 完美离场
-  if (pnl > 0 && mfeUSD && pnl >= mfeUSD * 0.8) {
-    diagnoses.push({
-      type: 'perfect',
-      label: '完美止盈',
-      color: '#10b981',
-      description: '在接近最高点离场，执行优秀'
-    });
+  // 4. 执行质量 (0-10分)
+  if (fills && quantity) {
+    const fillRatio = fills / quantity;
+    if (fillRatio <= 1.5) score += 10; // 干净执行
+    else if (fillRatio <= 3) score += 7;
+    else score += 3; // 频繁操作
+  } else {
+    score += 7;
   }
   
-  // 5. 承压过重
-  if (maeUSD && pnl > 0 && Math.abs(maeUSD) > pnl * 2) {
-    diagnoses.push({
-      type: 'pressure',
-      label: '承压过重',
-      color: '#f97316',
-      description: '盈利前经历了过大的浮亏，心理压力大'
-    });
-  }
-  
-  return diagnoses;
+  // 转换为等级
+  if (score >= 85) return { grade: 'A', score, label: '优秀', color: 'var(--color-profit)' };
+  if (score >= 70) return { grade: 'B', score, label: '良好', color: 'var(--color-profit)' };
+  if (score >= 55) return { grade: 'C', score, label: '一般', color: 'var(--text-secondary)' };
+  if (score >= 40) return { grade: 'D', score, label: '较差', color: 'var(--color-loss)' };
+  return { grade: 'F', score, label: '很差', color: 'var(--color-loss)' };
 };
 
 // MAE/MFE 可视化条组件
@@ -312,6 +404,22 @@ const StressIndicator = ({ score }) => {
   );
 };
 
+// ========== 表格配置存储 ==========
+const TABLE_CONFIG_KEY = 'tradeListTableConfig';
+const getDefaultTableConfig = () => ({
+  hiddenColumns: [], // 隐藏的列key
+  rowHeight: 'middle', // compact | middle | large
+});
+const loadTableConfig = () => {
+  try {
+    const saved = localStorage.getItem(TABLE_CONFIG_KEY);
+    return saved ? { ...getDefaultTableConfig(), ...JSON.parse(saved) } : getDefaultTableConfig();
+  } catch { return getDefaultTableConfig(); }
+};
+const saveTableConfig = (config) => {
+  localStorage.setItem(TABLE_CONFIG_KEY, JSON.stringify(config));
+};
+
 const TradeList = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
@@ -329,10 +437,116 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     dateRange: null,
     keyword: '',
     source: 'ALL',
+    rating: 'ALL', // 新增评级筛选
   });
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [form] = Form.useForm();
+  
+  // ========== 表格配置状态 ==========
+  const [tableConfig, setTableConfig] = useState(loadTableConfig);
+  const [showTableSettings, setShowTableSettings] = useState(false);
+  const tableWrapperRef = useRef(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, scrollLeft: 0 });
+  
+  // 列配置定义（用于配置面板）
+  const columnDefs = [
+    { key: 'openTime', label: '时间' },
+    { key: 'instrumentCode', label: '品种' },
+    { key: 'direction', label: '方向' },
+    { key: 'quantity', label: '数量' },
+    { key: 'prices', label: '价格' },
+    { key: 'pnl', label: '盈亏' },
+    { key: 'fee', label: '手续费' },
+    { key: 'feeRatio', label: '费率' },
+    { key: 'marketSession', label: '时段' },
+    { key: 'duration', label: '时长' },
+    { key: 'mae', label: '最大回撤', jigsaw: true },
+    { key: 'mfe', label: '最大浮盈', jigsaw: true },
+    { key: 'fills', label: '成交', jigsaw: true },
+    { key: 'riskReward', label: '风险回报', jigsaw: true },
+    { key: 'profitCapture', label: '捕获率', jigsaw: true },
+    { key: 'stressScore', label: '压力', jigsaw: true },
+    { key: 'diagnosis', label: '诊断', jigsaw: true },
+    { key: 'tradeRange', label: '波动区间', jigsaw: true },
+    { key: 'rating', label: '评级', jigsaw: true },
+    { key: 'strategyTags', label: '策略' },
+  ];
+  
+  // 更新表格配置
+  const updateTableConfig = (updates) => {
+    const newConfig = { ...tableConfig, ...updates };
+    setTableConfig(newConfig);
+    saveTableConfig(newConfig);
+  };
+  
+  // 切换列显示/隐藏
+  const toggleColumn = (key) => {
+    const hidden = tableConfig.hiddenColumns.includes(key)
+      ? tableConfig.hiddenColumns.filter(k => k !== key)
+      : [...tableConfig.hiddenColumns, key];
+    updateTableConfig({ hiddenColumns: hidden });
+  };
+  
+  // 行高映射
+  const rowHeightMap = {
+    compact: { size: 'small', padding: '4px 12px' },
+    middle: { size: 'middle', padding: '8px 16px' },
+    large: { size: 'large', padding: '12px 20px' },
+  };
+  
+  // ========== 拖动滚动 ==========
+  useEffect(() => {
+    if (!tableWrapperRef.current) return;
+    
+    const wrapper = tableWrapperRef.current;
+    // 查找可滚动的表格容器
+    const findScrollContainer = () => {
+      return wrapper.querySelector('.ant-table-body') || 
+             wrapper.querySelector('.ant-table-content') ||
+             wrapper.querySelector('.ant-table');
+    };
+    
+    const handleMouseDown = (e) => {
+      const scrollContainer = findScrollContainer();
+      if (!scrollContainer) return;
+      // 忽略按钮、链接等交互元素的点击
+      if (e.target.closest('button, a, .ant-dropdown-trigger, .ant-btn')) return;
+      
+      isDragging.current = true;
+      dragStart.current = { x: e.clientX, scrollLeft: scrollContainer.scrollLeft };
+      wrapper.style.cursor = 'grabbing';
+      wrapper.style.userSelect = 'none';
+      e.preventDefault();
+    };
+    
+    const handleMouseMove = (e) => {
+      if (!isDragging.current) return;
+      const scrollContainer = findScrollContainer();
+      if (!scrollContainer) return;
+      const dx = e.clientX - dragStart.current.x;
+      scrollContainer.scrollLeft = dragStart.current.scrollLeft - dx;
+    };
+    
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        wrapper.style.cursor = '';
+        wrapper.style.userSelect = '';
+        isDragging.current = false;
+      }
+    };
+    
+    wrapper.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      wrapper.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [filteredTrades]); // 数据变化时重新绑定
 
   useEffect(() => { loadData(); }, [activeRecordId]);
   useEffect(() => { applyFilters(); }, [trades, filters]);
@@ -400,6 +614,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return tradeSource === filters.source;
       });
     }
+    // 评级筛选
+    if (filters.rating !== 'ALL') {
+      result = result.filter(t => {
+        const mae = t.mae ?? t.jigsawData?.mae;
+        const mfe = t.mfe ?? t.jigsawData?.mfe;
+        const maeUSD = mae !== undefined ? ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments) : null;
+        const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, t.instrumentCode, t.openQuantity, instruments) : null;
+        const rating = getTradeRating(t, maeUSD, mfeUSD);
+        return rating.grade === filters.rating;
+      });
+    }
     setFilteredTrades(result);
   };
 
@@ -460,6 +685,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         '开仓价': t.openPrice,
         '平仓价': t.closePrice,
         '盈亏': t.pnl,
+        '手续费': calculateTradeFee(t, instruments),
         '时段': t.marketSession,
         '持仓时长': formatHoldingTime(t.holdingSeconds),
         '数据来源': t.source === 'jigsaw' ? 'Jigsaw' : 'ATAS',
@@ -479,17 +705,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         baseData['成交次数'] = fills ?? '';
         
         // 高级分析指标
-        const rMultiple = calcRMultiple(t.pnl, maeUSD);
-        const profitRetention = calcProfitRetentionRate(mfeUSD, t.pnl);
+        const rMultiple = calcRiskRewardRatio(t.pnl, maeUSD);
+        const profitCapture = calcProfitCaptureRate(mfeUSD, t.pnl);
         const riskExposure = calcRiskExposureIndex(maeUSD, mfeUSD, t.pnl);
-        const stressScore = calcPsychologicalStressScore(maeUSD, t.pnl, t.holdingSeconds);
+        const stressScore = calcDrawdownStressIndex(maeUSD, t.pnl, t.holdingSeconds);
         const execComplexity = calcExecutionComplexity(fills, t.openQuantity);
         const diagnoses = getAutoDiagnosis(t, maeUSD, mfeUSD);
         
-        baseData['R倍数'] = rMultiple !== null ? rMultiple.toFixed(2) : '';
-        baseData['利润留存率(%)'] = profitRetention !== null ? profitRetention.toFixed(1) : '';
+        baseData['风险回报比'] = rMultiple !== null ? rMultiple.toFixed(2) : '';
+        baseData['利润捕获率(%)'] = profitCapture !== null ? profitCapture.toFixed(1) : '';
         baseData['风险占用比'] = riskExposure !== null ? riskExposure.toFixed(2) : '';
-        baseData['心理压力(1-5)'] = stressScore !== null ? stressScore.toFixed(1) : '';
+        baseData['回撤压力(1-5)'] = stressScore !== null ? stressScore.toFixed(1) : '';
         baseData['执行复杂度'] = execComplexity !== null ? execComplexity.toFixed(1) : '';
         baseData['自动诊断'] = diagnoses.map(d => d.label).join(', ');
       }
@@ -520,15 +746,38 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     filters.direction !== 'ALL' || 
     filters.result !== 'ALL' || 
     filters.source !== 'ALL' ||
+    filters.rating !== 'ALL' ||
     filters.dateRange !== null ||
     filters.keyword !== '';
 
   // 统计计算
+  const winTrades = filteredTrades.filter(t => t.pnl > 0);
+  const lossTrades = filteredTrades.filter(t => t.pnl < 0);
+  const totalFee = filteredTrades.reduce((sum, t) => sum + calculateTradeFee(t, instruments), 0);
+  const grossPnL = filteredTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  
+  // 盈利总额（用于计算手续费占比）
+  const grossProfit = winTrades.reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0));
+  
   const stats = {
     total: filteredTrades.length,
-    pnl: filteredTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
-    wins: filteredTrades.filter(t => t.pnl > 0).length,
-    losses: filteredTrades.filter(t => t.pnl < 0).length,
+    pnl: grossPnL,
+    netPnL: grossPnL - totalFee, // 扣除手续费后的真实净盈亏
+    totalFee,
+    grossProfit, // 盈利总额
+    grossLoss,   // 亏损总额
+    wins: winTrades.length,
+    losses: lossTrades.length,
+    // 平均盈利/亏损
+    avgWin: winTrades.length > 0 ? grossProfit / winTrades.length : 0,
+    avgLoss: lossTrades.length > 0 ? grossLoss / lossTrades.length : 0,
+    // 盈亏比 (Profit Factor)
+    profitFactor: grossLoss > 0 && grossProfit > 0
+      ? grossProfit / grossLoss
+      : 0,
+    // 期望值 (Expectancy per trade)
+    expectancy: filteredTrades.length > 0 ? grossPnL / filteredTrades.length : 0,
   };
   
   const jigsawStats = hasJigsawData ? (() => {
@@ -548,11 +797,14 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     // 计算高级统计指标
     let totalRMultiple = 0;
     let rMultipleCount = 0;
-    let totalProfitRetention = 0;
-    let profitRetentionCount = 0;
+    let totalProfitCapture = 0;
+    let profitCaptureCount = 0;
     let totalStressScore = 0;
     let stressScoreCount = 0;
-    let diagnosisCounts = { greed: 0, badExit: 0, hesitation: 0, perfect: 0, pressure: 0 };
+    let diagnosisCounts = { 
+      perfect: 0, roller: 0, earlyExit: 0,  // 盈利场景
+      badEntry: 0, greed: 0, badExit: 0, goodStop: 0 // 亏损场景
+    };
     
     filteredTrades.forEach(t => {
       const mae = t.mae ?? t.jigsawData?.mae;
@@ -561,21 +813,21 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, t.instrumentCode, t.openQuantity, instruments) : null;
       
       // R倍数统计
-      const rMultiple = calcRMultiple(t.pnl, maeUSD);
+      const rMultiple = calcRiskRewardRatio(t.pnl, maeUSD);
       if (rMultiple !== null) {
         totalRMultiple += rMultiple;
         rMultipleCount++;
       }
       
-      // 利润留存率统计
-      const profitRetention = calcProfitRetentionRate(mfeUSD, t.pnl);
-      if (profitRetention !== null) {
-        totalProfitRetention += profitRetention;
-        profitRetentionCount++;
+      // 利润捕获率统计
+      const profitCapture = calcProfitCaptureRate(mfeUSD, t.pnl);
+      if (profitCapture !== null) {
+        totalProfitCapture += profitCapture;
+        profitCaptureCount++;
       }
       
       // 心理压力统计
-      const stressScore = calcPsychologicalStressScore(maeUSD, t.pnl, t.holdingSeconds);
+      const stressScore = calcDrawdownStressIndex(maeUSD, t.pnl, t.holdingSeconds);
       if (stressScore !== null) {
         totalStressScore += stressScore;
         stressScoreCount++;
@@ -595,7 +847,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       avgMFE: tradesWithMFE.length > 0 ? (totalMFEUSD / tradesWithMFE.length) : 0,
       totalFills: filteredTrades.reduce((sum, t) => sum + (t.fills ?? t.jigsawData?.fills ?? 0), 0),
       avgRMultiple: rMultipleCount > 0 ? totalRMultiple / rMultipleCount : 0,
-      avgProfitRetention: profitRetentionCount > 0 ? totalProfitRetention / profitRetentionCount : 0,
+      avgProfitCapture: profitCaptureCount > 0 ? totalProfitCapture / profitCaptureCount : 0,
       avgStressScore: stressScoreCount > 0 ? totalStressScore / stressScoreCount : 0,
       diagnosisCounts,
     };
@@ -607,9 +859,9 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       title: '时间',
       dataIndex: 'openTime',
       key: 'openTime',
-      width: 150,
+      width: 180,
       render: (t) => (
-        <div>
+        <div style={{ padding: '4px 0' }}>
           <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
             {dayjs(t).format('MM-DD HH:mm:ss')}
           </div>
@@ -624,10 +876,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       title: '品种',
       dataIndex: 'instrumentCode',
       key: 'instrumentCode',
-      width: 100,
+      width: 120,
       render: (c) => (
         <span 
-          className="font-mono font-semibold text-sm px-2 py-1 rounded"
+          className="font-mono font-semibold text-sm px-3 py-1.5 rounded"
           style={{ 
             background: 'var(--bg-tertiary)', 
             color: 'var(--text-primary)' 
@@ -641,24 +893,23 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       title: '方向',
       dataIndex: 'direction',
       key: 'direction',
-      width: 80,
+      width: 60,
       render: (d) => (
-        <div 
-          className="flex items-center gap-1 font-semibold text-sm"
-          style={{ color: d === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' }}
+        <span 
+          className="font-mono text-xs font-semibold"
+          style={{ color: 'var(--text-secondary)' }}
         >
-          {d === 'LONG' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
           {d === 'LONG' ? '多' : '空'}
-        </div>
+        </span>
       ),
     },
     {
       title: '数量',
       key: 'quantity',
-      width: 70,
+      width: 90,
       align: 'right',
       render: (_, r) => (
-        <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <span className="font-mono font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
           {Math.abs(r.openQuantity || 0)}
         </span>
       ),
@@ -666,10 +917,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     {
       title: '价格',
       key: 'prices',
-      width: 140,
+      width: 160,
       align: 'right',
       render: (_, r) => (
-        <div className="font-mono">
+        <div className="font-mono" style={{ padding: '4px 0' }}>
           <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
             {r.openPrice?.toFixed(2)}
           </div>
@@ -683,7 +934,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       title: '盈亏',
       dataIndex: 'pnl',
       key: 'pnl',
-      width: 120,
+      width: 140,
       align: 'right',
       sorter: (a, b) => a.pnl - b.pnl,
       render: (p) => (
@@ -696,30 +947,58 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       ),
     },
     {
-      title: '时段',
-      dataIndex: 'marketSession',
-      key: 'marketSession',
-      width: 100,
-      render: (s) => {
-        const isImportant = s === '美盘开盘' || s === '欧美重叠';
+      title: '手续费',
+      key: 'fee',
+      width: 80,
+      align: 'right',
+      sorter: (a, b) => calculateTradeFee(a, instruments) - calculateTradeFee(b, instruments),
+      render: (_, r) => {
+        const fee = calculateTradeFee(r, instruments);
+        return (
+          <div className="font-mono text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {fee > 0 ? `$${fee.toFixed(2)}` : '-'}
+          </div>
+        );
+      },
+    },
+    {
+      title: '费率',
+      key: 'feeRatio',
+      width: 60,
+      align: 'right',
+      render: (_, r) => {
+        const fee = calculateTradeFee(r, instruments);
+        const absPnL = Math.abs(r.pnl || 0);
+        if (fee <= 0 || absPnL <= 0) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        const ratio = (fee / absPnL) * 100;
+        // 费率超过20%显示警告色
+        const isHigh = ratio > 20;
         return (
           <span 
-            className="text-xs px-2 py-0.5 rounded"
-            style={{ 
-              background: isImportant ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
-              color: isImportant ? 'var(--color-brand)' : 'var(--text-secondary)',
-            }}
+            className="font-mono text-xs" 
+            style={{ color: isHigh ? 'var(--color-loss)' : 'var(--text-tertiary)' }}
           >
-            {s}
+            {ratio.toFixed(0)}%
           </span>
         );
       },
     },
     {
+      title: '时段',
+      dataIndex: 'marketSession',
+      key: 'marketSession',
+      width: 100,
+      render: (s) => (
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          {s}
+        </span>
+      ),
+    },
+    {
       title: '时长',
       dataIndex: 'holdingSeconds',
       key: 'duration',
-      width: 80,
+      width: 100,
       align: 'right',
       render: (s) => (
         <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -727,13 +1006,9 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         </span>
       ),
     },
-    // Jigsaw 专属列
+    // Jigsaw 专属列 - 灰度风格
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="Maximum Adverse Excursion - 最大不利偏移">
-          <span style={{ color: 'var(--text-secondary)' }}>MAE</span>
-        </Tooltip>
-      ),
+      title: '最大回撤',
       key: 'mae',
       width: 90,
       align: 'right',
@@ -742,20 +1017,14 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
         return (
-          <Tooltip title={`${mae} ticks`}>
-            <span className="font-mono font-semibold" style={{ color: 'var(--color-loss)' }}>
-              -${maeUSD?.toFixed(0)}
-            </span>
-          </Tooltip>
+          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+            ${maeUSD?.toFixed(0)}
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="Maximum Favorable Excursion - 最大有利偏移">
-          <span style={{ color: 'var(--text-secondary)' }}>MFE</span>
-        </Tooltip>
-      ),
+      title: '最大浮盈',
       key: 'mfe',
       width: 90,
       align: 'right',
@@ -764,126 +1033,105 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (mfe === undefined || mfe === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
         return (
-          <Tooltip title={`${mfe} ticks`}>
-            <span className="font-mono font-semibold" style={{ color: 'var(--color-profit)' }}>
-              +${mfeUSD?.toFixed(0)}
-            </span>
-          </Tooltip>
+          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+            ${mfeUSD?.toFixed(0)}
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="成交次数">
-          <span style={{ color: 'var(--text-secondary)' }}>Fills</span>
-        </Tooltip>
-      ),
+      title: '成交',
       key: 'fills',
       width: 60,
       align: 'right',
       render: (_, r) => {
         const fills = r.fills ?? r.jigsawData?.fills;
         if (fills === undefined || fills === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        return <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{fills}</span>;
+        return <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>{fills}</span>;
       },
     }] : []),
     // ========== 高级分析指标列 ==========
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="R-Multiple: PnL / |MAE|，衡量风险回报">
-          <span style={{ color: 'var(--text-secondary)' }}>R倍数</span>
-        </Tooltip>
-      ),
-      key: 'rMultiple',
-      width: 70,
+      title: '风险回报',
+      key: 'riskReward',
+      width: 80,
       align: 'right',
       sorter: (a, b) => {
         const maeA = ticksToUSD(a.mae ?? a.jigsawData?.mae, a.instrumentCode, a.openQuantity, instruments);
         const maeB = ticksToUSD(b.mae ?? b.jigsawData?.mae, b.instrumentCode, b.openQuantity, instruments);
-        const rA = calcRMultiple(a.pnl, maeA) || 0;
-        const rB = calcRMultiple(b.pnl, maeB) || 0;
+        const rA = calcRiskRewardRatio(a.pnl, maeA) || 0;
+        const rB = calcRiskRewardRatio(b.pnl, maeB) || 0;
         return rA - rB;
       },
       render: (_, r) => {
         const mae = r.mae ?? r.jigsawData?.mae;
         if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
-        const rMultiple = calcRMultiple(r.pnl, maeUSD);
+        const rMultiple = calcRiskRewardRatio(r.pnl, maeUSD);
         if (rMultiple === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        // 大于1R显示绿色
+        const isGood = rMultiple >= 1;
         return (
-          <Tooltip title={`风险回报倍数: ${rMultiple.toFixed(2)}R`}>
-            <span 
-              className="font-mono font-semibold"
-              style={{ color: rMultiple >= 1 ? 'var(--color-profit)' : rMultiple >= 0 ? 'var(--color-brand)' : 'var(--color-loss)' }}
-            >
-              {rMultiple >= 0 ? '+' : ''}{rMultiple.toFixed(1)}R
-            </span>
-          </Tooltip>
+          <span 
+            className="font-mono text-sm font-semibold" 
+            style={{ color: isGood ? 'var(--color-profit)' : 'var(--text-secondary)' }}
+          >
+            {rMultiple.toFixed(1)}R
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="利润留存率: (MFE - max(0,PnL)) / MFE，值越高说明越容易获利回吐">
-          <span style={{ color: 'var(--text-secondary)' }}>留存率</span>
-        </Tooltip>
-      ),
-      key: 'profitRetention',
-      width: 80,
+      title: '捕获率',
+      key: 'profitCapture',
+      width: 70,
       align: 'right',
       sorter: (a, b) => {
         const mfeA = ticksToUSD(a.mfe ?? a.jigsawData?.mfe, a.instrumentCode, a.openQuantity, instruments);
         const mfeB = ticksToUSD(b.mfe ?? b.jigsawData?.mfe, b.instrumentCode, b.openQuantity, instruments);
-        const prA = calcProfitRetentionRate(mfeA, a.pnl) || 0;
-        const prB = calcProfitRetentionRate(mfeB, b.pnl) || 0;
+        const prA = calcProfitCaptureRate(mfeA, a.pnl) || 0;
+        const prB = calcProfitCaptureRate(mfeB, b.pnl) || 0;
         return prA - prB;
       },
       render: (_, r) => {
         const mfe = r.mfe ?? r.jigsawData?.mfe;
         if (mfe === undefined || mfe === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
-        const retention = calcProfitRetentionRate(mfeUSD, r.pnl);
-        if (retention === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        // 低留存率=好（保住了利润），高留存率=差（利润回吐）
-        const isGood = retention < 30;
-        const isBad = retention > 70;
+        const capture = calcProfitCaptureRate(mfeUSD, r.pnl);
+        if (capture === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        // 大于80%显示绿色
+        const isGood = capture >= 80;
         return (
-          <Tooltip title={`利润留存率: ${retention.toFixed(1)}%${isBad ? ' - 严重回吐' : isGood ? ' - 止盈优秀' : ''}`}>
-            <span 
-              className="font-mono font-semibold"
-              style={{ color: isGood ? 'var(--color-profit)' : isBad ? 'var(--color-loss)' : 'var(--color-brand)' }}
-            >
-              {retention.toFixed(0)}%
-            </span>
-          </Tooltip>
+          <span 
+            className="font-mono text-sm font-semibold" 
+            style={{ color: isGood ? 'var(--color-profit)' : 'var(--text-secondary)' }}
+          >
+            {capture.toFixed(0)}%
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="心理压力系数: 根据MAE占比和持仓时长计算">
-          <span style={{ color: 'var(--text-secondary)' }}>压力</span>
-        </Tooltip>
-      ),
+      title: '压力',
       key: 'stressScore',
-      width: 90,
-      align: 'center',
+      width: 60,
+      align: 'right',
       render: (_, r) => {
         const mae = r.mae ?? r.jigsawData?.mae;
         if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
-        const score = calcPsychologicalStressScore(maeUSD, r.pnl, r.holdingSeconds);
-        return <StressIndicator score={score} />;
+        const score = calcDrawdownStressIndex(maeUSD, r.pnl, r.holdingSeconds);
+        return (
+          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {score.toFixed(1)}
+          </span>
+        );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="自动归因诊断 - 基于交易数据自动识别问题">
-          <span style={{ color: 'var(--text-secondary)' }}>诊断</span>
-        </Tooltip>
-      ),
+      title: '诊断',
       key: 'diagnosis',
-      width: 140,
+      width: 100,
       render: (_, r) => {
         const mae = r.mae ?? r.jigsawData?.mae;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
@@ -894,36 +1142,16 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (diagnoses.length === 0) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         
         return (
-          <div className="flex flex-wrap gap-1">
-            {diagnoses.slice(0, 2).map((d, i) => (
-              <Tooltip key={i} title={d.description}>
-                <Tag 
-                  className="text-xs border-0 rounded m-0"
-                  style={{ background: d.color + '20', color: d.color }}
-                >
-                  {d.label}
-                </Tag>
-              </Tooltip>
-            ))}
-            {diagnoses.length > 2 && (
-              <Tooltip title={diagnoses.slice(2).map(d => d.label).join(', ')}>
-                <Tag className="text-xs border-0 rounded m-0" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>
-                  +{diagnoses.length - 2}
-                </Tag>
-              </Tooltip>
-            )}
-          </div>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {diagnoses.slice(0, 2).map(d => d.label).join(', ')}
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: (
-        <Tooltip title="交易波动区间可视化 - 左侧MAE，右侧MFE，标记离场点">
-          <span style={{ color: 'var(--text-secondary)' }}>波动区间</span>
-        </Tooltip>
-      ),
+      title: '波动区间',
       key: 'tradeRange',
-      width: 140,
+      width: 120,
       render: (_, r) => {
         const mae = r.mae ?? r.jigsawData?.mae;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
@@ -933,25 +1161,54 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return <TradeRangeBar mae={mae} mfe={mfe} pnl={r.pnl} maeUSD={maeUSD} mfeUSD={mfeUSD} />;
       },
     }] : []),
+    // 评级列
+    ...(hasJigsawData ? [{
+      title: '评级',
+      key: 'rating',
+      width: 60,
+      align: 'center',
+      sorter: (a, b) => {
+        const maeA = ticksToUSD(a.mae ?? a.jigsawData?.mae, a.instrumentCode, a.openQuantity, instruments);
+        const mfeA = ticksToUSD(a.mfe ?? a.jigsawData?.mfe, a.instrumentCode, a.openQuantity, instruments);
+        const maeB = ticksToUSD(b.mae ?? b.jigsawData?.mae, b.instrumentCode, b.openQuantity, instruments);
+        const mfeB = ticksToUSD(b.mfe ?? b.jigsawData?.mfe, b.instrumentCode, b.openQuantity, instruments);
+        return getTradeRating(a, maeA, mfeA).score - getTradeRating(b, maeB, mfeB).score;
+      },
+      render: (_, r) => {
+        const mae = r.mae ?? r.jigsawData?.mae;
+        const mfe = r.mfe ?? r.jigsawData?.mfe;
+        const maeUSD = mae !== undefined ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
+        const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
+        const rating = getTradeRating(r, maeUSD, mfeUSD);
+        return (
+          <span 
+            className="font-mono text-sm font-bold"
+            style={{ color: rating.color }}
+            title={`${rating.label} (${rating.score}分)`}
+          >
+            {rating.grade}
+          </span>
+        );
+      },
+    }] : []),
     {
-      title: '策略标签',
+      title: '策略',
       key: 'strategyTags',
-      width: 180,
+      width: 140,
       render: (_, r) => {
         const tradeStrategies = (r.strategyIds || []).map(id => getStrategyById(id)).filter(Boolean);
         const available = strategies.filter(s => !r.strategyIds?.includes(s.id));
         return (
           <div className="flex flex-wrap items-center gap-1">
             {tradeStrategies.map(s => (
-              <Tag 
+              <span 
                 key={s.id} 
-                color={s.color} 
-                closable 
-                onClose={() => handleRemoveStrategy(r.id, s.id)} 
-                className="rounded text-xs border-0 m-0"
+                className="text-xs px-2 py-0.5 rounded cursor-pointer"
+                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                onClick={() => handleRemoveStrategy(r.id, s.id)}
               >
                 {s.name}
-              </Tag>
+              </span>
             ))}
             {available.length > 0 && (
               <Dropdown 
@@ -964,12 +1221,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 }} 
                 trigger={['click']}
               >
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<PlusOutlined />} 
-                  style={{ color: 'var(--text-tertiary)', padding: '0 4px' }}
-                />
+                <span 
+                  className="text-xs cursor-pointer"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  +
+                </span>
               </Dropdown>
             )}
           </div>
@@ -1050,6 +1307,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           >
             导出
           </Button>
+          <Button 
+            icon={<SettingOutlined />} 
+            onClick={() => setShowTableSettings(true)}
+            style={{ 
+              background: 'var(--bg-tertiary)',
+              borderColor: 'var(--border-primary)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            设置
+          </Button>
         </div>
       </div>
 
@@ -1105,6 +1373,21 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 ]}
               />
             )}
+            {hasJigsawData && (
+              <Select
+                value={filters.rating}
+                onChange={v => setFilters({ ...filters, rating: v })}
+                style={{ width: 100 }}
+                options={[
+                  { value: 'ALL', label: '全部评级' },
+                  { value: 'A', label: 'A 优秀' },
+                  { value: 'B', label: 'B 良好' },
+                  { value: 'C', label: 'C 一般' },
+                  { value: 'D', label: 'D 较差' },
+                  { value: 'F', label: 'F 很差' },
+                ]}
+              />
+            )}
             <RangePicker
               value={filters.dateRange}
               onChange={v => setFilters({ ...filters, dateRange: v })}
@@ -1132,201 +1415,180 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         </div>
       )}
 
-      {/* 统计概览 */}
+      {/* 统计概览 - 极简灰度设计 */}
       <div 
-        className="p-4 rounded-lg space-y-4"
+        className="p-5 rounded-lg"
         style={{ 
           background: 'var(--bg-secondary)', 
           border: '1px solid var(--border-primary)',
         }}
       >
-        {/* 基础统计行 */}
+        {/* 核心指标 - 单行排列 */}
         <div 
-          className="grid gap-4"
-          style={{ gridTemplateColumns: hasJigsawData ? 'repeat(7, 1fr)' : 'repeat(4, 1fr)' }}
-      >
-        {/* 交易笔数 */}
-        <div className="text-center">
-          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>交易笔数</div>
-          <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
-            {stats.total}
+          className="flex items-baseline justify-between"
+          style={{ gap: 32 }}
+        >
+          {/* 净盈亏 - 最突出 */}
+          <div>
+            <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>净盈亏</div>
+            <div 
+              className="text-3xl font-mono font-bold"
+              style={{ color: stats.netPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+            >
+              {stats.netPnL >= 0 ? '+' : ''}{stats.netPnL.toFixed(2)}
+            </div>
+          </div>
+
+          {/* 其他指标 - 灰度处理 */}
+          <div className="flex items-baseline gap-8">
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>交易数</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {stats.total}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {stats.total > 0 ? (stats.wins / stats.total * 100).toFixed(0) : 0}%
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>胜/负</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {stats.wins}/{stats.losses}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>盈亏比</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {stats.profitFactor.toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均盈</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                ${stats.avgWin.toFixed(0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均亏</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                ${stats.avgLoss.toFixed(0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>手续费</div>
+              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+                ${stats.totalFee.toFixed(0)}
+              </div>
+            </div>
+            {hasJigsawData && jigsawStats && (
+              <>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MAE</div>
+                  <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    ${jigsawStats.avgMAE.toFixed(0)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MFE</div>
+                  <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    ${jigsawStats.avgMFE.toFixed(0)}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* 净盈亏 */}
-        <div className="text-center">
-          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>净盈亏</div>
+        {/* 高级分析指标行 - 仅 Jigsaw 数据时显示 */}
+        {hasJigsawData && jigsawStats && (
           <div 
-            className="text-2xl font-mono font-bold"
-            style={{ color: stats.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+            className="mt-3 p-4 rounded-lg"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
           >
-            {stats.pnl >= 0 ? '+' : ''}{stats.pnl.toFixed(2)}
-          </div>
-        </div>
-
-        {/* 胜率 */}
-        <div className="text-center">
-          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
-          <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
-            {stats.total > 0 ? (stats.wins / stats.total * 100).toFixed(1) : 0}%
-          </div>
-        </div>
-
-        {/* 盈亏比 */}
-        <div className="text-center">
-          <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>盈/亏</div>
-          <div className="text-xl font-mono font-bold">
-            <span style={{ color: 'var(--color-profit)' }}>{stats.wins}</span>
-            <span style={{ color: 'var(--text-tertiary)' }}> / </span>
-            <span style={{ color: 'var(--color-loss)' }}>{stats.losses}</span>
-          </div>
-        </div>
-
-        {/* Jigsaw 专属统计 */}
-        {hasJigsawData && jigsawStats && (
-          <>
-            <div className="text-center">
-              <Tooltip title="Maximum Adverse Excursion - 平均最大不利偏移">
-                <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                  平均 MAE <InfoCircleOutlined className="ml-1" />
-                </div>
-              </Tooltip>
-              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-loss)' }}>
-                -${jigsawStats.avgMAE.toFixed(0)}
-              </div>
-            </div>
-
-            <div className="text-center">
-              <Tooltip title="Maximum Favorable Excursion - 平均最大有利偏移">
-                <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                  平均 MFE <InfoCircleOutlined className="ml-1" />
-                </div>
-              </Tooltip>
-              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-profit)' }}>
-                +${jigsawStats.avgMFE.toFixed(0)}
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>总成交次数</div>
-              <div className="text-2xl font-mono font-bold" style={{ color: 'var(--color-brand)' }}>
-                {jigsawStats.totalFills}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* 高级分析指标行 */}
-        {hasJigsawData && jigsawStats && (
-          <>
-            <div className="border-t pt-4" style={{ borderColor: 'var(--border-primary)' }}>
               <div className="flex items-center gap-2 mb-3">
-                <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  高级分析指标
+                <span className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  高级分析
                 </span>
               </div>
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
-                {/* 平均R倍数 */}
-                <div className="text-center">
-                  <Tooltip title="R-Multiple: PnL / |MAE|，平均风险回报效率">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      平均R倍数 <InfoCircleOutlined className="ml-1" />
-                    </div>
-                  </Tooltip>
-                  <div 
-                    className="text-xl font-mono font-bold"
-                    style={{ 
-                      color: jigsawStats.avgRMultiple >= 1 ? 'var(--color-profit)' : 
-                             jigsawStats.avgRMultiple >= 0 ? 'var(--color-brand)' : 'var(--color-loss)' 
-                    }}
-                  >
-                    {jigsawStats.avgRMultiple >= 0 ? '+' : ''}{jigsawStats.avgRMultiple.toFixed(2)}R
+              <div className="flex items-baseline gap-8">
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>风险回报</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.avgRMultiple.toFixed(2)}R
                   </div>
                 </div>
-
-                {/* 平均利润留存率 */}
-                <div className="text-center">
-                  <Tooltip title="利润留存率: (MFE - max(0,PnL)) / MFE，越低越好">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      平均留存率 <InfoCircleOutlined className="ml-1" />
-                    </div>
-                  </Tooltip>
-                  <div 
-                    className="text-xl font-mono font-bold"
-                    style={{ 
-                      color: jigsawStats.avgProfitRetention < 30 ? 'var(--color-profit)' : 
-                             jigsawStats.avgProfitRetention > 70 ? 'var(--color-loss)' : 'var(--color-brand)' 
-                    }}
-                  >
-                    {jigsawStats.avgProfitRetention.toFixed(0)}%
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>捕获率</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.avgProfitCapture.toFixed(0)}%
                   </div>
                 </div>
-
-                {/* 平均心理压力 */}
-                <div className="text-center">
-                  <Tooltip title="心理压力系数: 根据MAE占比和持仓时长计算，1-5级">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      平均压力 <InfoCircleOutlined className="ml-1" />
-                    </div>
-                  </Tooltip>
-                  <div className="flex justify-center">
-                    <StressIndicator score={jigsawStats.avgStressScore} />
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>压力指数</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.avgStressScore.toFixed(1)}/5
                   </div>
                 </div>
-
-                {/* 获利回吐次数 */}
-                <div className="text-center">
-                  <Tooltip title="曾经盈利但最终亏损离场的交易次数">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      获利回吐 <WarningOutlined className="ml-1" style={{ color: '#f59e0b' }} />
-                    </div>
-                  </Tooltip>
-                  <div className="text-xl font-mono font-bold" style={{ color: '#f59e0b' }}>
-                    {jigsawStats.diagnosisCounts.greed}
-                  </div>
-                </div>
-
-                {/* 止损极点次数 */}
-                <div className="text-center">
-                  <Tooltip title="割肉位置接近最低点的交易次数">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      止损极点 <ExclamationCircleOutlined className="ml-1" style={{ color: 'var(--color-loss)' }} />
-                    </div>
-                  </Tooltip>
-                  <div className="text-xl font-mono font-bold" style={{ color: 'var(--color-loss)' }}>
-                    {jigsawStats.diagnosisCounts.badExit}
-                  </div>
-                </div>
-
-                {/* 完美止盈次数 */}
-                <div className="text-center">
-                  <Tooltip title="在接近最高点离场的优秀交易次数">
-                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                      完美止盈 <SafetyOutlined className="ml-1" style={{ color: 'var(--color-profit)' }} />
-                    </div>
-                  </Tooltip>
-                  <div className="text-xl font-mono font-bold" style={{ color: 'var(--color-profit)' }}>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-profit)' }}>完美</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.perfect}
                   </div>
                 </div>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>扛赢</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.diagnosisCounts.roller}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>方向错</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.diagnosisCounts.badEntry}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>浮盈亏</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.diagnosisCounts.greed}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>扛亏</div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    {jigsawStats.diagnosisCounts.badExit}
+                  </div>
+                </div>
+                <div style={{ marginLeft: 'auto', paddingLeft: 24, borderLeft: '1px solid var(--border-primary)' }}>
+                  <div className="text-[10px] tracking-wider mb-1" style={{ color: stats.grossProfit > 0 && (stats.totalFee / stats.grossProfit * 100) > 15 ? 'var(--color-loss)' : 'var(--text-tertiary)' }}>
+                    手续费占比
+                  </div>
+                  <div className="text-lg font-mono font-semibold" style={{ 
+                    color: stats.grossProfit > 0 && (stats.totalFee / stats.grossProfit * 100) > 15 ? 'var(--color-loss)' : 'var(--text-secondary)' 
+                  }}>
+                    {stats.grossProfit > 0 ? (stats.totalFee / stats.grossProfit * 100).toFixed(1) : 0}%
+                  </div>
+                </div>
               </div>
-            </div>
-          </>
+          </div>
         )}
-      </div>
 
       {/* 数据表格 */}
       <div 
-        className="rounded-lg overflow-hidden"
+        ref={tableWrapperRef}
+        className="rounded-lg overflow-hidden table-drag-scroll"
         style={{ 
           background: 'var(--bg-secondary)', 
-          border: '1px solid var(--border-primary)' 
+          border: '1px solid var(--border-primary)',
+          cursor: 'grab'
         }}
       >
         <Table
-          columns={columns}
+          columns={columns.filter(col => !tableConfig.hiddenColumns.includes(col.key))}
           dataSource={filteredTrades}
           rowKey="id"
           loading={loading}
@@ -1342,10 +1604,141 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             ),
           }}
           scroll={{ x: hasJigsawData ? 2000 : 1100 }}
-          size="middle"
-          className="binance-table"
+          size={rowHeightMap[tableConfig.rowHeight]?.size || 'middle'}
+          className={`binance-table row-height-${tableConfig.rowHeight}`}
         />
       </div>
+      
+      {/* 表格设置抽屉 */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SettingOutlined style={{ color: 'var(--color-brand)' }} />
+            <span>表格设置</span>
+          </div>
+        }
+        placement="right"
+        width={320}
+        open={showTableSettings}
+        onClose={() => setShowTableSettings(false)}
+        styles={{
+          header: { background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' },
+          body: { background: 'var(--bg-primary)', padding: 16 },
+        }}
+      >
+        {/* 行间距设置 */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ 
+            fontSize: 12, 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)', 
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <ColumnHeightOutlined />
+            行间距
+          </div>
+          <Radio.Group 
+            value={tableConfig.rowHeight} 
+            onChange={(e) => updateTableConfig({ rowHeight: e.target.value })}
+            buttonStyle="solid"
+            style={{ width: '100%' }}
+          >
+            <Radio.Button value="compact" style={{ width: '33.33%', textAlign: 'center' }}>紧凑</Radio.Button>
+            <Radio.Button value="middle" style={{ width: '33.33%', textAlign: 'center' }}>标准</Radio.Button>
+            <Radio.Button value="large" style={{ width: '33.34%', textAlign: 'center' }}>宽松</Radio.Button>
+          </Radio.Group>
+        </div>
+        
+        {/* 列显示设置 */}
+        <div>
+          <div style={{ 
+            fontSize: 12, 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)', 
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <EyeOutlined />
+              列显示
+            </span>
+            <Button 
+              type="link" 
+              size="small"
+              onClick={() => updateTableConfig({ hiddenColumns: [] })}
+              style={{ padding: 0, fontSize: 11 }}
+            >
+              重置
+            </Button>
+          </div>
+          <div style={{ 
+            background: 'var(--bg-secondary)', 
+            borderRadius: 8, 
+            padding: 12,
+            border: '1px solid var(--border-primary)'
+          }}>
+            {columnDefs
+              .filter(col => !col.jigsaw || hasJigsawData)
+              .map(col => (
+                <div 
+                  key={col.key}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    borderBottom: '1px solid var(--border-primary)'
+                  }}
+                >
+                  <span style={{ 
+                    fontSize: 12, 
+                    color: tableConfig.hiddenColumns.includes(col.key) 
+                      ? 'var(--text-tertiary)' 
+                      : 'var(--text-primary)' 
+                  }}>
+                    {col.label}
+                    {col.jigsaw && (
+                      <span style={{ 
+                        fontSize: 9, 
+                        marginLeft: 4, 
+                        color: 'var(--text-tertiary)',
+                        background: 'var(--bg-tertiary)',
+                        padding: '1px 4px',
+                        borderRadius: 2
+                      }}>
+                        Jigsaw
+                      </span>
+                    )}
+                  </span>
+                  <Switch
+                    size="small"
+                    checked={!tableConfig.hiddenColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                  />
+                </div>
+              ))
+            }
+          </div>
+        </div>
+        
+        {/* 提示 */}
+        <div style={{ 
+          marginTop: 24, 
+          padding: 12, 
+          background: 'rgba(212, 175, 55, 0.1)', 
+          borderRadius: 8,
+          border: '1px solid rgba(212, 175, 55, 0.2)'
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+            💡 提示：左右拖动表格可以水平滚动
+          </div>
+        </div>
+      </Drawer>
 
       {/* 编辑模态框 */}
       <Modal
@@ -1395,10 +1788,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           const maeUSD = mae !== undefined ? ticksToUSD(mae, editingTrade.instrumentCode, editingTrade.openQuantity, instruments) : null;
           const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, editingTrade.instrumentCode, editingTrade.openQuantity, instruments) : null;
           
-          const rMultiple = calcRMultiple(editingTrade.pnl, maeUSD);
-          const profitRetention = calcProfitRetentionRate(mfeUSD, editingTrade.pnl);
+          const rMultiple = calcRiskRewardRatio(editingTrade.pnl, maeUSD);
+          const profitCapture = calcProfitCaptureRate(mfeUSD, editingTrade.pnl);
           const riskExposure = calcRiskExposureIndex(maeUSD, mfeUSD, editingTrade.pnl);
-          const stressScore = calcPsychologicalStressScore(maeUSD, editingTrade.pnl, editingTrade.holdingSeconds);
+          const stressScore = calcDrawdownStressIndex(maeUSD, editingTrade.pnl, editingTrade.holdingSeconds);
           const execComplexity = calcExecutionComplexity(fills, editingTrade.openQuantity);
           const diagnoses = getAutoDiagnosis(editingTrade, maeUSD, mfeUSD);
           
@@ -1471,18 +1864,18 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                       </div>
                     </div>
                     
-                    {/* 利润留存率 */}
+                    {/* 利润捕获率 */}
                     <div className="p-3 rounded" style={{ background: 'var(--bg-primary)' }}>
-                      <Tooltip title="利润留存率: (MFE - max(0,PnL)) / MFE，值越低越好">
+                      <Tooltip title="利润捕获率: 实际盈利 / 最大浮盈，越高越好">
                         <div className="text-xs mb-1 flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-                          利润留存 <InfoCircleOutlined />
+                          利润捕获 <InfoCircleOutlined />
                         </div>
                       </Tooltip>
                       <div 
                         className="text-xl font-bold font-mono"
-                        style={{ color: profitRetention !== null ? (profitRetention < 30 ? 'var(--color-profit)' : profitRetention > 70 ? 'var(--color-loss)' : 'var(--color-brand)') : 'var(--text-tertiary)' }}
+                        style={{ color: profitCapture !== null ? (profitCapture >= 70 ? 'var(--color-profit)' : profitCapture < 30 ? 'var(--color-loss)' : 'var(--color-brand)') : 'var(--text-tertiary)' }}
                       >
-                        {profitRetention !== null ? `${profitRetention.toFixed(0)}%` : '-'}
+                        {profitCapture !== null ? `${profitCapture.toFixed(0)}%` : '-'}
                       </div>
                     </div>
                     
@@ -1618,17 +2011,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         .binance-table .ant-table-thead > tr > th {
           background: var(--bg-tertiary) !important;
           color: var(--text-secondary) !important;
-          font-weight: 500 !important;
-          font-size: 12px !important;
+          font-weight: 600 !important;
+          font-size: 11px !important;
           text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
+          letter-spacing: 0.8px !important;
           border-bottom: 1px solid var(--border-primary) !important;
-          padding: 12px 16px !important;
+          padding: 16px 20px !important;
         }
         .binance-table .ant-table-tbody > tr > td {
           background: var(--bg-secondary) !important;
           border-bottom: 1px solid var(--border-primary) !important;
-          padding: 12px 16px !important;
+          padding: 18px 20px !important;
           transition: background 0.15s ease !important;
         }
         .binance-table .ant-table-tbody > tr:hover > td {
@@ -1666,6 +2059,45 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         }
         .binance-table .ant-spin-dot-item {
           background-color: var(--color-brand) !important;
+        }
+        
+        /* 拖动滚动 */
+        .binance-table .ant-table-body {
+          cursor: grab;
+        }
+        .binance-table .ant-table-body:active {
+          cursor: grabbing;
+        }
+        
+        /* 行高 - 紧凑 */
+        .row-height-compact .ant-table-thead > tr > th {
+          padding: 8px 12px !important;
+          font-size: 10px !important;
+        }
+        .row-height-compact .ant-table-tbody > tr > td {
+          padding: 6px 12px !important;
+        }
+        .row-height-compact .ant-table-tbody > tr > td * {
+          font-size: 11px !important;
+        }
+        
+        /* 行高 - 标准 (默认) */
+        .row-height-middle .ant-table-thead > tr > th {
+          padding: 12px 16px !important;
+        }
+        .row-height-middle .ant-table-tbody > tr > td {
+          padding: 12px 16px !important;
+        }
+        
+        /* 行高 - 宽松 */
+        .row-height-large .ant-table-thead > tr > th {
+          padding: 18px 20px !important;
+        }
+        .row-height-large .ant-table-tbody > tr > td {
+          padding: 20px 20px !important;
+        }
+        .row-height-large .ant-table-tbody > tr > td * {
+          font-size: 14px !important;
         }
       `}</style>
     </div>
