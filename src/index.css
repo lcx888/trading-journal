@@ -227,6 +227,29 @@ body {
   border-color: var(--border-primary) !important;
 }
 
+/* 交易表格行样式 - 盈利/亏损区分 */
+.trade-row-profit > td {
+  background: rgba(16, 185, 129, 0.04) !important;
+  border-left: 2px solid transparent !important;
+}
+.trade-row-profit > td:first-child {
+  border-left: 2px solid var(--color-profit) !important;
+}
+.trade-row-profit:hover > td {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+.trade-row-loss > td {
+  background: rgba(244, 63, 94, 0.04) !important;
+  border-left: 2px solid transparent !important;
+}
+.trade-row-loss > td:first-child {
+  border-left: 2px solid var(--color-loss) !important;
+}
+.trade-row-loss:hover > td {
+  background: rgba(244, 63, 94, 0.08) !important;
+}
+
 /* ============================================
    侧边栏菜单
    ============================================ */
