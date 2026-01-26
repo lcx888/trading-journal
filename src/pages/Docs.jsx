@@ -425,64 +425,233 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<PlayCircleOutlined />} title="快速开始">
-              <DocItem title="1. 注册账号">
-                <p>访问 MetworthAI 官网，点击"免费开始"按钮进行注册。</p>
+              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
+                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么需要 MetworthAI？</p>
+                <p className="text-sm text-[#888] leading-relaxed">
+                  作为交易者，您是否遇到过这些问题：不知道自己为什么亏损？不知道哪个时段交易最赚钱？不知道止损应该设在哪里？
+                  MetworthAI 通过 AI 深度分析您的每笔交易，自动发现交易中的问题，给出科学的优化建议，帮您从"凭感觉交易"升级到"数据驱动交易"。
+                </p>
+              </div>
+
+              <DocItem title="1. 注册账号（30秒完成）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">为什么需要注册？</strong> 注册后，您的所有交易数据将安全存储在云端，无论在哪里登录都能查看。
+                  更重要的是，系统会记住您的分析历史，持续追踪您的进步轨迹。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
+                  <li>数据永不丢失，换设备也能访问</li>
+                  <li>自动保存分析报告，随时回顾</li>
+                  <li>多设备同步，随时随地复盘</li>
+                </ul>
                 <StepList steps={[
-                  '输入您的邮箱地址',
-                  '设置登录密码（建议使用强密码）',
-                  '点击"注册"完成账号创建',
-                  '登录后即可开始使用',
+                  '访问 MetworthAI 官网，点击右上角"免费开始"',
+                  '输入您的邮箱地址（用于登录和找回密码）',
+                  '设置一个强密码（建议包含大小写字母、数字）',
+                  '点击"注册"按钮，系统自动创建账号',
+                  '注册成功后自动登录，进入主界面',
                 ]} />
                 <Tip type="info">
-                  注册后建议完成邮箱验证，以便使用密码找回等功能。
+                  <strong>小贴士：</strong> 注册后建议立即验证邮箱，这样如果忘记密码可以快速找回。
+                  整个注册过程只需 30 秒，完全免费，无需信用卡。
                 </Tip>
               </DocItem>
 
-              <DocItem title="2. 创建账本">
-                <p>账本是管理交易数据的基本单位，您可以为不同账户或策略创建独立账本。</p>
+              <DocItem title="2. 创建账本（1分钟完成）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">什么是账本？为什么需要它？</strong> 
+                  账本就像文件夹，帮您把不同来源的交易数据分类管理。
+                  比如您有主账户和模拟账户，或者同时使用日内策略和波段策略，创建不同账本可以让您分别分析，互不干扰。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
+                  <li>清晰区分不同账户或策略的表现</li>
+                  <li>独立分析，避免数据混淆</li>
+                  <li>方便对比不同策略的优劣</li>
+                  <li>可以随时切换查看不同账本的数据</li>
+                </ul>
+                <p className="mb-2"><strong className="text-[#fff]">实际场景举例：</strong></p>
+                <div className="bg-[#0a0a0c] rounded-lg p-3 border border-[#1a1a1f] mb-4 text-xs">
+                  <p className="text-[#888] mb-2">场景 1：您有两个交易账户</p>
+                  <p className="text-[#666]">→ 创建"主账户"和"备用账户"两个账本，分别导入数据，可以清楚看到哪个账户表现更好</p>
+                  <p className="text-[#888] mt-3 mb-2">场景 2：您测试新策略</p>
+                  <p className="text-[#666]">→ 创建"新策略测试"账本，单独分析新策略的表现，不影响原有数据的统计</p>
+                </div>
                 <StepList steps={[
-                  '进入"数据" → "账本管理"',
-                  '点击"新建账本"按钮',
-                  '输入账本名称（如"主账户"、"日内策略"等）',
-                  '点击确认创建',
+                  '登录后，点击左侧菜单"数据" → "账本管理"',
+                  '点击页面右上角"新建账本"按钮',
+                  '输入账本名称（建议用有意义的名称，如"主账户-2024"、"日内策略"等）',
+                  '点击"确认"按钮，账本创建完成',
+                  '创建后可以立即开始导入数据，也可以稍后导入',
                 ]} />
                 <Tip type="success">
-                  您可以创建多个账本来区分不同的交易账户或策略，便于独立分析。
+                  <strong>专业建议：</strong> 建议为每个交易账户或策略创建独立账本。
+                  这样您可以清楚地看到"哪个账户更赚钱"、"哪个策略更稳定"，从而优化资金分配。
                 </Tip>
               </DocItem>
 
-              <DocItem title="3. 导入交易数据">
-                <p>从您的交易软件导出数据，然后导入到 MetworthAI 进行分析。</p>
-                <StepList steps={[
-                  '从 Jigsaw/ATAS 等软件导出 CSV 格式交易记录',
-                  '进入"数据" → "导入数据"',
-                  '选择目标账本',
-                  '选择数据来源类型',
-                  '上传 CSV 文件',
-                  '系统自动解析并导入',
-                ]} />
-              </DocItem>
-
-              <DocItem title="4. 查看分析报告">
-                <p>数据导入后，即可使用丰富的分析功能。</p>
-                <div className="grid md:grid-cols-2 gap-4 mt-4">
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">📊 总览</div>
-                    <p className="text-xs">查看整体交易表现、权益曲线、关键指标</p>
+              <DocItem title="3. 导入交易数据（2分钟完成）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">为什么需要导入数据？</strong> 
+                  MetworthAI 的强大之处在于它能分析您的真实交易数据。
+                  导入数据后，系统会自动计算各种指标，识别交易模式，发现您自己可能都没意识到的问题。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 带来的好处：</p>
+                <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
+                  <li>自动计算胜率、利润因子、期望值等关键指标</li>
+                  <li>识别您的"提款机时段"和"碎钞机时段"</li>
+                  <li>发现交易行为问题（如报复性交易、处置效应）</li>
+                  <li>给出科学的优化建议（如最优止损位、早出策略）</li>
+                  <li>预测未来交易的成功概率（蒙特卡洛模拟）</li>
+                </ul>
+                <p className="mb-2"><strong className="text-[#fff]">支持的数据来源：</strong></p>
+                <div className="grid md:grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-1 text-sm">✅ Jigsaw Daytradr</div>
+                    <p className="text-xs text-[#666]">自动解析 MAE、MFE、Fills 等高级字段，分析最全面</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">📋 交易明细</div>
-                    <p className="text-xs">查看每笔交易详情、筛选、导出</p>
+                  <div className="p-3 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-1 text-sm">✅ ATAS</div>
+                    <p className="text-xs text-[#666]">支持标准交易历史导出格式</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">🤖 AI 教练</div>
-                    <p className="text-xs">智能诊断、行为分析、优化建议</p>
+                  <div className="p-3 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-1 text-sm">✅ 通用 CSV</div>
+                    <p className="text-xs text-[#666]">任何交易软件导出的 CSV 都可以导入</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">📅 交易日历</div>
-                    <p className="text-xs">按日期查看交易记录和盈亏</p>
+                  <div className="p-3 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-1 text-sm">✅ 手动录入</div>
+                    <p className="text-xs text-[#666]">如果没有电子记录，也可以手动输入</p>
                   </div>
                 </div>
+                <StepList steps={[
+                  '从您的交易软件（Jigsaw/ATAS 等）导出 CSV 格式的交易记录',
+                  '登录 MetworthAI，进入"数据" → "导入数据"',
+                  '选择目标账本（刚才创建的账本）',
+                  '选择数据来源类型（Jigsaw/ATAS/通用CSV）',
+                  '点击上传区域或直接拖拽 CSV 文件到页面',
+                  '系统自动解析文件，显示预览（检查数据是否正确）',
+                  '确认无误后点击"导入"按钮',
+                  '等待几秒钟，系统完成导入并显示成功提示',
+                ]} />
+                <Tip type="warning">
+                  <strong>重要提示：</strong> 建议至少导入 50 笔以上的交易数据，数据越多分析结果越准确。
+                  如果只有几笔交易，AI 分析可能无法得出有价值的结论。
+                </Tip>
+                <div className="mt-4 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
+                  <p className="text-sm text-[#10b981] font-medium mb-2">🎯 导入后立即能看到什么？</p>
+                  <ul className="text-xs text-[#888] space-y-1 list-disc list-inside">
+                    <li>总盈亏、总交易次数、胜率等基础统计</li>
+                    <li>按品种、方向、时段的盈亏分布</li>
+                    <li>权益曲线图（看到资金变化趋势）</li>
+                    <li>最大回撤点（知道最坏情况下的亏损）</li>
+                  </ul>
+                </div>
+              </DocItem>
+
+              <DocItem title="4. 开始使用 AI 分析（立即获得洞察）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">这是 MetworthAI 的核心价值所在！</strong> 
+                  数据导入后，系统会自动进行深度分析，发现您交易中的问题和机会。
+                  这些洞察是您自己复盘很难发现的，因为 AI 能同时分析数百笔交易，找出隐藏的模式。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 您将获得：</p>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-2 flex items-center gap-2">
+                      <BulbOutlined /> 智能诊断
+                    </div>
+                    <p className="text-xs text-[#888] mb-2">自动发现交易行为问题：</p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>是否经常报复性交易？</li>
+                      <li>是否存在处置效应？</li>
+                      <li>执行是否犹豫不决？</li>
+                      <li>利润回吐是否严重？</li>
+                    </ul>
+                  </div>
+                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
+                    <div className="text-[#c9a227] font-semibold mb-2 flex items-center gap-2">
+                      <ExperimentOutlined /> 策略优化
+                    </div>
+                    <p className="text-xs text-[#888] mb-2">科学的优化建议：</p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>最优止损位是多少？</li>
+                      <li>应该在哪个时段交易？</li>
+                      <li>是否需要调整止盈策略？</li>
+                      <li>未来交易成功概率？</li>
+                    </ul>
+                  </div>
+                </div>
+                <StepList steps={[
+                  '数据导入完成后，点击左侧菜单"AI 教练"',
+                  '选择要分析的账本（或选择"全部账本"分析所有数据）',
+                  '可选：设置日期范围筛选（如只分析最近 3 个月）',
+                  '点击"开始分析"按钮',
+                  '等待 5-10 秒，系统完成分析（数据越多时间稍长）',
+                  '查看分析报告，重点关注"智能诊断"标签页',
+                ]} />
+                <div className="mt-4 p-4 bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 rounded-lg">
+                  <p className="text-sm text-[#8b5cf6] font-medium mb-2">💎 真实案例：</p>
+                  <p className="text-xs text-[#888] leading-relaxed mb-2">
+                    <strong className="text-[#fff]">用户 A 的发现：</strong> 通过 AI 分析，发现自己 90% 的亏损都发生在上午 9:30-10:00 这个时段。
+                    原因是开盘后情绪波动大，容易冲动交易。之后他避开这个时段，胜率从 45% 提升到 58%。
+                  </p>
+                  <p className="text-xs text-[#888] leading-relaxed">
+                    <strong className="text-[#fff]">用户 B 的发现：</strong> AI 诊断出他存在严重的"利润回吐"问题，
+                    平均利润留存率只有 30%（意味着赚了 $1000 但只拿到 $300）。通过采用"早出策略"，
+                    虽然单笔盈利变小，但总盈利反而提升了 40%。
+                  </p>
+                </div>
+              </DocItem>
+
+              <DocItem title="5. 持续改进（建立交易系统）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">交易不是一次性的，而是持续改进的过程。</strong>
+                  MetworthAI 的价值不仅在于发现问题，更在于帮您建立数据驱动的交易系统。
+                  每次交易后导入数据，定期查看分析报告，根据建议调整策略，您的交易水平会持续提升。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 建立持续改进循环：</p>
+                <div className="bg-[#0a0a0c] rounded-lg p-4 border border-[#1a1a1f] mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-[#c9a227]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#c9a227] font-bold text-sm">1</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#fff]">交易</div>
+                      <div className="text-xs text-[#666]">执行您的交易策略</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-[#c9a227]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#c9a227] font-bold text-sm">2</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#fff]">导入数据</div>
+                      <div className="text-xs text-[#666]">定期（每天/每周）导入交易记录到 MetworthAI</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-[#c9a227]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#c9a227] font-bold text-sm">3</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#fff]">AI 分析</div>
+                      <div className="text-xs text-[#666]">查看分析报告，了解交易表现和问题</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#c9a227]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#c9a227] font-bold text-sm">4</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#fff]">优化策略</div>
+                      <div className="text-xs text-[#666]">根据 AI 建议调整止损、止盈、交易时段等</div>
+                    </div>
+                  </div>
+                </div>
+                <Tip type="success">
+                  <strong>专业交易者的习惯：</strong> 建议每周至少复盘一次，每月做一次深度分析。
+                  不要等到亏损严重才想起来复盘，持续的小改进比偶尔的大调整更有效。
+                </Tip>
               </DocItem>
             </DocSection>
           </>
@@ -492,30 +661,76 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<CloudUploadOutlined />} title="数据导入">
-              <DocItem title="Jigsaw Daytradr 数据导入">
-                <p>Jigsaw 是专业的订单流交易软件，导出的数据包含丰富的 MAE/MFE 信息。</p>
+              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
+                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么数据导入很重要？</p>
+                <p className="text-sm text-[#888] leading-relaxed mb-3">
+                  数据是分析的基础。导入的数据越完整，AI 分析的结果就越准确、越有价值。
+                  特别是 MAE、MFE 这些高级字段，能让系统发现很多肉眼看不到的问题。
+                </p>
+                <p className="text-sm text-[#888] leading-relaxed">
+                  <strong className="text-[#fff]">数据质量决定分析质量：</strong> 
+                  如果您只导入基础的盈亏数据，系统只能做简单的统计。
+                  但如果导入包含 MAE/MFE 的数据，系统就能分析"利润回吐"、"止损位置"、"心理压力"等深层问题。
+                </p>
+              </div>
+
+              <DocItem title="Jigsaw Daytradr 数据导入（推荐）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">为什么推荐 Jigsaw？</strong>
+                  Jigsaw 是专业的订单流交易软件，导出的数据包含最完整的信息：
+                  MAE（最大逆向波动）、MFE（最大顺向波动）、Fills（成交次数）、持仓时间等。
+                  这些数据能让 MetworthAI 进行最深入的分析。
+                </p>
+                <p className="mb-3 text-[#c9a227]">✓ 使用 Jigsaw 数据您能获得：</p>
+                <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
+                  <li>完整的 MAE/MFE 分析（知道每笔交易的波动区间）</li>
+                  <li>利润留存率计算（发现利润回吐问题）</li>
+                  <li>心理压力评分（了解交易时的压力等级）</li>
+                  <li>执行质量评估（通过 Fills 判断是否犹豫）</li>
+                  <li>最优止损分析（基于真实 MAE 数据）</li>
+                </ul>
                 
-                <h4 className="text-sm font-semibold text-[#fff] mt-4 mb-2">从 Jigsaw 导出数据：</h4>
+                <h4 className="text-sm font-semibold text-[#fff] mt-4 mb-2">步骤 1：从 Jigsaw 导出数据</h4>
                 <StepList steps={[
-                  '打开 Jigsaw Daytradr',
-                  '进入 Trade Performance 模块',
-                  '选择要导出的日期范围',
-                  '点击 Export 按钮',
-                  '选择 CSV 格式保存到本地',
+                  '打开 Jigsaw Daytradr 软件',
+                  '在顶部菜单找到 "Trade Performance" 或 "交易表现" 模块',
+                  '在日期选择器中，选择您要导出的日期范围（建议按月或按周导出）',
+                  '确认交易列表显示正确',
+                  '点击右上角的 "Export" 或 "导出" 按钮',
+                  '在弹出的对话框中选择 "CSV" 格式',
+                  '选择保存位置，建议保存在桌面方便查找',
+                  '点击"保存"，等待导出完成',
                 ]} />
-
-                <h4 className="text-sm font-semibold text-[#fff] mt-4 mb-2">在 MetworthAI 中导入：</h4>
-                <StepList steps={[
-                  '登录后进入"数据" → "导入数据"',
-                  '选择目标账本',
-                  '数据来源选择"Jigsaw"',
-                  '点击上传区域或拖拽 CSV 文件',
-                  '确认字段映射无误',
-                  '点击"导入"完成',
-                ]} />
-
                 <Tip type="info">
-                  Jigsaw 数据包含：时间、品种、方向、数量、盈亏、MAE、MFE、Fills、持仓时间等字段，系统会自动解析。
+                  <strong>小贴士：</strong> 建议每次交易后定期导出（如每周一次），这样数据更新及时，分析结果更准确。
+                  不要等到积累几个月才导出，数据量太大可能影响导入速度。
+                </Tip>
+
+                <h4 className="text-sm font-semibold text-[#fff] mt-6 mb-2">步骤 2：在 MetworthAI 中导入</h4>
+                <StepList steps={[
+                  '登录 MetworthAI，点击左侧菜单"数据" → "导入数据"',
+                  '在页面顶部选择目标账本（如果还没有账本，先创建账本）',
+                  '在"数据来源"下拉菜单中选择"Jigsaw"',
+                  '点击上传区域，或直接将 CSV 文件拖拽到上传区域',
+                  '系统自动开始解析文件，显示解析进度',
+                  '解析完成后，系统会显示数据预览（检查是否正确）',
+                  '确认字段映射无误（系统会自动识别，一般不需要手动调整）',
+                  '点击"导入"按钮，等待导入完成',
+                  '导入成功后，系统会显示导入的交易数量',
+                ]} />
+                <div className="mt-4 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
+                  <p className="text-sm text-[#10b981] font-medium mb-2">✅ 导入成功后会看到：</p>
+                  <ul className="text-xs text-[#888] space-y-1 list-disc list-inside">
+                    <li>导入的交易笔数（如"成功导入 127 笔交易"）</li>
+                    <li>如果有重复数据，会提示"跳过 X 笔重复交易"</li>
+                    <li>如果有格式错误，会提示"X 笔交易格式错误，已跳过"</li>
+                    <li>可以立即点击"查看交易明细"查看导入的数据</li>
+                  </ul>
+                </div>
+                <Tip type="warning" className="mt-4">
+                  <strong>常见问题：</strong> 如果导入失败，请检查：
+                  (1) CSV 文件是否是从 Jigsaw 正确导出的；(2) 文件是否损坏；(3) 日期格式是否正确。
+                  如果仍有问题，可以尝试用 Excel 打开 CSV 文件，检查数据格式。
                 </Tip>
               </DocItem>
 
@@ -664,41 +879,118 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<RobotOutlined />} title="AI 交易教练">
-              <DocItem title="功能概述">
-                <p>AI 交易教练是 MetworthAI 的核心功能，通过分析您的历史交易数据，提供智能诊断和优化建议。</p>
+              <div className="mb-6 p-4 bg-[#c9a227]/10 border border-[#c9a227]/20 rounded-lg">
+                <p className="text-sm text-[#c9a227] font-medium mb-2">💡 为什么需要 AI 交易教练？</p>
+                <p className="text-sm text-[#888] leading-relaxed mb-3">
+                  作为交易者，您可能经常问自己："我为什么亏损？"、"我哪里做错了？"、"我应该怎么改进？"
+                  但靠自己复盘，往往只能看到表面的盈亏，很难发现深层次的问题。
+                </p>
+                <p className="text-sm text-[#888] leading-relaxed">
+                  <strong className="text-[#fff]">AI 交易教练的价值：</strong>
+                  它能同时分析您数百笔交易，找出您自己都意识不到的行为模式。
+                  比如：您是否经常在亏损后立即开新仓（报复性交易）？您是否过早止盈、过晚止损（处置效应）？
+                  您的止损位是否总是设在最低点？这些问题，AI 都能自动发现并给出改进建议。
+                </p>
+              </div>
+
+              <DocItem title="功能概述 - 四大核心能力">
+                <p className="mb-4">
+                  AI 交易教练提供四个核心功能，每个功能都针对交易中的关键问题：
+                </p>
                 
-                <div className="grid md:grid-cols-2 gap-4 mt-4">
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">🧠 智能诊断</div>
-                    <p className="text-xs">自动识别交易行为模式和潜在问题</p>
+                <div className="grid md:grid-cols-2 gap-4 mb-6">
+                  <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
+                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                      <BulbOutlined /> 智能诊断
+                    </div>
+                    <p className="text-xs text-[#888] mb-3">自动识别交易行为模式和潜在问题</p>
+                    <p className="text-xs text-[#666] mb-2"><strong className="text-[#fff]">能发现：</strong></p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>报复性交易（亏损后冲动开仓）</li>
+                      <li>处置效应（过早止盈过晚止损）</li>
+                      <li>执行犹豫（频繁加减仓）</li>
+                      <li>利润回吐（MFE 大但盈利小）</li>
+                      <li>止损极点（总是在最低点止损）</li>
+                    </ul>
+                    <p className="text-xs text-[#c9a227] mt-3 font-medium">✓ 价值：发现您自己意识不到的交易陋习</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">🎲 蒙特卡洛模拟</div>
-                    <p className="text-xs">预测未来交易的盈亏概率分布</p>
+                  
+                  <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
+                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                      <ExperimentOutlined /> 蒙特卡洛模拟
+                    </div>
+                    <p className="text-xs text-[#888] mb-3">预测未来交易的盈亏概率分布</p>
+                    <p className="text-xs text-[#666] mb-2"><strong className="text-[#fff]">能预测：</strong></p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>未来 100 笔交易的盈利概率</li>
+                      <li>可能的最大回撤幅度</li>
+                      <li>账户资金变化趋势</li>
+                      <li>系统是否具有正期望值</li>
+                    </ul>
+                    <p className="text-xs text-[#c9a227] mt-3 font-medium">✓ 价值：提前知道系统是否值得继续使用</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">🎯 最优止损分析</div>
-                    <p className="text-xs">回测不同止损位的效果，推荐最优策略</p>
+                  
+                  <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
+                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                      <AimOutlined /> 最优止损分析
+                    </div>
+                    <p className="text-xs text-[#888] mb-3">回测不同止损位的效果，推荐最优策略</p>
+                    <p className="text-xs text-[#666] mb-2"><strong className="text-[#fff]">能优化：</strong></p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>找到使总盈亏最大化的止损距离</li>
+                      <li>计算改善幅度（可能多赚多少钱）</li>
+                      <li>评估不同止损位的触发频率</li>
+                      <li>建议动态止损策略</li>
+                    </ul>
+                    <p className="text-xs text-[#c9a227] mt-3 font-medium">✓ 价值：科学地设置止损，而不是凭感觉</p>
                   </div>
-                  <div className="p-4 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f]">
-                    <div className="text-[#c9a227] font-semibold mb-2">📊 期望值分布</div>
-                    <p className="text-xs">按时段/方向/品种分析，找出优势时段</p>
+                  
+                  <div className="p-5 bg-[#0a0a0c] rounded-lg border border-[#1a1a1f] hover:border-[#c9a227]/40 transition-all">
+                    <div className="text-[#c9a227] font-semibold mb-2 text-base flex items-center gap-2">
+                      <BarChartOutlined /> 期望值分布
+                    </div>
+                    <p className="text-xs text-[#888] mb-3">按时段/方向/品种分析，找出优势时段</p>
+                    <p className="text-xs text-[#666] mb-2"><strong className="text-[#fff]">能发现：</strong></p>
+                    <ul className="text-xs text-[#666] space-y-1 list-disc list-inside">
+                      <li>您的"提款机时段"（最赚钱的时间）</li>
+                      <li>您的"碎钞机时段"（最亏钱的时间）</li>
+                      <li>哪个品种表现最好/最差</li>
+                      <li>做多和做空的期望值差异</li>
+                    </ul>
+                    <p className="text-xs text-[#c9a227] mt-3 font-medium">✓ 价值：在优势时段加大投入，避开劣势时段</p>
                   </div>
                 </div>
               </DocItem>
 
-              <DocItem title="使用方法">
+              <DocItem title="详细使用步骤（5分钟获得完整诊断）">
+                <p className="mb-3">
+                  <strong className="text-[#fff]">使用 AI 教练非常简单，只需 5 分钟就能获得完整的诊断报告。</strong>
+                  系统会自动分析您的所有交易数据，不需要您做任何复杂的设置。
+                </p>
                 <StepList steps={[
-                  '进入 AI 教练页面',
-                  '选择要分析的账本（或全部账本）',
-                  '可选：设置日期范围筛选',
-                  '点击"开始分析"按钮',
-                  '等待分析完成（通常几秒钟）',
-                  '查看分析报告和智能诊断结果',
+                  '登录 MetworthAI，点击左侧菜单"AI 教练"',
+                  '在页面顶部选择要分析的账本（可以选择单个账本，或选择"全部账本"分析所有数据）',
+                  '可选：如果只想分析特定时间段，点击日期筛选器，选择开始和结束日期',
+                  '点击页面中央的"开始分析"按钮',
+                  '等待 5-10 秒（数据越多时间稍长，通常不超过 30 秒）',
+                  '分析完成后，页面自动显示结果',
+                  '点击"智能诊断"标签页，查看详细的诊断报告',
                 ]} />
-                <Tip type="info">
-                  建议至少有 50 笔以上交易数据再进行 AI 分析，数据越多分析结果越准确。
+                <Tip type="info" className="mt-4">
+                  <strong>数据要求：</strong> 建议至少有 50 笔以上交易数据再进行 AI 分析。
+                  数据越多，分析结果越准确。如果只有几笔交易，系统可能无法得出有价值的结论。
                 </Tip>
+                <div className="mt-4 p-4 bg-[#10b981]/10 border border-[#10b981]/20 rounded-lg">
+                  <p className="text-sm text-[#10b981] font-medium mb-2">✅ 分析完成后您将看到：</p>
+                  <ul className="text-xs text-[#888] space-y-1 list-disc list-inside">
+                    <li>综合操作建议（继续执行/早出策略/减仓/多看少动）</li>
+                    <li>优化行动清单（按优先级排序的改进建议）</li>
+                    <li>期望值分布图（哪个时段/品种/方向最赚钱）</li>
+                    <li>蒙特卡洛模拟结果（未来交易成功概率）</li>
+                    <li>最优止损分析（推荐的最佳止损距离）</li>
+                    <li>行为特征面板（检测到的交易行为问题）</li>
+                  </ul>
+                </div>
               </DocItem>
 
               <DocItem title="行为归因标签">
