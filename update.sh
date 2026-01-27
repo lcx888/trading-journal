@@ -25,9 +25,10 @@ echo -e "${NC}"
 # 进入项目目录
 cd $APP_DIR
 
-# 1. 拉取最新代码
+# 1. 拉取最新代码（强制覆盖本地更改）
 echo -e "\n${GREEN}[1/5] 拉取最新代码...${NC}"
-git pull origin main
+git fetch origin
+git reset --hard origin/main
 
 # 2. 更新前端
 echo -e "\n${GREEN}[2/5] 更新前端依赖...${NC}"
