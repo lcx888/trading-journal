@@ -266,6 +266,7 @@ const ReportSection = ({ section, defaultExpanded = false }) => {
         <div className="p-5 report-section-content" style={{ background: 'var(--bg-secondary)' }}>
           <ReactMarkdown
             components={{
+              hr: () => null,
               h3: ({children}) => (
                 <h3 className="text-sm font-bold mt-5 mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <span className="w-1 h-4 rounded-full" style={{ background: 'var(--color-brand)' }}></span>
@@ -1319,8 +1320,8 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand)' }}>
-                <History size={14} style={{ color: 'var(--bg-primary)' }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <History size={14} style={{ color: 'var(--text-secondary)' }} />
               </div>
               <div>
                 <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>分析历史</span>
@@ -1502,8 +1503,8 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             {/* 返回按钮 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand)' }}>
-                  <FileText size={18} style={{ color: 'var(--bg-primary)' }} />
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                  <FileText size={18} style={{ color: 'var(--text-secondary)' }} />
                 </div>
                 <div>
                   <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{viewingHistory.title}</div>
@@ -1563,12 +1564,12 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                 style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)' }}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand)' }}>
-                    <Bot size={18} style={{ color: 'var(--bg-primary)' }} />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                    <Bot size={18} style={{ color: 'var(--text-secondary)' }} />
                   </div>
                   <div>
                     <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>AI 智能诊断报告</div>
-                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by MetWorth AI · DeepSeek</div>
+                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by TradeWhy.AI</div>
                   </div>
                 </div>
                 <Button
@@ -1630,6 +1631,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                     <div className="prose max-w-none ai-report-content">
                       <ReactMarkdown
                         components={{
+                          hr: () => null,
                           h2: ({children}) => <h2 className="text-base font-semibold mt-6 mb-3 pb-2" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-primary)' }}>{children}</h2>,
                           h3: ({children}) => <h3 className="text-sm font-semibold mt-4 mb-2" style={{ color: 'var(--text-primary)' }}>{children}</h3>,
                           p: ({children}) => <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>{children}</p>,
@@ -1653,36 +1655,26 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             className="rounded-lg overflow-hidden"
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
           >
-            {/* 头部横幅 */}
+            {/* 头部横幅 - 极简设计 */}
             <div 
-              className="p-8 relative overflow-hidden"
-              style={{ 
-                background: 'linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%)',
-                borderBottom: '1px solid var(--border-primary)'
-              }}
+              className="p-10 relative border-b border-[var(--border-primary)]"
+              style={{ background: 'var(--bg-secondary)' }}
             >
-              <div className="relative z-10 text-center max-w-xl mx-auto">
-                <div 
-                  className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 overflow-hidden"
-                  style={{ background: 'var(--color-brand)' }}
-                >
-                  <img src="/logo.png" alt="AI Coach" className="w-full h-full object-cover" />
+              <div className="relative z-10 flex flex-col items-center">
+                {/* 极简 Logo 容器 */}
+                <div className="mb-6 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-brand)] animate-pulse" />
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>新建 AI 分析</h2>
-                <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
-                  选择分析范围，AI 将为您生成专业的交易诊断报告，<br/>
-                  包含品种分析、时段表现、风险评估和策略建议
+                
+                <h2 className="text-xl font-semibold mb-2 tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                  新建 AI 智能分析
+                </h2>
+                <p className="text-sm max-w-md text-center leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                  基于量化引擎深度扫描您的交易行为，生成包含风险评估与策略优化的诊断报告
                 </p>
               </div>
-              {/* 装饰元素 */}
-              <div 
-                className="absolute top-4 right-4 w-32 h-32 rounded-full opacity-10"
-                style={{ background: 'var(--color-brand)' }}
-              />
-              <div 
-                className="absolute bottom-0 left-8 w-20 h-20 rounded-full opacity-5"
-                style={{ background: 'var(--color-brand)' }}
-              />
             </div>
 
             {/* 配置区域 */}
@@ -1983,7 +1975,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                 </div>
                 <div>
                   <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>AI 智能诊断报告</div>
-                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by MetWorth AI · DeepSeek</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by TradeWhy.AI · DeepSeek</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -2093,7 +2085,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                       ) : (
                         <ReactMarkdown
                           components={{
-                            hr: () => <hr style={{ borderColor: 'var(--border-primary)' }} className="my-6" />,
+                            hr: () => null,
                             h2: ({children}) => (
                               <h2 className="flex items-center gap-2 text-base font-bold mt-8 mb-4 pb-3" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-primary)' }}>
                                 <span className="w-1 h-5 rounded-full" style={{ background: 'var(--color-brand)' }} />
@@ -2120,7 +2112,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                       <div className="mt-8 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-primary)' }}>
                         <div className="flex items-center gap-2">
                           <Bot size={14} style={{ color: 'var(--text-secondary)' }} />
-                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>MetWorth AI 智能分析引擎</span>
+                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>TradeWhy.AI 智能分析引擎</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -2148,7 +2140,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                     className="w-20 h-20 rounded-2xl mx-auto mb-5 flex items-center justify-center overflow-hidden"
                     style={{ background: 'var(--bg-tertiary)' }}
                   >
-                    <img src="/logo.png" alt="AI Coach" className="w-full h-full object-cover opacity-60" />
+                    <img src="/logo.svg" alt="AI Coach" className="w-full h-full object-contain opacity-60 p-2" />
                   </div>
                   <div className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>生成 AI 深度诊断报告</div>
                   <p className="text-sm max-w-md mx-auto mb-6 leading-6" style={{ color: 'var(--text-secondary)' }}>
@@ -2994,7 +2986,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             }}>
               <Bot size={16} style={{ color: 'var(--bg-primary)' }} />
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>MetWorth AI 交易助手</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>TradeWhy.AI 交易助手</span>
           </div>
         }
         open={chatVisible}
@@ -3007,7 +2999,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             {chatMessages.length === 0 ? (
               <div className="text-center py-12">
                 <Bot size={48} className="mb-4 mx-auto" style={{ color: 'var(--text-secondary)' }} />
-                <div className="font-medium" style={{ color: 'var(--text-secondary)' }}>你好！我是 MetWorth AI 交易助手</div>
+                <div className="font-medium" style={{ color: 'var(--text-secondary)' }}>你好！我是 TradeWhy.AI 交易助手</div>
                 <div className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>我可以帮您分析交易策略、解答交易问题</div>
                 <div className="mt-6 flex flex-wrap gap-2 justify-center">
                   {['如何提高胜率？', '怎么控制回撤？', '我的交易有什么问题？'].map(q => (

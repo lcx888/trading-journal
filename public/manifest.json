@@ -1,6 +1,6 @@
 {
-  "name": "MetworthAI - 智能交易日志",
-  "short_name": "MetworthAI",
+  "name": "TradeWhy.AI - 智能交易日志",
+  "short_name": "TradeWhy.AI",
   "description": "AI驱动的期货交易分析平台，智能复盘助您提升盈利能力",
   "start_url": "/",
   "display": "standalone",

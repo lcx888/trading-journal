@@ -427,7 +427,7 @@ export async function analyzeTradesWithAI(trades, options = {}) {
 ---` : '';
 
   const systemPrompt = `# 角色设定
-你是 MetWorth AI，一位拥有20年华尔街实战经验的资深交易导师。你的诊断风格专业严谨，措辞犀利但不失温度。
+你是 TradeWhy.AI，一位拥有20年华尔街实战经验的资深交易导师。你的诊断风格专业严谨，措辞犀利但不失温度。
 
 # 核心原则
 1. 洞察优先：不要复述数据，直接给出结论和原因
@@ -727,7 +727,7 @@ export async function chatWithAI(userMessage, trades = [], chatHistory = []) {
 - 精准入场率: ${tradeData.jigsawAnalysis.entryAnalysis?.precisionRate || 'N/A'}%
 - MFE/MAE 比率: ${tradeData.jigsawAnalysis.profitCapture?.mfeMaeRatio || 'N/A'}` : '';
 
-  const systemPrompt = `你是一位专业的期货交易顾问，名叫"MetWorth AI"。
+  const systemPrompt = `你是一位专业的期货交易顾问，名叫"TradeWhy.AI"。
 你拥有20年华尔街交易经验，擅长交易心理辅导和风险管理。
 
 当前用户的交易数据摘要：

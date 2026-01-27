@@ -138,8 +138,8 @@ const Docs = ({ onBack, onStart }) => {
 
   const faqs = [
     {
-      question: 'MetworthAI 是什么？有什么用？',
-      answer: `MetworthAI 是一款专为期货交易者设计的 AI 驱动交易复盘平台。
+      question: 'TradeWhy.AI 是什么？有什么用？',
+      answer: `TradeWhy.AI 是一款专为期货交易者设计的 AI 驱动交易复盘平台。
 
 主要功能：
 • 交易数据管理：支持多账本管理，自动解析 Jigsaw、ATAS 等主流交易软件导出的数据
@@ -211,7 +211,7 @@ MFE（Maximum Favorable Excursion）最大顺向波动：
       question: '什么是蒙特卡洛模拟？如何解读结果？',
       answer: `蒙特卡洛模拟是一种统计学方法，通过大量随机抽样来预测未来可能的结果。
 
-在 MetworthAI 中的应用：
+在 TradeWhy.AI 中的应用：
 • 基于您的历史胜率和盈亏比
 • 随机模拟未来 100 笔交易的结果
 • 重复 1000 次模拟
@@ -326,7 +326,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
 4. 点击 Export 按钮
 5. 选择 CSV 格式保存
 
-在 MetworthAI 中导入：
+在 TradeWhy.AI 中导入：
 1. 登录后进入"数据" → "导入数据"
 2. 选择目标账本（或创建新账本）
 3. 选择"Jigsaw"作为数据来源
@@ -368,7 +368,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
     },
     {
       question: '免费版和付费版有什么区别？',
-      answer: `目前 MetworthAI 完全免费使用！
+      answer: `目前 TradeWhy.AI 完全免费使用！
 
 免费功能包括：
 ✅ 无限账本创建
@@ -421,10 +421,10 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
           <>
             <DocSection icon={<PlayCircleOutlined />} title="快速开始">
               <div className="mb-6 p-4 border border-[#1a1a1f] bg-[#0a0a0c] rounded-lg">
-                <p className="text-sm text-[#fff] font-medium mb-2">为什么需要 MetworthAI？</p>
+                <p className="text-sm text-[#fff] font-medium mb-2">为什么需要 TradeWhy.AI？</p>
                 <p className="text-sm text-[#888] leading-relaxed">
                   作为交易者，您是否遇到过这些问题：不知道自己为什么亏损？不知道哪个时段交易最赚钱？不知道止损应该设在哪里？
-                  MetworthAI 通过 AI 深度分析您的每笔交易，自动发现交易中的问题，给出科学的优化建议，帮您从"凭感觉交易"升级到"数据驱动交易"。
+                  TradeWhy.AI 通过 AI 深度分析您的每笔交易，自动发现交易中的问题，给出科学的优化建议，帮您从"凭感觉交易"升级到"数据驱动交易"。
                 </p>
               </div>
 
@@ -440,7 +440,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   <li>多设备同步，随时随地复盘</li>
                 </ul>
                 <StepList steps={[
-                  '访问 MetworthAI 官网，点击右上角"免费开始"',
+                  '访问 TradeWhy.AI 官网，点击右上角"免费开始"',
                   '输入您的邮箱地址（用于登录和找回密码）',
                   '设置一个强密码（建议包含大小写字母、数字）',
                   '点击"注册"按钮，系统自动创建账号',
@@ -488,7 +488,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
               <DocItem title="3. 导入交易数据（2分钟完成）">
                 <p className="mb-3">
                   <strong className="text-[#fff]">为什么需要导入数据？</strong> 
-                  MetworthAI 的强大之处在于它能分析您的真实交易数据。
+                  TradeWhy.AI 的强大之处在于它能分析您的真实交易数据。
                   导入数据后，系统会自动计算各种指标，识别交易模式，发现您自己可能都没意识到的问题。
                 </p>
                 <p className="mb-3 text-[#fff] font-medium">带来的好处：</p>
@@ -520,7 +520,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                 </div>
                 <StepList steps={[
                   '从您的交易软件（Jigsaw/ATAS 等）导出 CSV 格式的交易记录',
-                  '登录 MetworthAI，进入"数据" → "导入数据"',
+                  '登录 TradeWhy.AI，进入"数据" → "导入数据"',
                   '选择目标账本（刚才创建的账本）',
                   '选择数据来源类型（Jigsaw/ATAS/通用CSV）',
                   '点击上传区域或直接拖拽 CSV 文件到页面',
@@ -545,7 +545,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
 
               <DocItem title="4. 开始使用 AI 分析（立即获得洞察）">
                 <p className="mb-3">
-                  <strong className="text-[#fff]">这是 MetworthAI 的核心价值所在！</strong> 
+                  <strong className="text-[#fff]">这是 TradeWhy.AI 的核心价值所在！</strong> 
                   数据导入后，系统会自动进行深度分析，发现您交易中的问题和机会。
                   这些洞察是您自己复盘很难发现的，因为 AI 能同时分析数百笔交易，找出隐藏的模式。
                 </p>
@@ -601,7 +601,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
               <DocItem title="5. 持续改进（建立交易系统）">
                 <p className="mb-3">
                   <strong className="text-[#fff]">交易不是一次性的，而是持续改进的过程。</strong>
-                  MetworthAI 的价值不仅在于发现问题，更在于帮您建立数据驱动的交易系统。
+                  TradeWhy.AI 的价值不仅在于发现问题，更在于帮您建立数据驱动的交易系统。
                   每次交易后导入数据，定期查看分析报告，根据建议调整策略，您的交易水平会持续提升。
                 </p>
                 <p className="mb-3 text-[#c9a227]">✓ 建立持续改进循环：</p>
@@ -621,7 +621,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-[#fff]">导入数据</div>
-                      <div className="text-xs text-[#666]">定期（每天/每周）导入交易记录到 MetworthAI</div>
+                      <div className="text-xs text-[#666]">定期（每天/每周）导入交易记录到 TradeWhy.AI</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mb-3">
@@ -674,7 +674,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   <strong className="text-[#fff]">为什么推荐 Jigsaw？</strong>
                   Jigsaw 是专业的订单流交易软件，导出的数据包含最完整的信息：
                   MAE（最大逆向波动）、MFE（最大顺向波动）、Fills（成交次数）、持仓时间等。
-                  这些数据能让 MetworthAI 进行最深入的分析。
+                  这些数据能让 TradeWhy.AI 进行最深入的分析。
                 </p>
                 <p className="mb-3 text-[#fff] font-medium">使用 Jigsaw 数据您能获得：</p>
                 <ul className="list-disc list-inside space-y-1 mb-4 text-sm">
@@ -701,9 +701,9 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   不要等到积累几个月才导出，数据量太大可能影响导入速度。
                 </Tip>
 
-                <h4 className="text-sm font-semibold text-[#fff] mt-6 mb-2">步骤 2：在 MetworthAI 中导入</h4>
+                <h4 className="text-sm font-semibold text-[#fff] mt-6 mb-2">步骤 2：在 TradeWhy.AI 中导入</h4>
                 <StepList steps={[
-                  '登录 MetworthAI，点击左侧菜单"数据" → "导入数据"',
+                  '登录 TradeWhy.AI，点击左侧菜单"数据" → "导入数据"',
                   '在页面顶部选择目标账本（如果还没有账本，先创建账本）',
                   '在"数据来源"下拉菜单中选择"Jigsaw"',
                   '点击上传区域，或直接将 CSV 文件拖拽到上传区域',
@@ -735,7 +735,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   '在 ATAS 中打开交易历史',
                   '选择日期范围',
                   '导出为 CSV 格式',
-                  '在 MetworthAI 中选择"ATAS"作为数据来源',
+                  '在 TradeWhy.AI 中选择"ATAS"作为数据来源',
                   '上传文件完成导入',
                 ]} />
               </DocItem>
@@ -963,7 +963,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                   系统会自动分析您的所有交易数据，不需要您做任何复杂的设置。
                 </p>
                 <StepList steps={[
-                  '登录 MetworthAI，点击左侧菜单"AI 教练"',
+                  '登录 TradeWhy.AI，点击左侧菜单"AI 教练"',
                   '在页面顶部选择要分析的账本（可以选择单个账本，或选择"全部账本"分析所有数据）',
                   '可选：如果只想分析特定时间段，点击日期筛选器，选择开始和结束日期',
                   '点击页面中央的"开始分析"按钮',
@@ -1199,7 +1199,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         <div className="max-w-6xl mx-auto px-6">
           {/* 标题 */}
           <div className="text-center py-12">
-            <h1 className="text-3xl font-bold text-[#fff] mb-4">MetworthAI 帮助中心</h1>
+            <h1 className="text-3xl font-bold text-[#fff] mb-4">TradeWhy.AI 帮助中心</h1>
             <p className="text-[#666] max-w-xl mx-auto">详细的使用文档和常见问题解答，帮助您快速上手</p>
           </div>
 
@@ -1253,10 +1253,10 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
       <footer className="py-6 px-6 border-t border-[#1a1a1f]">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="w-6 h-6 rounded object-cover" />
-            <span className="font-semibold text-[#fff] text-sm">MetworthAI</span>
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-5 object-contain" />
+            <span className="font-semibold text-[#fff] text-sm">TradeWhy.AI</span>
           </div>
-          <div className="text-xs text-[#444]">© 2026 MetworthAI</div>
+          <div className="text-xs text-[#444]">© 2026 TradeWhy.AI</div>
         </div>
       </footer>
     </div>

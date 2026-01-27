@@ -390,8 +390,8 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
         <div className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded bg-[var(--color-brand)] flex items-center justify-center">
-                <CalendarOutlined className="text-[#0a0a0c] text-lg" />
+              <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center">
+                <CalendarOutlined className="text-[var(--text-secondary)] text-lg" />
               </div>
               <div>
                 <div className="text-base font-semibold text-[var(--text-primary)]">今日成绩单</div>
@@ -458,10 +458,10 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
         <div className={`px-5 py-3 border-t border-[var(--border-primary)] flex items-center gap-3 ${
           aiInsight.type === 'positive' ? 'bg-[var(--color-profit-bg)]' : aiInsight.type === 'negative' ? 'bg-[var(--color-loss-bg)]' : 'bg-[var(--color-brand-bg)]'
         }`}>
-          <div className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 ${
-            aiInsight.type === 'positive' ? 'bg-[var(--color-profit)]' : aiInsight.type === 'negative' ? 'bg-[var(--color-loss)]' : 'bg-[var(--color-brand)]'
+          <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${
+            aiInsight.type === 'positive' ? 'bg-[var(--color-profit-bg)] border border-[var(--color-profit)]' : aiInsight.type === 'negative' ? 'bg-[var(--color-loss-bg)] border border-[var(--color-loss)]' : 'bg-[var(--bg-tertiary)] border border-[var(--border-primary)]'
           }`}>
-            <RobotOutlined className="text-[#0a0a0c] text-sm" />
+            <RobotOutlined className={`text-sm ${aiInsight.type === 'positive' ? 'text-[var(--color-profit)]' : aiInsight.type === 'negative' ? 'text-[var(--color-loss)]' : 'text-[var(--text-secondary)]'}`} />
           </div>
           <div className="flex-1 text-sm text-[var(--text-primary)]">{aiInsight.text}</div>
           <Button type="text" size="small" icon={<RightOutlined />} className="text-[var(--text-secondary)]">详情</Button>
@@ -644,7 +644,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded bg-[var(--color-profit)] flex items-center justify-center text-[#0a0a0c] font-bold">多</div>
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-profit-bg)] border border-[var(--color-profit)] flex items-center justify-center text-[var(--color-profit)] font-bold">多</div>
             <div>
               <div className="font-semibold text-[var(--text-primary)]">多头持仓</div>
               <div className="text-xs text-[var(--text-tertiary)]">Long Positions</div>
@@ -668,7 +668,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
 
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded bg-[var(--color-loss)] flex items-center justify-center text-white font-bold">空</div>
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-loss-bg)] border border-[var(--color-loss)] flex items-center justify-center text-[var(--color-loss)] font-bold">空</div>
             <div>
               <div className="font-semibold text-[var(--text-primary)]">空头持仓</div>
               <div className="text-xs text-[var(--text-tertiary)]">Short Positions</div>
@@ -709,10 +709,10 @@ const QuickFilterTags = ({ quickFilter, setQuickFilter }) => {
       {filters.map(f => (
         <Tag
           key={f.key}
-          className={`cursor-pointer rounded px-2 py-0.5 text-xs font-medium transition-all border-0 ${
+          className={`cursor-pointer rounded px-2.5 py-0.5 text-xs font-medium transition-all ${
             quickFilter === f.key 
-              ? 'bg-[var(--color-brand)] text-[#0a0a0c]' 
-              : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--color-brand)]'
+              ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--text-secondary)]' 
+              : 'bg-transparent text-[var(--text-tertiary)] border border-transparent hover:text-[var(--text-secondary)]'
           }`}
           onClick={() => setQuickFilter(quickFilter === f.key ? null : f.key)}
         >

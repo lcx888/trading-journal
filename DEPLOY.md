@@ -1,4 +1,4 @@
-# 🚀 Metworth AI 部署指南
+# 🚀 TradeWhy.AI 部署指南
 
 ## 架构概览
 
@@ -97,8 +97,8 @@ sudo -u postgres psql
 
 ```sql
 CREATE DATABASE trading_journal;
-CREATE USER metworth WITH ENCRYPTED PASSWORD '你的密码';
-GRANT ALL PRIVILEGES ON DATABASE trading_journal TO metworth;
+CREATE USER tradewhy WITH ENCRYPTED PASSWORD '你的密码';
+GRANT ALL PRIVILEGES ON DATABASE trading_journal TO tradewhy;
 \q
 ```
 
@@ -114,7 +114,7 @@ npm install
 
 # 创建 .env 文件
 cat > .env << EOF
-DATABASE_URL="postgresql://metworth:你的密码@localhost:5432/trading_journal"
+DATABASE_URL="postgresql://tradewhy:你的密码@localhost:5432/trading_journal"
 JWT_SECRET="$(openssl rand -base64 32)"
 PORT=4000
 CORS_ORIGIN="https://你的域名.com"
@@ -125,7 +125,7 @@ npx prisma generate
 npx prisma db push
 
 # 使用 PM2 启动
-pm2 start src/index.js --name metworth-api
+pm2 start src/index.js --name tradewhy-api
 pm2 save
 pm2 startup
 ```
@@ -146,7 +146,7 @@ sudo cp -r dist/* /var/www/html/
 ### 步骤 5：配置 Nginx
 
 ```bash
-sudo nano /etc/nginx/sites-available/metworth
+sudo nano /etc/nginx/sites-available/tradewhy
 ```
 
 ```nginx
@@ -180,7 +180,7 @@ server {
 
 ```bash
 # 启用配置
-sudo ln -s /etc/nginx/sites-available/metworth /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/tradewhy /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -206,13 +206,13 @@ sudo certbot --nginx -d 你的域名.com
 | `DATABASE_URL` | PostgreSQL 连接字符串 | `postgresql://user:pass@host:5432/db` |
 | `JWT_SECRET` | JWT 签名密钥（至少32位） | 随机字符串 |
 | `PORT` | 服务器端口 | `4000` |
-| `CORS_ORIGIN` | 允许的前端域名 | `https://metworth.com` |
+| `CORS_ORIGIN` | 允许的前端域名 | `https://tradewhy.ai` |
 
 ### 前端 (.env)
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
-| `VITE_API_URL` | 后端 API 地址 | `https://api.metworth.com` |
+| `VITE_API_URL` | 后端 API 地址 | `https://api.tradewhy.ai` |
 
 ---
 
@@ -233,16 +233,16 @@ sudo certbot --nginx -d 你的域名.com
 
 ```bash
 # 查看后端日志
-pm2 logs metworth-api
+pm2 logs tradewhy-api
 
 # 重启后端
-pm2 restart metworth-api
+pm2 restart tradewhy-api
 
 # 更新代码后重新部署
 git pull
 npm install
 npm run build
-pm2 restart metworth-api
+pm2 restart tradewhy-api
 ```
 
 ---

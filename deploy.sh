@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================
-# Metworth AI Trading Journal 一键部署脚本
+# TradeWhy.AI Trading Journal 一键部署脚本
 # 适用于 Ubuntu 22.04
 # ============================================
 
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}"
 echo "============================================"
-echo "  Metworth AI Trading Journal 部署脚本"
+echo "  TradeWhy.AI Trading Journal 部署脚本"
 echo "============================================"
 echo -e "${NC}"
 
@@ -23,7 +23,7 @@ echo -e "${NC}"
 DOMAIN="${1:-}"  # 域名，如果不传则使用 IP 访问
 DB_PASSWORD="${2:-$(openssl rand -base64 12)}"
 JWT_SECRET="$(openssl rand -base64 32)"
-APP_DIR="/var/www/metworth"
+APP_DIR="/var/www/tradewhy"
 REPO_URL="https://github.com/lcx888/trading-journal.git"
 
 echo -e "${YELLOW}配置信息：${NC}"
@@ -70,10 +70,10 @@ sudo systemctl enable postgresql
 
 # 创建数据库和用户
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS trading_journal;" 2>/dev/null || true
-sudo -u postgres psql -c "DROP USER IF EXISTS metworth;" 2>/dev/null || true
-sudo -u postgres psql -c "CREATE USER metworth WITH ENCRYPTED PASSWORD '$DB_PASSWORD';"
-sudo -u postgres psql -c "CREATE DATABASE trading_journal OWNER metworth;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE trading_journal TO metworth;"
+sudo -u postgres psql -c "DROP USER IF EXISTS tradewhy;" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE USER tradewhy WITH ENCRYPTED PASSWORD '$DB_PASSWORD';"
+sudo -u postgres psql -c "CREATE DATABASE trading_journal OWNER tradewhy;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE trading_journal TO tradewhy;"
 
 echo -e "${GREEN}PostgreSQL 配置完成${NC}"
 
@@ -109,7 +109,7 @@ npm install
 
 # 创建环境变量
 cat > .env << EOF
-DATABASE_URL="postgresql://metworth:${DB_PASSWORD}@localhost:5432/trading_journal"
+DATABASE_URL="postgresql://tradewhy:${DB_PASSWORD}@localhost:5432/trading_journal"
 JWT_SECRET="${JWT_SECRET}"
 PORT=4000
 CORS_ORIGIN="${DOMAIN:+https://$DOMAIN}"
@@ -125,8 +125,8 @@ npx prisma generate
 npx prisma db push
 
 # 使用 PM2 启动后端
-pm2 delete metworth-api 2>/dev/null || true
-pm2 start src/index.js --name metworth-api
+pm2 delete tradewhy-api 2>/dev/null || true
+pm2 start src/index.js --name tradewhy-api
 pm2 save
 
 echo -e "${GREEN}后端部署完成，运行在 http://localhost:4000${NC}"
@@ -167,7 +167,7 @@ else
     SERVER_NAME="_"
 fi
 
-sudo tee /etc/nginx/sites-available/metworth > /dev/null << EOF
+sudo tee /etc/nginx/sites-available/tradewhy > /dev/null << EOF
 server {
     listen 80;
     server_name $SERVER_NAME;
@@ -196,7 +196,7 @@ server {
 EOF
 
 # 启用配置
-sudo ln -sf /etc/nginx/sites-available/metworth /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/tradewhy /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
 # 测试并重载 Nginx
@@ -229,7 +229,7 @@ echo "  数据库密码: $DB_PASSWORD"
 echo "  JWT 密钥: $JWT_SECRET"
 echo ""
 echo -e "${YELLOW}常用命令：${NC}"
-echo "  查看后端日志: pm2 logs metworth-api"
-echo "  重启后端: pm2 restart metworth-api"
+echo "  查看后端日志: pm2 logs tradewhy-api"
+echo "  重启后端: pm2 restart tradewhy-api"
 echo "  查看状态: pm2 status"
 echo ""

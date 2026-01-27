@@ -6,7 +6,7 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 
 // 发送邮件
 export async function sendEmail({ to, subject, html }) {
-  const from = process.env.EMAIL_FROM || 'MetworthAI <onboarding@resend.dev>';
+  const from = process.env.EMAIL_FROM || 'TradeWhy.AI <onboarding@resend.dev>';
   
   // 如果没有配置 Resend，使用测试模式
   if (!resend) {
@@ -71,7 +71,7 @@ export async function sendVerificationEmail(email, token, baseUrl) {
           </p>
         </div>
         <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-          © 2026 Metworth Inc. All rights reserved.
+          © 2026 TradeWhy.AI Inc. All rights reserved.
         </div>
       </div>
     `,
@@ -109,7 +109,7 @@ export async function sendPasswordResetEmail(email, token, baseUrl) {
           </p>
         </div>
         <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-          © 2026 Metworth Inc. All rights reserved.
+          © 2026 TradeWhy.AI Inc. All rights reserved.
         </div>
       </div>
     `,
@@ -143,7 +143,7 @@ export async function sendEmailChangeEmail(email, token, baseUrl) {
           </p>
         </div>
         <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-          © 2026 Metworth Inc. All rights reserved.
+          © 2026 TradeWhy.AI Inc. All rights reserved.
         </div>
       </div>
     `,
@@ -166,17 +166,17 @@ export function generateVerificationCode() {
 export async function sendRegistrationCodeEmail(email, code) {
   return sendEmail({
     to: email,
-    subject: '【MetworthAI】注册验证码',
+    subject: '【TradeWhy.AI】注册验证码',
     html: `
       <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="background: linear-gradient(135deg, #0a0a0c 0%, #1a1a1f 100%); padding: 40px 20px; text-align: center;">
-          <h1 style="color: #eab308; margin: 0; font-size: 28px;">MetworthAI</h1>
+          <h1 style="color: #eab308; margin: 0; font-size: 28px;">TradeWhy.AI</h1>
           <p style="color: #9ca3af; margin-top: 8px;">AI 驱动的交易复盘平台</p>
         </div>
         <div style="padding: 40px 20px; background: #f9f9f9;">
           <h2 style="color: #333; margin-bottom: 20px;">验证您的邮箱</h2>
           <p style="color: #666; line-height: 1.6;">
-            您正在注册 MetworthAI 账号，请使用以下验证码完成注册：
+            您正在注册 TradeWhy.AI 账号，请使用以下验证码完成注册：
           </p>
           <div style="text-align: center; margin: 30px 0;">
             <div style="display: inline-block; background: #0a0a0c; color: #eab308; padding: 20px 40px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 12px; font-family: 'Courier New', monospace;">
@@ -191,7 +191,7 @@ export async function sendRegistrationCodeEmail(email, code) {
           </p>
         </div>
         <div style="padding: 20px; text-align: center; color: #999; font-size: 12px; background: #f0f0f0;">
-          © 2026 Metworth Inc. All rights reserved.
+          © 2026 TradeWhy.AI Inc. All rights reserved.
         </div>
       </div>
     `,

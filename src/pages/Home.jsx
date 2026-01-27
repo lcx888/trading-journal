@@ -35,27 +35,24 @@ const Navbar = ({ onStart, onDocs }) => {
   }, []);
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-[#0d0d10]/95 backdrop-blur-xl border-b border-[#1a1a1f]' : 'bg-transparent'}`}>
-      <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+    <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-3' : 'bg-transparent py-6'}`}>
+      <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
-          <div>
-            <span className="text-lg font-bold text-[#ffffff]">Metworth</span>
-            <span className="text-lg font-bold text-[#c9a227]">AI</span>
-          </div>
+          <img src="/logo.svg" alt="TradeWhy.AI" className="h-7 object-contain" />
         </div>
         
-        <div className="hidden md:flex items-center gap-6">
-          <a href="#features" className="text-sm font-medium text-[#888] hover:text-[#c9a227] transition-colors">功能</a>
-          <a href="#ai-coach" className="text-sm font-medium text-[#888] hover:text-[#c9a227] transition-colors">AI教练</a>
-          <button onClick={onDocs} className="text-sm font-medium text-[#888] hover:text-[#c9a227] transition-colors">
-            文档
+        <div className="hidden md:flex items-center gap-10">
+          <a href="#features" className="text-[11px] font-bold text-[#555] hover:text-[#c9a227] transition-colors uppercase tracking-[0.2em]">功能特点</a>
+          <a href="#ai-coach" className="text-[11px] font-bold text-[#555] hover:text-[#c9a227] transition-colors uppercase tracking-[0.2em]">AI 智能</a>
+          <button onClick={onDocs} className="text-[11px] font-bold text-[#555] hover:text-[#c9a227] transition-colors uppercase tracking-[0.2em]">
+            说明文档
           </button>
-          <button onClick={onStart} className="text-sm font-medium text-[#888] hover:text-[#fff] transition-colors">
+          <div className="w-px h-4 bg-[#1a1a1f]"></div>
+          <button onClick={onStart} className="text-[11px] font-bold text-[#fff] hover:text-[#c9a227] transition-colors uppercase tracking-[0.2em]">
             登录
           </button>
-          <button onClick={onStart} className="text-sm font-semibold bg-[#c9a227] text-[#0a0a0c] px-5 py-2 rounded hover:bg-[#d4af37] transition-all">
-            免费开始
+          <button onClick={onStart} className="text-[11px] font-bold bg-[#c9a227] text-[#0a0a0c] px-6 py-2.5 rounded hover:bg-[#d4af37] transition-all uppercase tracking-[0.1em]">
+            立即开始
           </button>
         </div>
 
@@ -80,59 +77,98 @@ const Navbar = ({ onStart, onDocs }) => {
 // 模拟交易界面
 const MockInterface = () => {
   return (
-    <div className="relative w-full max-w-4xl mx-auto mt-12">
-      <div className="bg-[#111114] rounded-xl border border-[#1a1a1f] overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a1f]">
+    <div className="relative w-full max-w-5xl mx-auto mt-16 animate-fadeInUp">
+      {/* 背景装饰光效 */}
+      <div className="absolute -top-20 -left-20 w-64 h-64 bg-[#c9a227]/10 rounded-full blur-[100px]"></div>
+      <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-[#c9a227]/5 rounded-full blur-[100px]"></div>
+      
+      <div className="bg-[#0a0a0c] rounded-xl border border-[#1a1a1f] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] scanline-effect animate-float">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a1f] bg-[#0d0d10]">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#333]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#333]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#333]"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
           </div>
-          <div className="text-xs text-[#555] font-mono">AI Trading Coach</div>
-          <div className="w-16"></div>
+          <div className="text-[10px] text-[#555] font-mono tracking-[0.2em] uppercase">TradeWhy 终端 v2.0 // 机构级</div>
+          <div className="flex gap-1">
+            <div className="w-4 h-1 bg-[#222]"></div>
+            <div className="w-4 h-1 bg-[#222]"></div>
+          </div>
         </div>
         
-        <div className="p-5 grid grid-cols-4 gap-4">
-          <div className="col-span-3 bg-[#0a0a0c] rounded-lg p-4 border border-[#1a1a1f]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-[#888] font-medium">权益曲线</div>
-              <div className="text-2xl font-bold text-[#c9a227] font-mono">+$24,580</div>
+        <div className="p-6 grid grid-cols-12 gap-6">
+          {/* 左侧主图表 */}
+          <div className="col-span-8 space-y-6">
+            <div className="bg-[#0d0d10] rounded-lg p-5 border border-[#1a1a1f]">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <div className="text-[10px] text-[#555] font-semibold uppercase tracking-wider mb-1">权益曲线 // 净累计</div>
+                  <div className="text-3xl font-bold text-[#fff] font-mono tracking-tighter">
+                    <span className="text-[#0ecb81]">$</span>24,580.42
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-[#555] font-semibold uppercase tracking-wider mb-1">最大回撤</div>
+                  <div className="text-sm font-bold text-[#f6465d] font-mono">-2.4%</div>
+                </div>
+              </div>
+              <div className="h-48 flex items-end justify-between gap-1.5 relative">
+                {/* 模拟网格线 */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-5">
+                  {[1,2,3,4].map(i => <div key={i} className="w-full h-px bg-white"></div>)}
+                </div>
+                {[30, 45, 35, 55, 40, 65, 50, 80, 60, 95, 75, 85, 70, 100, 85, 110, 95, 120].map((h, i) => (
+                  <div key={i} className="flex-1 bg-gradient-to-t from-[#c9a227]/5 to-[#c9a227]/40 border-t border-[#c9a227]/60 rounded-t-sm transition-all hover:opacity-100 opacity-70" style={{ height: `${h/1.2}%` }}></div>
+                ))}
+              </div>
             </div>
-            <div className="h-36 flex items-end justify-between gap-1">
-              {[40, 50, 35, 60, 45, 70, 55, 80, 65, 90, 75, 85, 70, 95, 80, 100].map((h, i) => (
-                <div key={i} className="flex-1 bg-gradient-to-t from-[#c9a227]/60 to-[#c9a227] rounded-t opacity-80" style={{ height: `${h}%` }}></div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: '获利因子', value: '2.35', color: '#c9a227' },
+                { label: '胜率', value: '68.5%', color: '#fff' },
+                { label: '平均 R 倍数', value: '1.82R', color: '#c9a227' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-[#0d0d10] rounded-lg p-4 border border-[#1a1a1f]">
+                  <div className="text-[9px] text-[#555] font-semibold uppercase tracking-wider mb-1">{stat.label}</div>
+                  <div className="text-xl font-bold font-mono" style={{ color: stat.color }}>{stat.value}</div>
+                </div>
               ))}
             </div>
           </div>
           
-          <div className="space-y-3">
-            <div className="bg-[#0a0a0c] rounded-lg p-3 border border-[#1a1a1f]">
-              <div className="text-xs text-[#555] mb-1">胜率</div>
-              <div className="text-xl font-bold text-[#fff] font-mono">68.5%</div>
-            </div>
-            <div className="bg-[#0a0a0c] rounded-lg p-3 border border-[#1a1a1f]">
-              <div className="text-xs text-[#555] mb-1">R倍数</div>
-              <div className="text-xl font-bold text-[#c9a227] font-mono">2.35R</div>
-            </div>
-            <div className="bg-[#0a0a0c] rounded-lg p-3 border border-[#1a1a1f]">
-              <div className="text-xs text-[#555] mb-1">压力系数</div>
-              <div className="flex gap-1">
-                {[1,2,3].map(i => <div key={i} className="w-3 h-3 bg-[#c9a227] rounded-sm"></div>)}
-                {[4,5].map(i => <div key={i} className="w-3 h-3 bg-[#222] rounded-sm"></div>)}
+          {/* 右侧 AI 洞察 */}
+          <div className="col-span-4 space-y-4">
+            <div className="bg-[#0d0d10] rounded-lg p-5 border border-[#1a1a1f] h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-2 h-2 rounded-full bg-[#c9a227] animate-pulse"></div>
+                <span className="text-[10px] font-bold text-[#fff] uppercase tracking-[0.2em]">AI 实时洞察</span>
+              </div>
+              
+              <div className="space-y-4 flex-1">
+                <div className="p-3 bg-[#1a1a1f]/50 border-l-2 border-[#c9a227] rounded-r">
+                  <div className="text-[10px] text-[#c9a227] font-bold mb-1">行为警报</div>
+                  <div className="text-xs text-[#eee] leading-relaxed">检测到 NQ 的报复性交易。亏损后 5 分钟内执行了 3 笔交易。</div>
+                </div>
+                
+                <div className="p-3 bg-[#1a1a1f]/50 border-l-2 border-[#0ecb81] rounded-r">
+                  <div className="text-[10px] text-[#0ecb81] font-bold mb-1">优势优化</div>
+                  <div className="text-xs text-[#eee] leading-relaxed">您的优势在 ES 的 10:00-11:00 EST 期间最强。胜率：74%。</div>
+                </div>
+
+                <div className="p-3 bg-[#1a1a1f]/50 border-l-2 border-[#888] rounded-r">
+                  <div className="text-[10px] text-[#888] font-bold mb-1">风险建议</div>
+                  <div className="text-xs text-[#eee] leading-relaxed">当前回撤高于均值 1.2 个标准差。建议减小仓位。</div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-[#1a1a1f]">
+                <div className="flex justify-between items-center text-[9px] text-[#555] font-mono">
+                  <span>系统状态：最佳</span>
+                  <span>延迟：12MS</span>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div className="px-5 py-4 bg-[#0a0a0c] border-t border-[#1a1a1f]">
-          <div className="flex items-center gap-2 mb-3">
-            <RobotOutlined className="text-[#c9a227]" />
-            <span className="text-sm font-medium text-[#888]">AI 智能诊断</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs px-2.5 py-1 bg-[#1a1a1f] text-[#888] rounded border border-[#252528]">✓ 执行果断</span>
-            <span className="text-xs px-2.5 py-1 bg-[#1a1a1f] text-[#c9a227] rounded border border-[#252528]">⚡ 提款机: 09:30-10:30</span>
-            <span className="text-xs px-2.5 py-1 bg-[#1a1a1f] text-[#888] rounded border border-[#252528]">📊 建议: 早出策略</span>
           </div>
         </div>
       </div>
@@ -142,27 +178,27 @@ const MockInterface = () => {
 
 // 功能卡片
 const FeatureCard = ({ icon, title, description, isNew }) => (
-  <div className="bg-[#111114] border border-[#1a1a1f] rounded-xl p-6 hover:border-[#c9a227]/40 transition-all group relative">
+  <div className="bg-[#0d0d10] border border-[#1a1a1f] rounded-2xl p-8 hover:border-[#c9a227]/40 transition-all group relative overflow-hidden">
     {isNew && (
-      <div className="absolute top-4 right-4 text-[10px] px-1.5 py-0.5 bg-[#c9a227]/20 text-[#c9a227] rounded font-medium">NEW</div>
+      <div className="absolute top-0 right-0 px-3 py-1 bg-[#c9a227] text-[#0a0a0c] text-[9px] font-bold uppercase tracking-widest rounded-bl-lg">NEW</div>
     )}
-    <div className="w-11 h-11 rounded-lg bg-[#1a1a1f] flex items-center justify-center mb-4 group-hover:bg-[#c9a227]/10 transition-colors">
-      <span className="text-xl text-[#c9a227]">{icon}</span>
+    <div className="w-12 h-12 rounded-xl bg-[#1a1a1f] flex items-center justify-center mb-8 group-hover:bg-[#c9a227]/10 transition-colors">
+      <span className="text-2xl text-[#c9a227]">{icon}</span>
     </div>
-    <h3 className="text-base font-semibold text-[#fff] mb-2">{title}</h3>
-    <p className="text-sm text-[#666] leading-relaxed">{description}</p>
+    <h3 className="text-lg font-bold text-[#fff] mb-4 tracking-tight">{title}</h3>
+    <p className="text-sm text-[#666] leading-relaxed font-light group-hover:text-[#888] transition-colors">{description}</p>
   </div>
 );
 
 // AI 教练功能项
 const AICoachItem = ({ icon, title, description }) => (
-  <div className="flex gap-4 p-4 rounded-lg hover:bg-[#1a1a1f]/50 transition-all">
-    <div className="w-9 h-9 rounded-lg bg-[#1a1a1f] flex items-center justify-center flex-shrink-0">
-      <span className="text-lg text-[#c9a227]">{icon}</span>
+  <div className="flex gap-5 p-5 rounded-xl hover:bg-[#1a1a1f]/50 transition-all border border-transparent hover:border-[#1a1a1f]">
+    <div className="w-10 h-10 rounded-lg bg-[#1a1a1f] flex items-center justify-center flex-shrink-0 border border-[#252528]">
+      <span className="text-xl text-[#c9a227]">{icon}</span>
     </div>
     <div>
-      <h4 className="text-sm font-semibold text-[#fff] mb-1">{title}</h4>
-      <p className="text-xs text-[#666] leading-relaxed">{description}</p>
+      <h4 className="text-sm font-bold text-[#fff] mb-1.5 tracking-tight">{title}</h4>
+      <p className="text-xs text-[#555] leading-relaxed font-light">{description}</p>
     </div>
   </div>
 );
@@ -170,15 +206,12 @@ const AICoachItem = ({ icon, title, description }) => (
 // 主页组件
 const Home = ({ onStart, onDocs }) => {
   const features = [
-    { icon: <RobotOutlined />, title: 'AI 智能诊断', description: '自动识别交易行为模式，诊断报复性交易、处置效应、执行焦虑等问题', isNew: true },
-    { icon: <ExperimentOutlined />, title: '蒙特卡洛模拟', description: '基于历史数据进行 1000 次模拟，预测未来交易盈亏概率分布', isNew: true },
-    { icon: <AimOutlined />, title: '最优止损预测', description: '回测不同止损位对总盈亏的影响，智能推荐最佳止损策略', isNew: true },
-    { icon: <BarChartOutlined />, title: '期望值分布', description: '按时段、方向、品种分析期望值，找出提款机时段和碎钞机时段', isNew: true },
-    { icon: <HeartOutlined />, title: '心理压力评分', description: '基于 MAE 深度和持仓时长，为每笔交易打出 1-5 级压力分', isNew: true },
-    { icon: <DashboardOutlined />, title: 'R倍数追踪', description: '计算每笔交易的风险回报倍数，评估盈亏质量', isNew: true },
-    { icon: <ThunderboltOutlined />, title: 'MAE/MFE 可视化', description: '直观展示每笔交易的波动区间，标注利润回吐区域' },
-    { icon: <RiseOutlined />, title: '权益曲线分析', description: '可视化权益变化，自动标注关键节点和最大回撤' },
-    { icon: <SafetyCertificateOutlined />, title: '风险管理', description: '全面的风险指标监控，帮助建立稳健的交易系统' },
+    { icon: <RobotOutlined />, title: 'AI 行为诊断', description: '自动识别情绪交易周期，诊断报复性交易与执行焦虑', isNew: true },
+    { icon: <ExperimentOutlined />, title: 'MAE/MFE 效率分析', description: '专业级资金效率评估，分析止损是否过宽或止盈是否过于保守', isNew: true },
+    { icon: <AimOutlined />, title: '最优止损回测', description: '回测不同止损位对总盈亏的影响，智能推荐符合数学期望的最佳止损', isNew: true },
+    { icon: <BarChartOutlined />, title: '期望值分布', description: '按时段、方向、品种分析期望值，找出您的“提款机”与“碎钞机”', isNew: true },
+    { icon: <HeartOutlined />, title: '心理压力评分', description: '基于 MAE 深度和持仓时长，量化您的心理承压能力与执行质量', isNew: true },
+    { icon: <DashboardOutlined />, title: 'R倍数质量追踪', description: '计算风险回报倍数，剔除运气成分，评估每一笔交易的真实质量', isNew: true },
   ];
 
   const aiCoachFeatures = [
@@ -189,10 +222,10 @@ const Home = ({ onStart, onDocs }) => {
   ];
 
   const steps = [
-    { num: '01', title: '导入数据', desc: '支持 ATAS、Jigsaw 等' },
-    { num: '02', title: 'AI 诊断', desc: '智能分析交易行为' },
-    { num: '03', title: '获取洞察', desc: '生成优化建议' },
-    { num: '04', title: '持续改进', desc: '追踪进步轨迹' },
+    { num: '01', title: '数据同步', desc: '支持 ATAS, Jigsaw, NT 等' },
+    { num: '02', title: '行为归因', desc: 'AI 自动解析交易心理' },
+    { num: '03', title: '深度洞察', desc: '生成专业级复盘报告' },
+    { num: '04', title: '系统进化', desc: '建立确定性交易系统' },
   ];
 
   return (
@@ -200,36 +233,39 @@ const Home = ({ onStart, onDocs }) => {
       <Navbar onStart={onStart} onDocs={onDocs} />
       
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a1a1f] border border-[#252528] rounded-full mb-8">
-            <StarOutlined className="text-[#c9a227]" />
-            <span className="text-sm text-[#888] font-medium">全新升级 · AI 智能诊断系统</span>
+      <section className="pt-40 pb-24 px-6 relative overflow-hidden">
+        {/* 背景网格 */}
+        <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+        
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a1a1f] border border-[#252528] rounded-full mb-10 animate-fadeIn">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#c9a227] animate-pulse"></div>
+            <span className="text-[10px] text-[#c9a227] font-bold uppercase tracking-[0.2em]">机构级引擎 v2.0</span>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-bold text-[#fff] mb-6 leading-tight">
-            您的专属<span className="text-[#c9a227]"> AI 交易教练</span><br />
-            <span className="text-[#888]">精准诊断 · 科学优化</span>
+          <h1 className="text-5xl md:text-7xl font-bold text-[#fff] mb-8 leading-[1.1] tracking-tighter animate-fadeInUp">
+            像顶级对冲基金一样<br />
+            <span className="text-[#c9a227]">复盘与进化</span>
           </h1>
           
-          <p className="text-lg text-[#666] mb-10 max-w-2xl mx-auto leading-relaxed">
-            蒙特卡洛模拟预测未来风险，行为归因识别交易陋习，最优止损回测提升盈利能力。
+          <p className="text-xl md:text-2xl text-[#888] mb-14 max-w-3xl mx-auto leading-relaxed font-light animate-fadeInUp [animation-delay:200ms]">
+            TradeWhy.AI 深度解析您的每一笔交易，挖掘您潜意识中的交易偏好与致命弱点。
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center animate-fadeInUp [animation-delay:400ms]">
             <button 
               onClick={onStart}
-              className="inline-flex items-center justify-center gap-2 bg-[#c9a227] text-[#0a0a0c] px-8 py-3 rounded-lg font-semibold hover:bg-[#d4af37] transition-all"
+              className="inline-flex items-center justify-center gap-3 bg-[#c9a227] text-[#0a0a0c] px-10 py-4 rounded-lg font-bold text-lg hover:bg-[#d4af37] shadow-[0_0_40px_rgba(201,162,39,0.2)] transition-all"
             >
-              免费开始使用
+              立即开启职业之路
               <ArrowRightOutlined />
             </button>
             <button 
               onClick={onDocs}
-              className="inline-flex items-center justify-center gap-2 border border-[#1a1a1f] text-[#888] px-8 py-3 rounded-lg font-medium hover:border-[#c9a227] hover:text-[#c9a227] transition-all"
+              className="inline-flex items-center justify-center gap-3 border border-[#1a1a1f] text-[#888] px-10 py-4 rounded-lg font-semibold text-lg hover:border-[#c9a227] hover:text-[#c9a227] transition-all bg-[#0d0d10]/50 backdrop-blur-sm"
             >
               <BookOutlined />
-              查看文档
+              查看说明文档
             </button>
           </div>
         </div>
@@ -248,12 +284,87 @@ const Home = ({ onStart, onDocs }) => {
         </div>
       </section>
       
+      {/* 痛点共鸣 Section */}
+      <section className="py-32 px-6 bg-[#050505] relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-[#1a1a1f] to-transparent"></div>
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fff] mb-6 tracking-tighter">为什么 90% 的交易者最终走向亏损？</h2>
+            <p className="text-[#888] max-w-2xl mx-auto text-xl font-light">“您不是技术不行，是您不了解自己的交易行为。”</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-10">
+            {[
+              { title: '报复性交易', desc: '在亏损后疯狂加仓，试图一次性回本？AI 实时监控您的情绪波动，在失控前发出预警。', icon: <AlertOutlined /> },
+              { title: '过早止盈', desc: '拿不住盈利单，却死扛亏损单直到爆仓？通过 MFE 分析，量化您的利润留存率。', icon: <FireOutlined /> },
+              { title: '品种黑洞', desc: '在某个特定品种上持续失血而不自知？AI 自动识别您的“碎钞机”品种，优化资产配置。', icon: <ExperimentOutlined /> },
+            ].map((item, i) => (
+              <div key={i} className="p-10 rounded-2xl bg-[#0a0a0c] border border-[#1a1a1f] hover:border-[#c9a227]/30 transition-all group">
+                <div className="text-[#c9a227] text-3xl mb-6 group-hover:scale-110 transition-transform">{item.icon}</div>
+                <h3 className="text-xl font-bold text-[#fff] mb-4 tracking-tight">{item.title}</h3>
+                <p className="text-[#666] leading-relaxed font-light">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 量化架构 Section */}
+      <section className="py-32 px-6 bg-[#0a0a0c]">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <div className="relative">
+              <div className="absolute -inset-10 bg-[#c9a227]/5 blur-[80px] rounded-full"></div>
+              <div className="relative bg-[#0d0d10] border border-[#1a1a1f] rounded-2xl p-8 shadow-2xl">
+                <div className="text-[10px] text-[#c9a227] font-bold uppercase tracking-[0.2em] mb-8">数学优势 // 框架</div>
+                <div className="space-y-6">
+                  {[
+                    { label: 'MAE (最大不利偏移)', desc: '量化入场后的最大浮亏，评估入场精准度。' },
+                    { label: 'MFE (最大有利偏移)', desc: '量化入场后的最大浮盈，评估止盈效率。' },
+                    { label: 'R-Multiple 分布', desc: '分析风险回报比的数学分布，剔除运气成分。' },
+                    { label: '蒙特卡洛模拟', desc: '1000次随机序列模拟，预测账户破产概率。' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="text-[#c9a227] font-mono text-sm">0{i+1}</div>
+                      <div>
+                        <div className="text-sm font-bold text-[#fff] mb-1">{item.label}</div>
+                        <div className="text-xs text-[#666] leading-relaxed">{item.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#fff] mb-8 tracking-tighter leading-tight">
+                基于数学期望的<br />
+                <span className="text-[#c9a227]">确定性交易系统</span>
+              </h2>
+              <p className="text-[#888] text-lg mb-10 font-light leading-relaxed">
+                职业交易者不赌运气，他们只交易“概率”。TradeWhy.AI 将复杂的量化分析工具简化为直观的洞察，帮助您从直觉交易进化为系统交易。
+              </p>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-6 bg-[#0d0d10] border border-[#1a1a1f] rounded-xl">
+                  <div className="text-2xl font-bold text-[#fff] mb-1 font-mono">99.9%</div>
+                  <div className="text-[10px] text-[#555] uppercase tracking-wider">数据准确度</div>
+                </div>
+                <div className="p-6 bg-[#0d0d10] border border-[#1a1a1f] rounded-xl">
+                  <div className="text-2xl font-bold text-[#c9a227] mb-1 font-mono">&lt; 1s</div>
+                  <div className="text-[10px] text-[#555] uppercase tracking-wider">分析速度</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-[#fff] mb-4">强大的分析能力</h2>
-            <p className="text-[#666] max-w-xl mx-auto">全面的交易数据分析工具，帮助您成为更优秀的交易者</p>
+            <h2 className="text-3xl font-bold text-[#fff] mb-4 tracking-tight">核心分析维度</h2>
+            <p className="text-[#888] max-w-xl mx-auto font-light">基于顶级量化框架，深度剖析您的每一笔订单</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -271,12 +382,12 @@ const Home = ({ onStart, onDocs }) => {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1f] border border-[#252528] rounded-full mb-6">
                 <RobotOutlined className="text-[#c9a227]" />
-                <span className="text-xs text-[#888] font-medium">AI 交易教练</span>
+                <span className="text-xs text-[#c9a227] font-medium uppercase tracking-widest">AI 行为教练</span>
               </div>
-              <h2 className="text-3xl font-bold text-[#fff] mb-4">智能诊断与决策支持</h2>
-              <p className="text-[#666] mb-8 leading-relaxed">
-                基于量化交易架构设计，专注于交易者行为分析与策略优化。
-                通过回溯历史订单表现，自动识别交易模式并提供科学建议。
+              <h2 className="text-3xl font-bold text-[#fff] mb-6 tracking-tight">智能诊断与决策支持</h2>
+              <p className="text-[#888] mb-8 leading-relaxed font-light">
+                基于顶级对冲基金量化架构设计，专注于交易者行为分析与策略进化。
+                通过回溯历史订单表现，自动识别您潜意识中的交易模式并提供科学建议。
               </p>
               
               <div className="space-y-1">
@@ -346,8 +457,8 @@ const Home = ({ onStart, onDocs }) => {
       <section id="workflow" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-[#fff] mb-4">简单四步，开始优化</h2>
-            <p className="text-[#666]">从导入数据到获得洞察，一切如此简单</p>
+            <h2 className="text-3xl font-bold text-[#fff] mb-4 tracking-tight">建立确定性系统</h2>
+            <p className="text-[#888] font-light">从混沌到秩序，仅需四个步骤</p>
           </div>
           
           <div className="grid md:grid-cols-4 gap-6">
@@ -397,11 +508,11 @@ const Home = ({ onStart, onDocs }) => {
       <section className="py-10 border-y border-[#1a1a1f]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-4">
-            <span className="text-xs text-[#444]">支持主流交易软件数据导入</span>
+            <span className="text-xs text-[#444] uppercase tracking-[0.2em]">机构级连接性</span>
           </div>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 grayscale opacity-30 hover:opacity-60 transition-opacity duration-500">
             {['ATAS', 'Jigsaw', 'NinjaTrader', 'CME', 'NQ · ES · GC'].map((name, i) => (
-              <div key={i} className="text-base font-bold text-[#333] tracking-wider">{name}</div>
+              <div key={i} className="text-base font-bold text-[#fff] tracking-wider">{name}</div>
             ))}
           </div>
         </div>
@@ -410,13 +521,13 @@ const Home = ({ onStart, onDocs }) => {
       {/* CTA Section */}
       <section className="py-20 px-6 bg-[#0d0d10]">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-[#fff] mb-6">准备好让 AI 教练帮您进步了吗？</h2>
-          <p className="text-[#666] mb-10 text-lg">智能诊断 · 蒙特卡洛预测 · 最优止损 · 行为归因</p>
+          <h2 className="text-3xl font-bold text-[#fff] mb-6">在交易场上，唯一的对手是您自己。</h2>
+          <p className="text-[#888] mb-10 text-lg font-light">TradeWhy 是那面让您看清自己的镜子。准备好进化了吗？</p>
           <button 
             onClick={onStart}
-            className="inline-flex items-center gap-2 bg-[#c9a227] text-[#0a0a0c] px-10 py-4 rounded-lg font-semibold text-lg hover:bg-[#d4af37] transition-all"
+            className="inline-flex items-center gap-2 bg-[#c9a227] text-[#0a0a0c] px-10 py-4 rounded-lg font-semibold text-lg hover:bg-[#d4af37] shadow-[0_0_30px_rgba(201,162,39,0.2)] transition-all"
           >
-            立即免费开始
+            开启您的职业交易之路
             <ArrowRightOutlined />
           </button>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-[#555]">
@@ -431,15 +542,14 @@ const Home = ({ onStart, onDocs }) => {
       <footer className="py-8 px-6 border-t border-[#1a1a1f]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="w-7 h-7 rounded-md object-cover" />
-            <span className="font-semibold text-[#fff]">MetworthAI</span>
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 object-contain" />
           </div>
           <div className="flex items-center gap-6 text-sm text-[#555]">
             <button onClick={onDocs} className="hover:text-[#c9a227] transition-colors">文档</button>
             <a href="#features" className="hover:text-[#c9a227] transition-colors">功能</a>
             <a href="#ai-coach" className="hover:text-[#c9a227] transition-colors">AI教练</a>
           </div>
-          <div className="text-sm text-[#444]">© 2026 MetworthAI. All rights reserved.</div>
+          <div className="text-sm text-[#444]">© 2026 TradeWhy.AI. 保留所有权利。</div>
         </div>
       </footer>
     </div>

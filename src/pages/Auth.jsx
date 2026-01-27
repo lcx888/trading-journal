@@ -217,8 +217,7 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
         {/* Logo */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
-            <img src="/logo.png" alt="Logo" className="w-11 h-11 rounded-xl object-cover" />
-            <span className="text-2xl font-bold tracking-tight text-white">MetworthAI</span>
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-10 object-contain" />
           </div>
         </div>
 
@@ -251,7 +250,7 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
 
         {/* Footer */}
         <div className="relative z-10 text-sm" style={{ color: '#6b7280' }}>
-          © 2026 Metworth Inc. All rights reserved.
+          © 2026 TradeWhy.AI Inc. All rights reserved.
         </div>
       </div>
 
@@ -271,8 +270,7 @@ const Auth = ({ onAuth, onBack, initialMode, resetToken }) => {
 
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2 mb-12">
-          <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
-          <span className="text-xl font-bold tracking-tight text-white">MetworthAI</span>
+          <img src="/logo.svg" alt="TradeWhy.AI" className="h-8 object-contain" />
         </div>
 
         <div className="w-full max-w-md mx-auto">

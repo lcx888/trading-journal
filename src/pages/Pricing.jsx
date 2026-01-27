@@ -297,7 +297,7 @@ const Pricing = () => {
         style: { color: '#666', border: 'none' }
       },
       onOk: () => {
-        navigator.clipboard.writeText('support@metworthai.com');
+        navigator.clipboard.writeText('support@tradewhy.ai');
         message.success('客服邮箱已复制');
       },
     });
@@ -597,7 +597,7 @@ const Pricing = () => {
             <div style={styles.trustItem}><Headphones size={16} /> 技术支持</div>
             <div style={{ flex: 1 }} />
             <a 
-              href="mailto:support@metworthai.com" 
+              href="mailto:support@tradewhy.ai" 
               style={{ 
                 color: THEME.text, 
                 fontSize: '13px', 

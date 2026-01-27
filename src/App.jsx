@@ -329,7 +329,7 @@ function App() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-primary)]">
-        <img src="/logo.png" alt="Logo" className="w-14 h-14 rounded-xl object-cover mb-6" />
+        <img src="/logo.svg" alt="Logo" className="w-48 h-14 object-contain mb-6" />
         <Spin size="large" />
         <div className="mt-4 text-[var(--text-secondary)] text-sm">正在加载...</div>
       </div>
@@ -447,13 +447,11 @@ function App() {
           }}
         >
           {/* Logo */}
-          <div className="flex items-center px-4 h-16 border-b border-[var(--border-primary)]">
-            <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
-            {!collapsed && (
-              <div className="ml-3 overflow-hidden">
-                <div className="text-[var(--text-primary)] font-semibold text-sm">Metworth</div>
-                <div className="text-[var(--text-tertiary)] text-[10px] font-medium uppercase tracking-wider">Trading Coach</div>
-              </div>
+          <div className="flex items-center justify-center px-3 h-16 border-b border-[var(--border-primary)]">
+            {collapsed ? (
+              <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center font-bold text-[var(--color-brand)] text-lg">T</div>
+            ) : (
+              <img src="/logo.svg" alt="TradeWhy.AI" className="h-7 object-contain" />
             )}
           </div>
           

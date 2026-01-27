@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 /* ============================================
-   MetworthAI Design System v3.0
+   TradeWhy.AI Design System v3.0
    币安风格深色主题 - 专业交易界面
    ============================================ */
 
 :root {
   /* ========== 背景色（极深层次）========== */
-  --bg-primary: #0a0a0c;      /* 页面主背景 - 最深 */
-  --bg-secondary: #0d0d10;    /* 卡片/模块背景 */
-  --bg-tertiary: #0f0f12;     /* 悬浮/选中/输入框背景 */
-  --bg-hover: #141418;        /* 悬浮高亮 */
-  --bg-elevated: #1a1a1f;     /* 提升层级背景 */
+  --bg-primary: #050505;      /* 页面主背景 - 纯黑感 */
+  --bg-secondary: #0a0a0c;    /* 卡片/模块背景 */
+  --bg-tertiary: #0d0d10;     /* 悬浮/选中/输入框背景 */
+  --bg-hover: #111114;        /* 悬浮高亮 */
+  --bg-elevated: #16161a;     /* 提升层级背景 */
   
   /* ========== 品牌色（金色）========== */
-  --color-brand: #eab308;           /* 金色 - 主品牌色 */
-  --color-brand-light: #facc15;     /* 品牌色浅 */
-  --color-brand-dark: #ca8a04;      /* 品牌色深 */
-  --color-brand-bg: rgba(234, 179, 8, 0.1); /* 品牌色背景 */
-  --color-brand-hover: rgba(234, 179, 8, 0.15);
+  --color-brand: #F0B90B;           /* 币安金 - 标准色 */
+  --color-brand-light: #FCD535;     /* 品牌色浅 */
+  --color-brand-dark: #C99400;      /* 品牌色深 */
+  --color-brand-bg: rgba(240, 185, 11, 0.08); /* 品牌色背景 */
+  --color-brand-hover: rgba(240, 185, 11, 0.12);
   
   /* ========== 盈亏语义色 ========== */
-  --color-profit: #10b981;          /* 盈利/涨幅 - 绿色 */
-  --color-profit-light: #34d399;    /* 盈利色浅 */
-  --color-profit-bg: rgba(16, 185, 129, 0.1); /* 盈利背景 */
-  --color-profit-hover: rgba(16, 185, 129, 0.15); /* 盈利悬浮 */
+  --color-profit: #0ECB81;          /* 币安绿 - 专业盈利 */
+  --color-profit-light: #2EBD85;    /* 盈利色浅 */
+  --color-profit-bg: rgba(14, 203, 129, 0.08); /* 盈利背景 */
+  --color-profit-hover: rgba(14, 203, 129, 0.12); /* 盈利悬浮 */
   
-  --color-loss: #f43f5e;            /* 亏损/跌幅 - 红色 */
-  --color-loss-light: #fb7185;      /* 亏损色浅 */
-  --color-loss-bg: rgba(244, 63, 94, 0.1); /* 亏损背景 */
-  --color-loss-hover: rgba(244, 63, 94, 0.15); /* 亏损悬浮 */
+  --color-loss: #F6465D;            /* 币安红 - 专业亏损 */
+  --color-loss-light: #FF707E;      /* 亏损色浅 */
+  --color-loss-bg: rgba(246, 70, 93, 0.08); /* 亏损背景 */
+  --color-loss-hover: rgba(246, 70, 93, 0.12); /* 亏损悬浮 */
   
   /* ========== 文字色 ========== */
   --text-primary: #ffffff;    /* 主要文字 - 纯白 */
@@ -595,7 +595,7 @@ body {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -619,17 +619,44 @@ body {
   }
 }
 
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
 /* 动画类 */
 .animate-fadeIn {
   animation: fadeIn var(--transition-slow) ease-out forwards;
 }
 
 .animate-fadeInUp {
-  animation: fadeInUp var(--transition-slow) ease-out forwards;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-pulse {
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.scanline-effect::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-brand), transparent);
+  opacity: 0.2;
+  animation: scanline 3s linear infinite;
+  pointer-events: none;
 }
 
 /* 页面切换动画 */

@@ -1,43 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://metworth.ai/</loc>
+    <loc>https://tradewhy.ai/</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/dashboard</loc>
+    <loc>https://tradewhy.ai/dashboard</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/records</loc>
+    <loc>https://tradewhy.ai/records</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/trades</loc>
+    <loc>https://tradewhy.ai/trades</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/strategies</loc>
+    <loc>https://tradewhy.ai/strategies</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/ai-analysis</loc>
+    <loc>https://tradewhy.ai/ai-analysis</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://metworth.ai/calendar</loc>
+    <loc>https://tradewhy.ai/calendar</loc>
     <lastmod>2026-01-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
