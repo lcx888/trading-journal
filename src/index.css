@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 /* ============================================
+   按钮重置样式（修复 preflight 禁用导致的问题）
+   ============================================ */
+button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+button:focus {
+  outline: none;
+}
+
+/* ============================================
    TradeWhy.AI Design System v3.0
    币安风格深色主题 - 专业交易界面
    ============================================ */
