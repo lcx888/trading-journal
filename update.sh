@@ -12,7 +12,9 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-APP_DIR="/var/www/tradewhy"
+# 项目目录（根据实际情况修改）
+APP_DIR="/www/wwwroot/metworthai.com"
+PM2_APP_NAME="metworthai"
 
 echo -e "${GREEN}"
 echo "============================================"
@@ -43,7 +45,7 @@ npx prisma generate
 
 # 5. 重启服务
 echo -e "\n${GREEN}[5/5] 重启后端服务...${NC}"
-pm2 restart tradewhy-api
+pm2 restart $PM2_APP_NAME
 
 echo -e "\n${GREEN}============================================${NC}"
 echo -e "${GREEN}  更新完成！${NC}"
