@@ -4,7 +4,7 @@
  */
 import * as XLSX from 'xlsx';
 import { StorageService } from './storage';
-import { convertUTCToCST, getMarketSession } from '../utils/timezone';
+import { getMarketSession } from '../utils/timezone';
 
 // 品种代码映射
 const INSTRUMENT_PATTERNS = {
@@ -55,54 +55,29 @@ const parseInstrumentCode = (atasSymbol, instruments = []) => {
   return deriveInstrumentCode(atasSymbol) || 'OTHER';
 };
 
-// 解析Excel日期（ATAS文件中的时间是UTC+0）
-// 返回转换为UTC+8（中国时间）的Date对象
+// 解析Excel日期（直接返回本地时间，不做时区转换）
 const parseExcelDate = (excelDate) => {
   if (!excelDate) return null;
   
-  let utcDate = null;
+  let date = null;
   
   if (excelDate instanceof Date) {
-    // 如果已经是 Date 对象，假设它是 UTC 时间
-    // 创建一个新的 Date 对象，使用 UTC 时间戳
-    const utcTimestamp = Date.UTC(
-      excelDate.getUTCFullYear(),
-      excelDate.getUTCMonth(),
-      excelDate.getUTCDate(),
-      excelDate.getUTCHours(),
-      excelDate.getUTCMinutes(),
-      excelDate.getUTCSeconds(),
-      excelDate.getUTCMilliseconds()
-    );
-    utcDate = new Date(utcTimestamp);
+    date = excelDate;
   } else if (typeof excelDate === 'string') {
-    // 字符串格式，尝试解析为 UTC 时间
-    // 如果字符串包含 'Z' 或 '+00:00'，表示 UTC 时间
-    if (excelDate.includes('Z') || excelDate.includes('+00:00')) {
-      utcDate = new Date(excelDate);
-    } else {
-      // 否则假设是 UTC 时间字符串，添加 'Z' 后缀
-      utcDate = new Date(excelDate.endsWith('Z') ? excelDate : excelDate + 'Z');
-    }
-    if (isNaN(utcDate.getTime())) return null;
+    date = new Date(excelDate);
+    if (isNaN(date.getTime())) return null;
   } else if (typeof excelDate === 'number') {
     // Excel日期是从1900年1月1日开始的天数
-    // Excel 日期基准：1900-01-01 00:00:00
-    // JavaScript Date 基准：1970-01-01 00:00:00 UTC
-    // 差值：25569 天（注意：Excel 错误地将 1900 年视为闰年，所以实际是 25568）
-    // 但 xlsx.js 库已经处理了这个差异，所以我们使用标准公式
-    const utcTimestamp = (excelDate - 25569) * 86400 * 1000;
-    // 使用 Date.UTC 确保创建的是 UTC 时间
-    utcDate = new Date(utcTimestamp);
+    const timestamp = (excelDate - 25569) * 86400 * 1000;
+    date = new Date(timestamp);
   } else {
     return null;
   }
   
   // 验证日期有效性
-  if (isNaN(utcDate.getTime())) return null;
+  if (isNaN(date.getTime())) return null;
   
-  // 将UTC+0时间转换为UTC+8（中国时间）
-  return convertUTCToCST(utcDate);
+  return date;
 };
 
 // 生成唯一ID

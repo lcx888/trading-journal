@@ -544,10 +544,10 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
 
               <div style={{ marginTop: 24, padding: 12, background: 'var(--bg-tertiary)', borderRadius: 6, border: '1px solid var(--border-primary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-brand)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
-                  <InfoCircleOutlined /> 自动校正
+                  <InfoCircleOutlined /> 时段识别
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
-                  系统会将 ATAS（UTC+0）自动转换为本地 CST，并根据全球夏令时自动调整交易时段。
+                  系统根据交易时间自动识别市场时段，并根据全球夏令时自动调整。
                 </div>
               </div>
             </div>
