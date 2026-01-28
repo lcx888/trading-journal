@@ -383,7 +383,7 @@ const StressIndicator = ({ score }) => {
   };
   
   return (
-    <Tooltip title={`心理压力等级: ${score.toFixed(1)}/5`}>
+    <Tooltip title={`心理压力等级: ${(score ?? 0).toFixed(1)}/5`}>
       <div className="flex items-center gap-1">
         <div className="flex gap-0.5">
           {[1, 2, 3, 4, 5].map(i => (
@@ -1121,6 +1121,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
         const score = calcDrawdownStressIndex(maeUSD, r.pnl, r.holdingSeconds);
+        if (score === null || score === undefined) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         return (
           <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
             {score.toFixed(1)}
@@ -1435,7 +1436,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               className="text-3xl font-mono font-bold"
               style={{ color: stats.netPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
             >
-              {stats.netPnL >= 0 ? '+' : ''}{stats.netPnL.toFixed(2)}
+              {stats.netPnL >= 0 ? '+' : ''}{(stats.netPnL ?? 0).toFixed(2)}
             </div>
           </div>
 
@@ -1462,25 +1463,25 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             <div>
               <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>盈亏比</div>
               <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                {stats.profitFactor.toFixed(2)}
+                {(stats.profitFactor ?? 0).toFixed(2)}
               </div>
             </div>
             <div>
               <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均盈</div>
               <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                ${stats.avgWin.toFixed(0)}
+                ${(stats.avgWin ?? 0).toFixed(0)}
               </div>
             </div>
             <div>
               <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均亏</div>
               <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                ${stats.avgLoss.toFixed(0)}
+                ${(stats.avgLoss ?? 0).toFixed(0)}
               </div>
             </div>
             <div>
               <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>手续费</div>
               <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                ${stats.totalFee.toFixed(0)}
+                ${(stats.totalFee ?? 0).toFixed(0)}
               </div>
             </div>
             {hasJigsawData && jigsawStats && (
@@ -1488,13 +1489,13 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 <div>
                   <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MAE</div>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    ${jigsawStats.avgMAE.toFixed(0)}
+                    ${(jigsawStats.avgMAE ?? 0).toFixed(0)}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MFE</div>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    ${jigsawStats.avgMFE.toFixed(0)}
+                    ${(jigsawStats.avgMFE ?? 0).toFixed(0)}
                   </div>
                 </div>
               </>
@@ -1518,19 +1519,19 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 <div>
                   <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>风险回报</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    {jigsawStats.avgRMultiple.toFixed(2)}R
+                    {(jigsawStats.avgRMultiple ?? 0).toFixed(2)}R
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>捕获率</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    {jigsawStats.avgProfitCapture.toFixed(0)}%
+                    {(jigsawStats.avgProfitCapture ?? 0).toFixed(0)}%
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>压力指数</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    {jigsawStats.avgStressScore.toFixed(1)}/5
+                    {(jigsawStats.avgStressScore ?? 0).toFixed(1)}/5
                   </div>
                 </div>
                 <div>

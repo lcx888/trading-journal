@@ -420,7 +420,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
                     todayStats.pnlChange >= 0 ? 'bg-[var(--color-profit-bg)] text-[var(--color-profit)]' : 'bg-[var(--color-loss-bg)] text-[var(--color-loss)]'
                   }`}>
                     {todayStats.pnlChange >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                    较昨日 {todayStats.pnlChange >= 0 ? '+' : ''}{todayStats.pnlChange.toFixed(0)}%
+                    较昨日 {todayStats.pnlChange >= 0 ? '+' : ''}{(todayStats.pnlChange ?? 0).toFixed(0)}%
                   </div>
                 )}
               </div>
