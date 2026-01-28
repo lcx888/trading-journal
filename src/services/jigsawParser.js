@@ -6,6 +6,66 @@ import * as XLSX from 'xlsx';
 import { StorageService } from './storage';
 import { getMarketSession } from '../utils/timezone';
 
+// 时区偏移量（分钟）映射表
+const TIMEZONE_OFFSETS = {
+  'Asia/Shanghai': 480,      // UTC+8
+  'Asia/Hong_Kong': 480,     // UTC+8
+  'Asia/Singapore': 480,     // UTC+8
+  'Asia/Tokyo': 540,         // UTC+9
+  'Asia/Seoul': 540,         // UTC+9
+  'Asia/Dubai': 240,         // UTC+4
+  'Europe/London': 0,        // UTC+0 (冬令时)
+  'Europe/Paris': 60,        // UTC+1 (冬令时)
+  'Europe/Berlin': 60,       // UTC+1 (冬令时)
+  'America/New_York': -300,  // UTC-5 (冬令时)
+  'America/Chicago': -360,   // UTC-6 (冬令时)
+  'America/Los_Angeles': -480, // UTC-8 (冬令时)
+  'America/Toronto': -300,   // UTC-5 (冬令时)
+  'Australia/Sydney': 600,   // UTC+10 (冬令时)
+  'Pacific/Auckland': 720,   // UTC+12 (冬令时)
+};
+
+/**
+ * 获取时区偏移量（分钟）
+ */
+const getTimezoneOffset = (timezone, date) => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'shortOffset'
+    });
+    const parts = formatter.formatToParts(date);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    if (tzPart) {
+      const match = tzPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+      if (match) {
+        const sign = match[1] === '+' ? 1 : -1;
+        const hours = parseInt(match[2], 10);
+        const minutes = parseInt(match[3] || '0', 10);
+        return sign * (hours * 60 + minutes);
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+  return TIMEZONE_OFFSETS[timezone] || 0;
+};
+
+/**
+ * 将日期从源时区转换到目标时区
+ */
+const convertTimezone = (date, fromTimezone, toTimezone) => {
+  if (!date || fromTimezone === toTimezone) return date;
+  
+  const fromOffset = getTimezoneOffset(fromTimezone, date);
+  const toOffset = getTimezoneOffset(toTimezone, date);
+  const diffMinutes = toOffset - fromOffset;
+  
+  if (diffMinutes === 0) return date;
+  
+  return new Date(date.getTime() + diffMinutes * 60 * 1000);
+};
+
 // 品种代码映射 - Jigsaw 格式
 const INSTRUMENT_PATTERNS = {
   'GC': /^GC[A-Z]\d+$/i,      // 黄金期货 GCG26
@@ -139,6 +199,11 @@ export const parseJigsawFile = async (file) => {
         const workbook = XLSX.read(data, { type: 'array', cellDates: false }); // 不自动解析日期
         
         const instruments = await StorageService.getInstruments();
+        
+        // 获取时区设置
+        const dataSourceTimezone = StorageService.getDataSourceTimezone();
+        const userTimezone = StorageService.getUserTimezone();
+        
         const result = {
           filename: file.name,
           importDate: new Date(),
@@ -149,6 +214,11 @@ export const parseJigsawFile = async (file) => {
             totalPnL: 0,
             byInstrument: {},
             byAccount: {},
+          },
+          // 记录使用的时区
+          timezoneInfo: {
+            dataSource: dataSourceTimezone,
+            user: userTimezone,
           },
         };
 
@@ -220,8 +290,18 @@ export const parseJigsawFile = async (file) => {
             newInstruments.push(instrument);
           }
           
-          const openTime = parseJigsawDate(row[columnMap.openTime]);
-          const closeTime = parseJigsawDate(row[columnMap.closeTime]);
+          // 解析时间并进行时区转换
+          let openTime = parseJigsawDate(row[columnMap.openTime]);
+          let closeTime = parseJigsawDate(row[columnMap.closeTime]);
+          
+          // 将时间从数据源时区转换到用户时区
+          if (openTime && dataSourceTimezone && userTimezone) {
+            openTime = convertTimezone(openTime, dataSourceTimezone, userTimezone);
+          }
+          if (closeTime && dataSourceTimezone && userTimezone) {
+            closeTime = convertTimezone(closeTime, dataSourceTimezone, userTimezone);
+          }
+          
           const action = String(row[columnMap.action] || '').toLowerCase();
           const closedPnL = parsePnL(row[columnMap.closedPnL]);
           const maxQty = Number(row[columnMap.maxQty]) || 0;

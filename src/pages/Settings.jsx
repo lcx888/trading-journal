@@ -61,6 +61,7 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
   
   // 用户时区设置
   const [userTimezone, setUserTimezone] = useState('Asia/Shanghai');
+  const [dataSourceTimezone, setDataSourceTimezone] = useState('Asia/Shanghai');
   
   // 账户安全相关状态
   const [userInfo, setUserInfo] = useState(null);
@@ -101,6 +102,10 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
       // 加载用户时区设置
       const savedTimezone = StorageService.getUserTimezone();
       setUserTimezone(savedTimezone);
+      
+      // 加载数据源时区设置
+      const savedDataSourceTimezone = StorageService.getDataSourceTimezone();
+      setDataSourceTimezone(savedDataSourceTimezone);
     } catch (error) {
       message.error('加载设置失败');
     } finally {
@@ -108,11 +113,18 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
     }
   };
 
-  // 保存时区设置
+  // 保存用户时区设置
   const handleTimezoneChange = (timezone) => {
     setUserTimezone(timezone);
     StorageService.setUserTimezone(timezone);
     message.success('时区设置已保存');
+  };
+
+  // 保存数据源时区设置
+  const handleDataSourceTimezoneChange = (timezone) => {
+    setDataSourceTimezone(timezone);
+    StorageService.setDataSourceTimezone(timezone);
+    message.success('数据源时区已保存，新导入的数据将使用此时区');
   };
 
   // 修改密码
@@ -554,9 +566,32 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>时区设置</span>
               </div>
               
+              {/* 数据源时区（交易软件的时区）*/}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  交易软件时区 <Tag style={{ background: 'var(--color-brand-bg)', color: 'var(--color-brand)', border: 'none', fontSize: 9, marginLeft: 4 }}>重要</Tag>
+                </div>
+                <Select
+                  value={dataSourceTimezone}
+                  onChange={handleDataSourceTimezoneChange}
+                  style={{ width: '100%' }}
+                  options={TIMEZONE_OPTIONS}
+                  optionRender={(option) => (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{option.data.label}</span>
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>{option.data.offset}</span>
+                    </div>
+                  )}
+                />
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                  设置您交易软件（如 ATAS、Jigsaw）导出数据使用的时区
+                </div>
+              </div>
+
+              {/* 用户本地时区 */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                  您的时区
+                  您的本地时区
                 </div>
                 <Select
                   value={userTimezone}
@@ -570,14 +605,19 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                     </div>
                   )}
                 />
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 6 }}>
+                  用于显示和市场时段判断
+                </div>
               </div>
 
-              <div style={{ padding: 12, background: 'var(--bg-tertiary)', borderRadius: 6, border: '1px solid var(--border-primary)' }}>
+              <div style={{ padding: 12, background: 'var(--color-brand-bg)', borderRadius: 6, border: '1px solid var(--border-primary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-brand)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
-                  <InfoCircleOutlined /> 说明
+                  <InfoCircleOutlined /> 时区转换说明
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
-                  时区设置用于正确显示交易时间。系统会根据您的时区自动识别市场时段（亚盘/欧盘/美盘）。
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+                  <div>• 导入数据时，系统会将交易软件时区的时间转换为您的本地时区</div>
+                  <div>• 例如：ATAS 使用纽约时间 → 自动转换为北京时间</div>
+                  <div>• 正确设置可确保市场时段（亚盘/欧盘/美盘）统计准确</div>
                 </div>
               </div>
             </div>

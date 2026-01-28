@@ -6,6 +6,75 @@ import * as XLSX from 'xlsx';
 import { StorageService } from './storage';
 import { getMarketSession } from '../utils/timezone';
 
+// 时区偏移量（分钟）映射表
+const TIMEZONE_OFFSETS = {
+  'Asia/Shanghai': 480,      // UTC+8
+  'Asia/Hong_Kong': 480,     // UTC+8
+  'Asia/Singapore': 480,     // UTC+8
+  'Asia/Tokyo': 540,         // UTC+9
+  'Asia/Seoul': 540,         // UTC+9
+  'Asia/Dubai': 240,         // UTC+4
+  'Europe/London': 0,        // UTC+0 (冬令时)
+  'Europe/Paris': 60,        // UTC+1 (冬令时)
+  'Europe/Berlin': 60,       // UTC+1 (冬令时)
+  'America/New_York': -300,  // UTC-5 (冬令时)
+  'America/Chicago': -360,   // UTC-6 (冬令时)
+  'America/Los_Angeles': -480, // UTC-8 (冬令时)
+  'America/Toronto': -300,   // UTC-5 (冬令时)
+  'Australia/Sydney': 600,   // UTC+10 (冬令时)
+  'Pacific/Auckland': 720,   // UTC+12 (冬令时)
+};
+
+/**
+ * 获取时区偏移量（分钟）
+ * 考虑夏令时
+ */
+const getTimezoneOffset = (timezone, date) => {
+  // 简化处理：使用基础偏移量
+  // 完整实现需要考虑夏令时，这里用 Intl API 来获取精确偏移
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'shortOffset'
+    });
+    const parts = formatter.formatToParts(date);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    if (tzPart) {
+      // 解析 "GMT+8" 或 "GMT-5" 格式
+      const match = tzPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+      if (match) {
+        const sign = match[1] === '+' ? 1 : -1;
+        const hours = parseInt(match[2], 10);
+        const minutes = parseInt(match[3] || '0', 10);
+        return sign * (hours * 60 + minutes);
+      }
+    }
+  } catch (e) {
+    // fallback to static offset
+  }
+  return TIMEZONE_OFFSETS[timezone] || 0;
+};
+
+/**
+ * 将日期从源时区转换到目标时区
+ */
+const convertTimezone = (date, fromTimezone, toTimezone) => {
+  if (!date || fromTimezone === toTimezone) return date;
+  
+  // 获取偏移量
+  const fromOffset = getTimezoneOffset(fromTimezone, date);
+  const toOffset = getTimezoneOffset(toTimezone, date);
+  
+  // 计算偏移差（分钟）
+  const diffMinutes = toOffset - fromOffset;
+  
+  if (diffMinutes === 0) return date;
+  
+  // 创建新的日期对象，调整时间
+  const newDate = new Date(date.getTime() + diffMinutes * 60 * 1000);
+  return newDate;
+};
+
 // 品种代码映射
 const INSTRUMENT_PATTERNS = {
   'GC': /GC[A-Z]\d+@NYMEX/i,
@@ -111,7 +180,7 @@ const generateTradeId = (trade) => {
 };
 
 // 解析日志工作表
-const parseTradeLog = (worksheet, instruments) => {
+const parseTradeLog = (worksheet, instruments, dataSourceTimezone, userTimezone) => {
   const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
   if (data.length < 2) return { trades: [], newInstruments: [] };
 
@@ -160,8 +229,18 @@ const parseTradeLog = (worksheet, instruments) => {
       newInstruments.push(instrument);
     }
     
-    const openTime = parseExcelDate(row[columnMap.openTime]);
-    const closeTime = parseExcelDate(row[columnMap.closeTime]);
+    // 解析时间并进行时区转换
+    let openTime = parseExcelDate(row[columnMap.openTime]);
+    let closeTime = parseExcelDate(row[columnMap.closeTime]);
+    
+    // 将时间从数据源时区转换到用户时区
+    if (openTime && dataSourceTimezone && userTimezone) {
+      openTime = convertTimezone(openTime, dataSourceTimezone, userTimezone);
+    }
+    if (closeTime && dataSourceTimezone && userTimezone) {
+      closeTime = convertTimezone(closeTime, dataSourceTimezone, userTimezone);
+    }
+    
     const openQuantity = Number(row[columnMap.openQuantity]) || 0;
     
     const trade = {
@@ -190,6 +269,9 @@ const parseTradeLog = (worksheet, instruments) => {
       logicAnalysis: '',
       // 元数据
       importedAt: new Date(),
+      // 记录时区信息
+      sourceTimezone: dataSourceTimezone,
+      displayTimezone: userTimezone,
     };
 
     trade.id = generateTradeId(trade);
@@ -280,6 +362,11 @@ export const parseATASFile = async (file) => {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
         const instruments = await StorageService.getInstruments();
+        
+        // 获取时区设置
+        const dataSourceTimezone = StorageService.getDataSourceTimezone();
+        const userTimezone = StorageService.getUserTimezone();
+        
         const result = {
           filename: file.name,
           importDate: new Date(),
@@ -291,6 +378,11 @@ export const parseATASFile = async (file) => {
             totalPnL: 0,
             byInstrument: {},
           },
+          // 记录使用的时区
+          timezoneInfo: {
+            dataSource: dataSourceTimezone,
+            user: userTimezone,
+          },
         };
 
         // 解析各个工作表
@@ -301,7 +393,12 @@ export const parseATASFile = async (file) => {
           name.includes('日志') || name.toLowerCase().includes('log')
         );
         if (logSheet) {
-          const { trades, newInstruments } = parseTradeLog(workbook.Sheets[logSheet], instruments);
+          const { trades, newInstruments } = parseTradeLog(
+            workbook.Sheets[logSheet], 
+            instruments,
+            dataSourceTimezone,
+            userTimezone
+          );
           result.trades = trades;
           if (newInstruments.length > 0) {
             const existingCodes = new Set(instruments.map(i => i.code));
