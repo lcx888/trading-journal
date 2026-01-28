@@ -81,13 +81,18 @@ const calculateTradeFee = (trade, instruments) => {
 
 /**
  * 利润捕获率 (Profit Capture Rate)
- * 公式：max(0, PnL) / MFE × 100%
+ * 公式：min(100, max(0, PnL) / MFE × 100%)
  * 意义：反映你能留住多少浮盈。100% = 完美止盈在最高点，0% = 浮盈全部回吐
  * 越高越好
+ * 注意：理论上不应超过100%，超过说明 MFE 数据可能不准确（Jigsaw 采样问题）
  */
 const calcProfitCaptureRate = (mfeUSD, pnl) => {
   if (!mfeUSD || mfeUSD <= 0) return null;
-  return (Math.max(0, pnl) / mfeUSD) * 100;
+  // 如果盈利为0或负数，捕获率为0
+  if (pnl <= 0) return 0;
+  // 计算捕获率，限制最大值为100%
+  const rate = (pnl / mfeUSD) * 100;
+  return Math.min(100, rate);
 };
 
 /**
