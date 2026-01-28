@@ -1,7 +1,48 @@
 import { apiRequest } from './api';
 import { getMarketSession } from '../utils/timezone';
 
+// 本地存储 key
+const USER_SETTINGS_KEY = 'tradewhy_user_settings';
+
+// 默认用户设置
+const DEFAULT_USER_SETTINGS = {
+  timezone: 'Asia/Shanghai', // 默认中国时区
+};
+
 export const StorageService = {
+  // ========== 用户设置（本地存储）==========
+  getUserSettings() {
+    try {
+      const stored = localStorage.getItem(USER_SETTINGS_KEY);
+      if (stored) {
+        return { ...DEFAULT_USER_SETTINGS, ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.error('Failed to load user settings:', e);
+    }
+    return { ...DEFAULT_USER_SETTINGS };
+  },
+
+  saveUserSettings(settings) {
+    try {
+      const current = this.getUserSettings();
+      const updated = { ...current, ...settings };
+      localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.error('Failed to save user settings:', e);
+      return this.getUserSettings();
+    }
+  },
+
+  getUserTimezone() {
+    return this.getUserSettings().timezone;
+  },
+
+  setUserTimezone(timezone) {
+    return this.saveUserSettings({ timezone });
+  },
+
   // ========== 交易记录 ==========
   async getAllTrades() {
     return await apiRequest('/trades');

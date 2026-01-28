@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Form, Input, InputNumber, Button, Table, Space, 
-  message, Modal, Popconfirm, Row, Col, Tag, Empty
+  message, Modal, Popconfirm, Row, Col, Tag, Empty, Select
 } from 'antd';
 import {
   PlusOutlined,
@@ -19,6 +19,7 @@ import {
   MailOutlined,
   WarningOutlined,
   SettingOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -30,6 +31,25 @@ import { redeemCode, clearSubscriptionCache } from '../services/subscription';
 
 const { TextArea } = Input;
 
+// 常用时区列表
+const TIMEZONE_OPTIONS = [
+  { value: 'Asia/Shanghai', label: '中国标准时间 (UTC+8)', offset: '+08:00' },
+  { value: 'Asia/Hong_Kong', label: '香港时间 (UTC+8)', offset: '+08:00' },
+  { value: 'Asia/Singapore', label: '新加坡时间 (UTC+8)', offset: '+08:00' },
+  { value: 'Asia/Tokyo', label: '日本时间 (UTC+9)', offset: '+09:00' },
+  { value: 'Asia/Seoul', label: '韩国时间 (UTC+9)', offset: '+09:00' },
+  { value: 'Asia/Dubai', label: '迪拜时间 (UTC+4)', offset: '+04:00' },
+  { value: 'Europe/London', label: '伦敦时间 (UTC+0/+1)', offset: '+00:00' },
+  { value: 'Europe/Paris', label: '巴黎时间 (UTC+1/+2)', offset: '+01:00' },
+  { value: 'Europe/Berlin', label: '柏林时间 (UTC+1/+2)', offset: '+01:00' },
+  { value: 'America/New_York', label: '纽约时间 (UTC-5/-4)', offset: '-05:00' },
+  { value: 'America/Chicago', label: '芝加哥时间 (UTC-6/-5)', offset: '-06:00' },
+  { value: 'America/Los_Angeles', label: '洛杉矶时间 (UTC-8/-7)', offset: '-08:00' },
+  { value: 'America/Toronto', label: '多伦多时间 (UTC-5/-4)', offset: '-05:00' },
+  { value: 'Australia/Sydney', label: '悉尼时间 (UTC+10/+11)', offset: '+10:00' },
+  { value: 'Pacific/Auckland', label: '奥克兰时间 (UTC+12/+13)', offset: '+12:00' },
+];
+
 const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const [instruments, setInstruments] = useState([]);
   const [importHistory, setImportHistory] = useState([]);
@@ -38,6 +58,9 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const [editingInstrument, setEditingInstrument] = useState(null);
   const [form] = Form.useForm();
   const [dataStats, setDataStats] = useState({ trades: 0, imports: 0 });
+  
+  // 用户时区设置
+  const [userTimezone, setUserTimezone] = useState('Asia/Shanghai');
   
   // 账户安全相关状态
   const [userInfo, setUserInfo] = useState(null);
@@ -74,11 +97,22 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
         imports: history.length,
       });
       setUserInfo(user);
+      
+      // 加载用户时区设置
+      const savedTimezone = StorageService.getUserTimezone();
+      setUserTimezone(savedTimezone);
     } catch (error) {
       message.error('加载设置失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 保存时区设置
+  const handleTimezoneChange = (timezone) => {
+    setUserTimezone(timezone);
+    StorageService.setUserTimezone(timezone);
+    message.success('时区设置已保存');
   };
 
   // 修改密码
@@ -492,6 +526,63 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
         </Col>
 
         <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 时区设置 */}
+          <div style={{ 
+            background: 'var(--bg-primary)', 
+            border: '1px solid var(--border-primary)', 
+            borderRadius: 6, 
+            padding: 24, 
+            position: 'relative', 
+            overflow: 'hidden' 
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, padding: 16, opacity: 0.05, pointerEvents: 'none' }}>
+              <EnvironmentOutlined style={{ fontSize: 100 }} />
+            </div>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div style={{ 
+                  width: 32, 
+                  height: 32, 
+                  borderRadius: 4, 
+                  background: 'var(--color-brand-bg)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}>
+                  <EnvironmentOutlined style={{ color: 'var(--color-brand)' }} />
+                </div>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>时区设置</span>
+              </div>
+              
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  您的时区
+                </div>
+                <Select
+                  value={userTimezone}
+                  onChange={handleTimezoneChange}
+                  style={{ width: '100%' }}
+                  options={TIMEZONE_OPTIONS}
+                  optionRender={(option) => (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{option.data.label}</span>
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>{option.data.offset}</span>
+                    </div>
+                  )}
+                />
+              </div>
+
+              <div style={{ padding: 12, background: 'var(--bg-tertiary)', borderRadius: 6, border: '1px solid var(--border-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-brand)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
+                  <InfoCircleOutlined /> 说明
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+                  时区设置用于正确显示交易时间。系统会根据您的时区自动识别市场时段（亚盘/欧盘/美盘）。
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 环境信息 */}
           <div style={{ 
             background: 'var(--bg-primary)', 
@@ -509,8 +600,10 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid var(--border-primary)' }}>
-                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>核心时区</span>
-                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>UTC+8 (CST)</span>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>当前时区</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {TIMEZONE_OPTIONS.find(t => t.value === userTimezone)?.label.split(' ')[0] || userTimezone}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid var(--border-primary)' }}>
                   <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>本地时间</span>
