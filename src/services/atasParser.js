@@ -55,21 +55,45 @@ const parseInstrumentCode = (atasSymbol, instruments = []) => {
   return deriveInstrumentCode(atasSymbol) || 'OTHER';
 };
 
-// 解析Excel日期（直接返回本地时间，不做时区转换）
+// 解析Excel日期（ATAS导出的时间视为本地时间，直接使用不做转换）
 const parseExcelDate = (excelDate) => {
   if (!excelDate) return null;
   
   let date = null;
   
   if (excelDate instanceof Date) {
+    // 已经是 Date 对象，直接使用
     date = excelDate;
   } else if (typeof excelDate === 'string') {
+    // 字符串格式，直接解析
     date = new Date(excelDate);
     if (isNaN(date.getTime())) return null;
   } else if (typeof excelDate === 'number') {
-    // Excel日期是从1900年1月1日开始的天数
-    const timestamp = (excelDate - 25569) * 86400 * 1000;
-    date = new Date(timestamp);
+    // Excel日期是从1900年1月1日开始的天数（小数部分是时间）
+    // 将Excel日期转换为日期时间各部分，然后创建本地时间
+    const totalDays = excelDate - 25569; // 相对于1970-01-01的天数
+    const wholeDays = Math.floor(totalDays);
+    const timeFraction = totalDays - wholeDays; // 时间部分（0-1之间的小数）
+    
+    // 计算基准日期（1970-01-01）加上天数
+    const baseDate = new Date(1970, 0, 1); // 本地时间1970-01-01
+    baseDate.setDate(baseDate.getDate() + wholeDays);
+    
+    // 计算时间部分
+    const totalSeconds = Math.round(timeFraction * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    // 创建本地时间的Date对象
+    date = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      hours,
+      minutes,
+      seconds
+    );
   } else {
     return null;
   }
