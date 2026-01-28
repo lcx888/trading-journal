@@ -135,36 +135,18 @@ const getLastSundayOfMonth = (year, month) => {
 };
 
 /**
- * 根据中国时间（UTC+8）判断市场时段（细分版本）
+ * 根据中国时间（UTC+8）判断市场时段
  * 自动适应夏令时/冬令时
  * 
- * ============ 冬令时时段（北京时间，11月-3月）============
+ * ============ 简化时段（北京时间）============
  * 
- * 【亚盘】08:00-16:00（东京、香港、新加坡、澳洲）
- * - 亚盘早盘：08:00-10:30（东京/港股开盘）
- * - 亚盘午盘：10:30-14:00（午间交易）
- * - 亚盘尾盘：14:00-16:00（收盘整理，等待欧盘）
- * 
- * 【欧盘】16:00-22:30（伦敦、法兰克福）
- * - 欧盘早盘：16:00-18:30（伦敦开盘，欧洲数据）
- * - 欧盘午盘：18:30-21:00（欧洲午间交易）
- * - 欧盘尾盘：21:00-22:30（等待美股开盘）
- * 
- * 【美盘开盘】22:30-23:30 ★★★ 极高波动 ★★★
- * - 美股开盘首小时，最重要的交易时段之一
- * 
- * 【欧美重叠】23:30-01:00（伦敦尾盘+纽约早盘）★★ 高流动性 ★★
- * - 两大市场重叠，流动性最高
- * 
- * 【美盘】01:00-05:00（纽约）
- * - 美盘早盘：01:00-02:30（纽约上午活跃）
- * - 美盘午盘：02:30-04:00（纽约午间）
- * - 美盘尾盘：04:00-05:00（纽约收盘整理）
- * 
- * 【场外】05:00-08:00（休市，流动性极低）
- * 
- * ============ 夏令时时段（北京时间，3月-11月）============
- * 时间整体提前1小时
+ * | 时段     | 冬令时        | 夏令时        |
+ * |----------|---------------|---------------|
+ * | 亚盘     | 08:00 - 16:00 | 08:00 - 16:00 |
+ * | 欧盘     | 16:00 - 22:30 | 15:00 - 21:30 |
+ * | 美盘开盘 | 22:30 - 23:30 | 21:30 - 22:30 |
+ * | 美盘     | 23:30 - 05:00 | 22:30 - 04:00 |
+ * | 场外     | 05:00 - 08:00 | 04:00 - 08:00 |
  * 
  * @param {Date} cstDate - 中国时间（UTC+8）
  * @returns {string} - 市场时段名称
@@ -178,93 +160,47 @@ export const getMarketSession = (cstDate) => {
   
   const hour = date.getHours();
   const minute = date.getMinutes();
-  const timeValue = hour * 60 + minute; // 转换为分钟
+  const timeValue = hour * 60 + minute; // 转换为分钟数
   
   // 检测是否夏令时
   const isUSDST = isUSDaylightSavingTime(date);
   
-  // 夏令时偏移：夏令时时所有美国相关时段提前60分钟
-  const dstOffset = isUSDST ? 60 : 0;
+  // 定义关键时间点（分钟）
+  const ASIA_START = 480;      // 08:00
+  const ASIA_END = 960;        // 16:00
+  const EURO_START = isUSDST ? 900 : 960;   // 夏令时15:00，冬令时16:00
+  const US_OPEN = isUSDST ? 1290 : 1350;    // 夏令时21:30，冬令时22:30
+  const US_OPEN_END = US_OPEN + 60;         // 美盘开盘结束（1小时后）
+  const OFF_MARKET_START = isUSDST ? 240 : 300;  // 夏令时04:00，冬令时05:00
   
-  // ========== 亚盘：08:00-16:00（不受美国夏令时影响）==========
-  if (timeValue >= 480 && timeValue < 960) { // 08:00-16:00
-    if (timeValue < 630) { // 08:00-10:30
-      return '亚盘早盘';
-    } else if (timeValue < 840) { // 10:30-14:00
-      return '亚盘午盘';
-    } else { // 14:00-16:00
-      return '亚盘尾盘';
-    }
+  // ========== 亚盘：08:00-16:00 ==========
+  if (timeValue >= ASIA_START && timeValue < ASIA_END) {
+    return '亚盘';
   }
   
-  // ========== 欧盘：16:00 到 美股开盘前 ==========
-  // 冬令时：16:00-22:30，夏令时：15:00-21:30
-  const euroStart = isUSDST ? 900 : 960; // 夏令时15:00，冬令时16:00
-  const usOpen = isUSDST ? 1290 : 1350; // 美股开盘：夏令时21:30，冬令时22:30
-  
-  if (timeValue >= euroStart && timeValue < usOpen) {
-    const euroMid1 = euroStart + 150; // 开盘后2.5小时
-    const euroMid2 = usOpen - 90; // 美股开盘前1.5小时
-    
-    if (timeValue < euroMid1) {
-      return '欧盘早盘';
-    } else if (timeValue < euroMid2) {
-      return '欧盘午盘';
-    } else {
-      return '欧盘尾盘';
-    }
+  // ========== 欧盘：16:00-22:30（冬令时）/ 15:00-21:30（夏令时）==========
+  if (timeValue >= EURO_START && timeValue < US_OPEN) {
+    return '欧盘';
   }
   
-  // ========== 美盘开盘（极高波动！）==========
-  // 冬令时：22:30-23:30，夏令时：21:30-22:30
-  const usOpenEnd = usOpen + 60;
-  if (timeValue >= usOpen && timeValue < usOpenEnd) {
+  // ========== 美盘开盘：22:30-23:30（冬令时）/ 21:30-22:30（夏令时）==========
+  if (timeValue >= US_OPEN && timeValue < US_OPEN_END) {
     return '美盘开盘';
   }
   
-  // ========== 欧美重叠（高流动性）==========
-  // 伦敦收盘时间：冬令时北京时间00:30，夏令时北京时间23:30
-  // 冬令时：23:30-00:30，夏令时：22:30-23:30
-  if (timeValue >= usOpenEnd && timeValue < 1440) {
-    return '欧美重叠';
+  // ========== 美盘：23:30-05:00（冬令时）/ 22:30-04:00（夏令时）==========
+  // 美盘跨越午夜，需要分两段判断
+  if (timeValue >= US_OPEN_END && timeValue < 1440) {
+    // 23:30-24:00（冬令时）或 22:30-24:00（夏令时）
+    return '美盘';
   }
-  if (!isUSDST && timeValue >= 0 && timeValue < 30) { // 冬令时00:00-00:30是欧美重叠
-    return '欧美重叠';
-  }
-  
-  // ========== 美盘 ==========
-  // 冬令时：00:30-05:00，夏令时：23:30-04:00
-  // 冬令时美盘：00:30-05:00
-  if (!isUSDST && timeValue >= 30 && timeValue < 300) {
-    if (timeValue < 120) { // 00:30-02:00
-      return '美盘早盘';
-    } else if (timeValue < 240) { // 02:00-04:00
-      return '美盘午盘';
-    } else { // 04:00-05:00
-      return '美盘尾盘';
-    }
+  if (timeValue >= 0 && timeValue < OFF_MARKET_START) {
+    // 00:00-05:00（冬令时）或 00:00-04:00（夏令时）
+    return '美盘';
   }
   
-  // 夏令时美盘：23:30-04:00（跨越午夜）
-  if (isUSDST) {
-    if (timeValue >= 1410) { // 23:30-24:00
-      return '美盘早盘';
-    }
-    if (timeValue < 240) { // 00:00-04:00
-      if (timeValue < 90) { // 00:00-01:30
-        return '美盘早盘';
-      } else if (timeValue < 180) { // 01:30-03:00
-        return '美盘午盘';
-      } else { // 03:00-04:00
-        return '美盘尾盘';
-      }
-    }
-  }
-  
-  // ========== 场外时间 ==========
-  // 冬令时：05:00-08:00，夏令时：04:00-08:00
-  const offMarketStart = isUSDST ? 240 : 300;
-  if (timeValue >= offMarketStart && timeValue < 480) {
+  // ========== 场外：05:00-08:00（冬令时）/ 04:00-08:00（夏令时）==========
+  if (timeValue >= OFF_MARKET_START && timeValue < ASIA_START) {
     return '场外';
   }
   
@@ -273,33 +209,29 @@ export const getMarketSession = (cstDate) => {
 };
 
 /**
- * 获取简化的市场时段（不含早盘/午盘/尾盘细分）
+ * 获取简化的市场时段（与 getMarketSession 相同，保留兼容性）
  * @param {Date} cstDate - 中国时间（UTC+8）
- * @returns {string} - 简化的市场时段名称
+ * @returns {string} - 市场时段名称
  */
 export const getMarketSessionSimple = (cstDate) => {
-  const session = getMarketSession(cstDate);
-  if (session.startsWith('亚盘')) return '亚盘';
-  if (session.startsWith('欧盘')) return '欧盘';
-  if (session === '美盘开盘') return '美盘开盘';
-  if (session === '欧美重叠') return '欧美重叠';
-  if (session.startsWith('美盘')) return '美盘';
-  return session;
+  return getMarketSession(cstDate);
 };
 
 /**
  * 获取时段的主分类
- * @param {string} session - 详细时段名称
- * @returns {string} - 主分类（亚盘/欧盘/美盘开盘/欧美重叠/美盘/场外）
+ * @param {string} session - 时段名称
+ * @returns {string} - 主分类（亚盘/欧盘/美盘开盘/美盘/场外）
  */
 export const getSessionMainCategory = (session) => {
   if (!session) return '未知';
+  // 简化时段已经是主分类，直接返回
+  const validSessions = ['亚盘', '欧盘', '美盘开盘', '美盘', '场外'];
+  if (validSessions.includes(session)) return session;
+  // 兼容旧数据（如果有早盘/午盘/尾盘后缀）
   if (session.startsWith('亚盘')) return '亚盘';
   if (session.startsWith('欧盘')) return '欧盘';
-  if (session === '美盘开盘') return '美盘开盘';
-  if (session === '欧美重叠') return '欧美重叠';
   if (session.startsWith('美盘')) return '美盘';
-  if (session === '场外') return '场外';
+  if (session === '欧美重叠') return '美盘'; // 旧数据兼容，归入美盘
   return session;
 };
 
@@ -324,17 +256,10 @@ export const getMarketSessionDetail = (cstDate) => {
   const dstLabel = isUSDST ? '夏令时' : '冬令时';
   
   const descriptions = {
-    '亚盘早盘': '东京/香港/新加坡开盘，亚洲经济数据发布，流动性逐渐增加',
-    '亚盘午盘': '亚洲市场午间交易，波动相对平缓',
-    '亚盘尾盘': '亚洲市场收盘前整理，等待欧盘开盘',
-    '欧盘早盘': `伦敦开盘（${dstLabel}），欧洲经济数据发布，流动性高`,
-    '欧盘午盘': '伦敦市场午间交易，波动相对稳定',
-    '欧盘尾盘': '等待美股开盘，关注美国盘前数据和期货走势',
+    '亚盘': '东京/香港/新加坡交易时段（08:00-16:00），亚洲经济数据发布',
+    '欧盘': `伦敦/法兰克福交易时段（${dstLabel}），欧洲经济数据发布，流动性高`,
     '美盘开盘': `★ 美股开盘首小时（${dstLabel}），极高波动，重要数据发布时段 ★`,
-    '欧美重叠': `★ 伦敦尾盘+纽约早盘重叠（${dstLabel}），流动性最高 ★`,
-    '美盘早盘': `纽约上午活跃交易（${dstLabel}），美股联动期`,
-    '美盘午盘': '纽约午间交易，波动相对平缓',
-    '美盘尾盘': `纽约收盘前整理（${dstLabel}），尾盘波动`,
+    '美盘': `纽约交易时段（${dstLabel}），美股联动，主要交易时段`,
     '场外': '市场休市，流动性极低，不建议交易',
   };
   
