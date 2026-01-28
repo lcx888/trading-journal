@@ -223,31 +223,41 @@ export const getMarketSession = (cstDate) => {
   }
   
   // ========== 欧美重叠（高流动性）==========
-  // 冬令时：23:30-01:00，夏令时：22:30-00:00
-  const overlapEnd = isUSDST ? 1440 : 60; // 夏令时到24:00，冬令时到01:00
-  
+  // 伦敦收盘时间：冬令时北京时间00:30，夏令时北京时间23:30
+  // 冬令时：23:30-00:30，夏令时：22:30-23:30
   if (timeValue >= usOpenEnd && timeValue < 1440) {
     return '欧美重叠';
   }
-  if (!isUSDST && timeValue >= 0 && timeValue < 60) { // 冬令时00:00-01:00也是欧美重叠
+  if (!isUSDST && timeValue >= 0 && timeValue < 30) { // 冬令时00:00-00:30是欧美重叠
     return '欧美重叠';
   }
   
   // ========== 美盘 ==========
-  // 冬令时：01:00-05:00，夏令时：00:00-04:00
-  const usSessionStart = isUSDST ? 0 : 60; // 夏令时00:00，冬令时01:00
-  const usSessionEnd = isUSDST ? 240 : 300; // 夏令时04:00，冬令时05:00
-  
-  if (timeValue >= usSessionStart && timeValue < usSessionEnd) {
-    const usMid1 = usSessionStart + 90; // 开盘后1.5小时
-    const usMid2 = usSessionEnd - 60; // 收盘前1小时
-    
-    if (timeValue < usMid1) {
+  // 冬令时：00:30-05:00，夏令时：23:30-04:00
+  // 冬令时美盘：00:30-05:00
+  if (!isUSDST && timeValue >= 30 && timeValue < 300) {
+    if (timeValue < 120) { // 00:30-02:00
       return '美盘早盘';
-    } else if (timeValue < usMid2) {
+    } else if (timeValue < 240) { // 02:00-04:00
       return '美盘午盘';
-    } else {
+    } else { // 04:00-05:00
       return '美盘尾盘';
+    }
+  }
+  
+  // 夏令时美盘：23:30-04:00（跨越午夜）
+  if (isUSDST) {
+    if (timeValue >= 1410) { // 23:30-24:00
+      return '美盘早盘';
+    }
+    if (timeValue < 240) { // 00:00-04:00
+      if (timeValue < 90) { // 00:00-01:30
+        return '美盘早盘';
+      } else if (timeValue < 180) { // 01:30-03:00
+        return '美盘午盘';
+      } else { // 03:00-04:00
+        return '美盘尾盘';
+      }
     }
   }
   
