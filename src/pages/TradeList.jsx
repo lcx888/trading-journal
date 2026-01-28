@@ -96,6 +96,30 @@ const calcProfitCaptureRate = (mfeUSD, pnl) => {
 };
 
 /**
+ * 判断交易是否为分批建仓/减仓（MFE可能不可靠）
+ * 规则：fills > 2 表示有多次成交，可能是分批交易
+ * @param {object} trade - 交易对象
+ * @returns {boolean} - true 表示是分批交易，MFE不可靠
+ */
+const isMultiFillTrade = (trade) => {
+  const fills = trade.fills ?? trade.jigsawData?.fills;
+  // fills > 2 表示超过一次开仓+一次平仓，可能是分批交易
+  return fills !== undefined && fills > 2;
+};
+
+/**
+ * 获取MFE可靠性标记
+ */
+const getMfeReliabilityTag = (trade) => {
+  if (!isMultiFillTrade(trade)) return null;
+  return {
+    label: 'MFE不可靠',
+    color: 'orange',
+    tooltip: `分批交易（${trade.fills ?? trade.jigsawData?.fills}次成交），MFE/MAE数据可能不准确`,
+  };
+};
+
+/**
  * 风险占用比 (Risk Exposure Index)
  * 公式：|MAE| / |PnL|（若亏损离场）或 |MAE| / MFE（若盈利离场）
  * 意义：评估为了赚这点钱，到底扛了多少不必要的风险
@@ -442,7 +466,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     dateRange: null,
     keyword: '',
     source: 'ALL',
-    rating: 'ALL', // 新增评级筛选
+    rating: 'ALL', // 评级筛选
+    mfeReliable: 'ALL', // MFE可靠性筛选：ALL, reliable, unreliable
   });
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
@@ -630,6 +655,15 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return rating.grade === filters.rating;
       });
     }
+    // MFE可靠性筛选
+    if (filters.mfeReliable !== 'ALL') {
+      result = result.filter(t => {
+        const isUnreliable = isMultiFillTrade(t);
+        if (filters.mfeReliable === 'reliable') return !isUnreliable;
+        if (filters.mfeReliable === 'unreliable') return isUnreliable;
+        return true;
+      });
+    }
     setFilteredTrades(result);
   };
 
@@ -743,6 +777,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       dateRange: null,
       keyword: '',
       source: 'ALL',
+      rating: 'ALL',
+      mfeReliable: 'ALL',
     });
   };
 
@@ -752,6 +788,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     filters.result !== 'ALL' || 
     filters.source !== 'ALL' ||
     filters.rating !== 'ALL' ||
+    filters.mfeReliable !== 'ALL' ||
     filters.dateRange !== null ||
     filters.keyword !== '';
 
@@ -1089,7 +1126,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     ...(hasJigsawData ? [{
       title: '捕获率',
       key: 'profitCapture',
-      width: 70,
+      width: 90,
       align: 'right',
       sorter: (a, b) => {
         const mfeA = ticksToUSD(a.mfe ?? a.jigsawData?.mfe, a.instrumentCode, a.openQuantity, instruments);
@@ -1106,13 +1143,21 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (capture === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
         // 大于80%显示绿色
         const isGood = capture >= 80;
+        const reliabilityTag = getMfeReliabilityTag(r);
         return (
-          <span 
-            className="font-mono text-sm font-semibold" 
-            style={{ color: isGood ? 'var(--color-profit)' : 'var(--text-secondary)' }}
-          >
-            {capture.toFixed(0)}%
-          </span>
+          <Tooltip title={reliabilityTag?.tooltip}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+              <span 
+                className="font-mono text-sm font-semibold" 
+                style={{ color: isGood ? 'var(--color-profit)' : 'var(--text-secondary)' }}
+              >
+                {capture.toFixed(0)}%
+              </span>
+              {reliabilityTag && (
+                <span style={{ color: 'var(--color-brand)', fontSize: 10 }}>⚠</span>
+              )}
+            </span>
+          </Tooltip>
         );
       },
     }] : []),
@@ -1391,6 +1436,18 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   { value: 'C', label: 'C 一般' },
                   { value: 'D', label: 'D 较差' },
                   { value: 'F', label: 'F 很差' },
+                ]}
+              />
+            )}
+            {hasJigsawData && (
+              <Select
+                value={filters.mfeReliable}
+                onChange={v => setFilters({ ...filters, mfeReliable: v })}
+                style={{ width: 120 }}
+                options={[
+                  { value: 'ALL', label: '全部交易' },
+                  { value: 'reliable', label: '✓ MFE可靠' },
+                  { value: 'unreliable', label: '⚠ 分批交易' },
                 ]}
               />
             )}
