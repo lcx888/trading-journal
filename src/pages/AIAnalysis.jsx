@@ -66,6 +66,7 @@ import {
   calculateExpectancy,
 } from '../services/tradingDiagnostics';
 import { FeatureLock, ProBadge, UpgradeModal } from '../components/UpgradePrompt';
+import { checkUsageLimit } from '../services/subscription';
 
 const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
@@ -841,7 +842,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
 
   // 检查是否为付费用户
-  const isPaidUser = subscription?.plan?.name === 'pro' || subscription?.plan?.name === 'team';
+  const isPaidUser = subscription?.plan?.name === 'pro' || subscription?.plan?.name === 'team' || subscription?.plan?.name === 'elite';
   const planFeatures = subscription?.plan || {};
   
   // 显示升级弹窗
@@ -1064,6 +1065,15 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   const handleDeepAnalyze = async () => {
     if (!analysis?.success) {
       message.warning('请先完成基础分析');
+      return;
+    }
+    
+    // 检查 AI 分析用量限制（免费用户）
+    const usageCheck = await checkUsageLimit('aiAnalysis');
+    if (!usageCheck.allowed) {
+      setUpgradeFeatureKey('aiAnalysis');
+      setShowUpgradeModal(true);
+      message.warning(`本月 AI 分析次数已用完 (${usageCheck.used}/${usageCheck.limit})，请升级解锁更多额度`);
       return;
     }
     
@@ -1975,7 +1985,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                 </div>
                 <div>
                   <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>AI 智能诊断报告</div>
-                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by TradeWhy.AI · DeepSeek</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Powered by TradeWhy.AI</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

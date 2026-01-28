@@ -605,6 +605,12 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
                   bgColor: 'rgba(217, 119, 6, 0.1)',
                   features: ['无限账本', '无限交易', '无限 AI 分析', '智能诊断系统'],
                 },
+                elite: { 
+                  displayName: 'Elite 精英版', 
+                  color: '#a855f7',
+                  bgColor: 'rgba(168, 85, 247, 0.1)',
+                  features: ['所有 Pro 功能', 'API 接口', '优先支持', 'VIP 服务'],
+                },
                 team: { 
                   displayName: 'Team 团队版', 
                   color: '#7c3aed',

@@ -17,14 +17,17 @@ import {
   BookOutlined,
 } from '@ant-design/icons';
 import StorageService from '../services/storage';
+import { checkUsageLimit } from '../services/subscription';
+import { UpgradeModal } from '../components/UpgradePrompt';
 
 const { TextArea } = Input;
 
-const TradingRecords = ({ onNavigateToImport }) => {
+const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -47,7 +50,17 @@ const TradingRecords = ({ onNavigateToImport }) => {
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    // 检查账本数量限制（免费用户）
+    const usageCheck = await checkUsageLimit('records');
+    const maxRecords = subscription?.plan?.maxRecords ?? usageCheck.limit ?? 1;
+    
+    if (maxRecords !== -1 && records.length >= maxRecords) {
+      setShowUpgradeModal(true);
+      message.warning(`账本数量已达上限 (${records.length}/${maxRecords})，请升级解锁更多账本`);
+      return;
+    }
+    
     setEditingRecord(null);
     form.resetFields();
     setModalVisible(true);
@@ -496,6 +509,17 @@ const TradingRecords = ({ onNavigateToImport }) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 升级提示弹窗 */}
+      <UpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureKey="records"
+        onUpgrade={() => {
+          setShowUpgradeModal(false);
+          onShowUpgrade?.('records');
+        }}
+      />
     </div>
   );
 };

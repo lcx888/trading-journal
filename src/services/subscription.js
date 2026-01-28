@@ -180,6 +180,13 @@ export function getPlanDisplayInfo(planName) {
       bgColor: '#ede9fe',
       icon: '🚀',
     },
+    elite: {
+      name: 'Elite',
+      displayName: '精英版',
+      color: '#dc2626',
+      bgColor: '#fee2e2',
+      icon: '👑',
+    },
   };
   return info[planName] || info.free;
 }
@@ -192,9 +199,9 @@ function getFreePlanDefaults() {
     name: 'free',
     displayName: 'Free 免费版',
     maxRecords: 1,
-    maxTradesPerMonth: 100,
-    maxHistoryDays: 30,
-    maxAiAnalysisPerMonth: 3,
+    maxTradesPerMonth: 50,      // 与服务器端保持一致
+    maxHistoryDays: 7,          // 与服务器端保持一致
+    maxAiAnalysisPerMonth: 2,   // 与服务器端保持一致
     maxTeamMembers: 1,
     hasSmartDiagnosis: false,
     hasMonteCarlo: false,

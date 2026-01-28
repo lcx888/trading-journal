@@ -16,16 +16,19 @@ import dayjs from 'dayjs';
 import { parseATASFile, checkDuplicates } from '../services/atasParser';
 import { parseJigsawFile, checkJigsawDuplicates, detectFileType } from '../services/jigsawParser';
 import StorageService from '../services/storage';
+import { checkUsageLimit } from '../services/subscription';
+import { UpgradeModal } from '../components/UpgradePrompt';
 
 const { Dragger } = Upload;
 
-const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) => {
+const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, subscription, onShowUpgrade }) => {
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [fileType, setFileType] = useState(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const [records, setRecords] = useState([]);
   const [currentRecordId, setCurrentRecordId] = useState(selectedRecordId || null);
@@ -108,6 +111,25 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
 
   const handleImport = async () => {
     if (!duplicateInfo || duplicateInfo.unique === 0) return;
+    
+    // 检查交易导入用量限制（免费用户）
+    const usageCheck = await checkUsageLimit('trades');
+    if (!usageCheck.allowed) {
+      setShowUpgradeModal(true);
+      message.warning(`本月交易导入额度已用完 (${usageCheck.used}/${usageCheck.limit})，请升级解锁无限导入`);
+      return;
+    }
+    
+    // 检查导入数量是否会超过限制
+    if (usageCheck.limit !== -1 && usageCheck.remaining !== Infinity) {
+      const tradesToImportCount = duplicateInfo.unique;
+      if (tradesToImportCount > usageCheck.remaining) {
+        message.warning(`本月剩余额度 ${usageCheck.remaining} 笔，本次导入 ${tradesToImportCount} 笔将超出限制。升级 Pro 可解锁无限导入。`);
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+    
     setImporting(true);
     setImportProgress(0);
     try {
@@ -676,6 +698,17 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords }) 
           </div>
         </Modal>
       )}
+
+      {/* 升级提示弹窗 */}
+      <UpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureKey="trades"
+        onUpgrade={() => {
+          setShowUpgradeModal(false);
+          onShowUpgrade?.('trades');
+        }}
+      />
     </div>
   );
 };

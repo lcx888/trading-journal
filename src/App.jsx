@@ -279,7 +279,7 @@ function App() {
       case 'dashboard': 
         return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} subscription={subscription} onUpgrade={goToPricing} /></div>;
       case 'records': 
-        return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} /></div>;
+        return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
       case 'trades': 
         return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
       case 'strategies': 
@@ -289,7 +289,7 @@ function App() {
       case 'calendar': 
         return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
       case 'import': 
-        return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} /></div>;
+        return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
       case 'settings': 
         return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} subscription={subscription} onUpgrade={goToPricing} /></div>;
       case 'pricing':
@@ -602,6 +602,11 @@ function App() {
                             {subscription?.plan?.name === 'pro' && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-brand-bg)] text-[var(--color-brand)]">
                                 PRO
+                              </span>
+                            )}
+                            {subscription?.plan?.name === 'elite' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+                                ELITE
                               </span>
                             )}
                           </div>

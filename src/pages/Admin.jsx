@@ -625,7 +625,7 @@ const Admin = () => {
       total: subscriptions.length,
       active: subscriptions.filter(s => s.status === 'active').length,
       pro: subscriptions.filter(s => s.plan?.name === 'pro').length,
-      team: subscriptions.filter(s => s.plan?.name === 'team').length,
+      elite: subscriptions.filter(s => s.plan?.name === 'elite').length,
     };
 
     return (
@@ -668,11 +668,11 @@ const Admin = () => {
           <Col xs={24} sm={12} md={6}>
             <div style={statCardStyle}>
               <div style={{ width: 48, height: 48, borderRadius: 8, background: 'rgba(124, 58, 237, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 20 }}>🚀</span>
+                <span style={{ fontSize: 20 }}>👑</span>
               </div>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{subStats.team}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>团队版</div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{subStats.elite}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>精英版</div>
               </div>
             </div>
           </Col>
