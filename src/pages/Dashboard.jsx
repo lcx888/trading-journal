@@ -394,11 +394,25 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
           {/* 左侧：身份与金句 */}
           <div className="flex-shrink-0">
             <div className="flex items-center gap-3 mb-3">
-              <h1 className="text-3xl font-light tracking-tight text-[var(--text-primary)]">
-                {traderName || '职业交易员'}
-              </h1>
-              <div className="px-2 py-0.5 bg-[var(--color-brand-bg)] border border-[var(--color-brand)] rounded text-[9px] font-bold text-[var(--color-brand)] uppercase">
-                Rank {currentLevel.level}
+              {traderName ? (
+                <h1 className="text-3xl font-light tracking-tight text-[var(--text-primary)]">
+                  {traderName}
+                </h1>
+              ) : (
+                <div 
+                  className="group flex items-center gap-2 cursor-pointer"
+                  onClick={() => onNavigate && onNavigate('settings')}
+                >
+                  <h1 className="text-3xl font-light tracking-tight text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors">
+                    设置您的名称
+                  </h1>
+                  <span className="text-xs text-[var(--color-brand)] opacity-0 group-hover:opacity-100 transition-opacity">
+                    点击设置 →
+                  </span>
+                </div>
+              )}
+              <div className="px-2 py-0.5 bg-[var(--color-brand-bg)] border border-[var(--color-brand)] rounded text-[9px] font-bold text-[var(--color-brand)]">
+                {currentLevel.name}
               </div>
             </div>
             <div className="text-[11px] text-[var(--text-tertiary)] font-light flex items-center gap-2">
