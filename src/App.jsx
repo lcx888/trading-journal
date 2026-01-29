@@ -372,20 +372,35 @@ function App() {
 
   if (!authUser) {
     if (showDocs) {
-      return <Docs 
-        onBack={() => setShowDocs(false)} 
-        onStart={() => { setShowDocs(false); setShowAuth(true); }}
-      />;
+      return (
+        <Suspense fallback={<PageLoading />}>
+          <Docs 
+            onBack={() => startTransition(() => setShowDocs(false))} 
+            onStart={() => startTransition(() => { setShowDocs(false); setShowAuth(true); })}
+          />
+        </Suspense>
+      );
     }
     if (showAuth) {
-      return <Auth 
-        onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
-        onBack={() => { setShowAuth(false); setResetToken(null); }}
-        initialMode={authMode}
-        resetToken={resetToken}
-      />;
+      return (
+        <Suspense fallback={<PageLoading />}>
+          <Auth 
+            onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
+            onBack={() => startTransition(() => { setShowAuth(false); setResetToken(null); })}
+            initialMode={authMode}
+            resetToken={resetToken}
+          />
+        </Suspense>
+      );
     }
-    return <Home onStart={() => setShowAuth(true)} onDocs={() => setShowDocs(true)} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <Home 
+          onStart={() => startTransition(() => setShowAuth(true))} 
+          onDocs={() => startTransition(() => setShowDocs(true))} 
+        />
+      </Suspense>
+    );
   }
 
   const totalTrades = records.reduce((sum, r) => sum + (r.tradeCount || 0), 0);
