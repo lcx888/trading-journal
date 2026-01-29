@@ -197,7 +197,11 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
         profitFactor: filteredTrades.filter(t => t.pnl < 0).length > 0 ? 
           Math.abs(filteredTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0) / filteredTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0)) : 
           filteredTrades.filter(t => t.pnl > 0).length > 0 ? Infinity : 0,
-        maxMAE: filteredTrades.length > 0 ? Math.max(...filteredTrades.map(t => Math.abs(t.maeUSD || 0))) : 0,
+        maxMAE: filteredTrades.length > 0 ? Math.max(...filteredTrades.map(t => {
+          const mae = t.mae ?? t.jigsawData?.mae;
+          if (mae === undefined || mae === null) return 0;
+          return Math.abs(ticksToUSD(mae, t.instrumentCode, t.openQuantity, instrumentList));
+        })) : 0,
         totalProfit: filteredTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0),
         totalLoss: filteredTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0),
       };
