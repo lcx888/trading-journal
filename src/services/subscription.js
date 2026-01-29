@@ -183,8 +183,8 @@ export function getPlanDisplayInfo(planName) {
     elite: {
       name: 'Elite',
       displayName: '精英版',
-      color: '#dc2626',
-      bgColor: '#fee2e2',
+      color: '#a855f7',
+      bgColor: '#f3e8ff',
       icon: '👑',
     },
   };

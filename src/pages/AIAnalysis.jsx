@@ -598,8 +598,47 @@ const DiagnosticDashboard = ({ report, instruments }) => {
               )}
             </div>
             <div className="p-4">
+              {/* 原理说明 */}
+              <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <div className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>📊 什么是期望值？</div>
+                <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+                  <strong>期望值 = (胜率 × 平均盈利) - (败率 × 平均亏损)</strong><br/>
+                  表示每笔交易的预期收益。正值说明该时段长期有正收益，负值说明长期亏损。
+                  找出期望值最高的时段，集中在这些"提款机时段"交易。
+                </div>
+              </div>
+
+              {/* 图表说明 */}
+              <div className="text-[10px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                柱状图：各时段期望值 | 绿色=正期望(建议交易) | 红色=负期望(建议回避)
+              </div>
+              
               {getExpectancyChartOption() && (
                 <ReactECharts option={getExpectancyChartOption()} style={{ height: '200px' }} />
+              )}
+
+              {/* 时段建议 */}
+              {analyses.expectancy.bestSession && analyses.expectancy.worstSession && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="p-3 rounded-lg" style={{ background: 'var(--color-profit-bg)' }}>
+                    <div className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>✅ 最佳时段</div>
+                    <div className="font-bold text-sm" style={{ color: 'var(--color-profit)' }}>
+                      {analyses.expectancy.bestSession.name}
+                    </div>
+                    <div className="text-xs font-mono" style={{ color: 'var(--color-profit)' }}>
+                      期望值: ${analyses.expectancy.bestSession.expectancy?.toFixed(2) || 0}/笔
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg" style={{ background: 'var(--color-loss-bg)' }}>
+                    <div className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>⛔ 避开时段</div>
+                    <div className="font-bold text-sm" style={{ color: 'var(--color-loss)' }}>
+                      {analyses.expectancy.worstSession.name}
+                    </div>
+                    <div className="text-xs font-mono" style={{ color: 'var(--color-loss)' }}>
+                      期望值: ${analyses.expectancy.worstSession.expectancy?.toFixed(2) || 0}/笔
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -618,39 +657,67 @@ const DiagnosticDashboard = ({ report, instruments }) => {
                 </div>
                 <div>
                   <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>蒙特卡洛模拟</div>
-                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>未来 {analyses.monteCarlo.parameters.futureTradesCount} 笔交易预测</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>基于历史数据预测未来表现</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>盈利概率</div>
-                <div className="font-bold font-mono" style={{ color: analyses.monteCarlo.results.profitProbability >= 60 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                  {analyses.monteCarlo.results.profitProbability}%
-                </div>
-              </div>
+              <Tag style={{ background: analyses.monteCarlo.results.profitProbability >= 60 ? 'var(--color-profit-bg)' : 'var(--color-loss-bg)', color: analyses.monteCarlo.results.profitProbability >= 60 ? 'var(--color-profit)' : 'var(--color-loss)', border: 'none' }}>
+                盈利概率: {analyses.monteCarlo.results.profitProbability}%
+              </Tag>
             </div>
             <div className="p-4">
+              {/* 原理说明 */}
+              <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <div className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>🎲 什么是蒙特卡洛模拟？</div>
+                <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+                  系统基于您的历史交易统计（胜率、盈亏比），随机模拟未来 <strong>{analyses.monteCarlo.parameters?.futureTradesCount || 100}</strong> 笔交易，
+                  重复 <strong>{analyses.monteCarlo.parameters?.simulations || 1000}</strong> 次，统计可能的结果分布。
+                  用于评估策略的稳健性和最坏情况预期。
+                </div>
+              </div>
+
+              {/* 图表说明 */}
+              <div className="text-[10px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                每条线代表一次模拟的资金曲线轨迹 | 线条越分散说明结果不确定性越高
+              </div>
+              
               {getMonteCarloChartOption() && (
-                <ReactECharts option={getMonteCarloChartOption()} style={{ height: '200px' }} />
+                <ReactECharts option={getMonteCarloChartOption()} style={{ height: '180px' }} />
               )}
-              <div className="grid grid-cols-3 gap-3 mt-3">
-                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
-                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>预期收益</div>
-                  <div className="font-bold font-mono text-sm" style={{ color: analyses.monteCarlo.results.avgFinalEquity >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                    ${analyses.monteCarlo.results.avgFinalEquity.toFixed(0)}
+
+              {/* 核心指标解释 */}
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <Tooltip title="所有模拟的平均最终收益，正值说明策略长期有正期望">
+                  <div className="text-center p-3 rounded cursor-help" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-tertiary)' }}>📈 预期收益</div>
+                    <div className="font-bold font-mono text-lg" style={{ color: analyses.monteCarlo.results.avgFinalEquity >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                      ${analyses.monteCarlo.results.avgFinalEquity?.toFixed(0) || 0}
+                    </div>
+                    <div className="text-[9px]" style={{ color: 'var(--text-tertiary)' }}>平均最终盈亏</div>
                   </div>
-                </div>
-                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
-                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>95%回撤</div>
-                  <div className="font-bold font-mono text-sm" style={{ color: 'var(--color-loss)' }}>
-                    -${analyses.monteCarlo.results.maxDrawdown95.toFixed(0)}
+                </Tooltip>
+                <Tooltip title="95%的模拟中，最大回撤不会超过这个值。用于评估最坏情况">
+                  <div className="text-center p-3 rounded cursor-help" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-tertiary)' }}>📉 95%回撤</div>
+                    <div className="font-bold font-mono text-lg" style={{ color: 'var(--color-loss)' }}>
+                      -${analyses.monteCarlo.results.maxDrawdown95?.toFixed(0) || 0}
+                    </div>
+                    <div className="text-[9px]" style={{ color: 'var(--text-tertiary)' }}>极端情况预估</div>
                   </div>
-                </div>
-                <div className="text-center p-2 rounded" style={{ background: 'var(--bg-tertiary)' }}>
-                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>爆仓风险</div>
-                  <div className="font-bold font-mono text-sm" style={{ color: analyses.monteCarlo.results.ruinProbability > 10 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
-                    {analyses.monteCarlo.results.ruinProbability}%
+                </Tooltip>
+                <Tooltip title="账户亏损超过50%的概率。低于5%较安全，超过10%需警惕">
+                  <div className="text-center p-3 rounded cursor-help" style={{ background: analyses.monteCarlo.results.ruinProbability > 10 ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)', border: `1px solid ${analyses.monteCarlo.results.ruinProbability > 10 ? 'var(--color-loss)' : 'var(--border-primary)'}` }}>
+                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-tertiary)' }}>💀 爆仓风险</div>
+                    <div className="font-bold font-mono text-lg" style={{ color: analyses.monteCarlo.results.ruinProbability > 10 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                      {analyses.monteCarlo.results.ruinProbability?.toFixed(1) || 0}%
+                    </div>
+                    <div className="text-[9px]" style={{ color: 'var(--text-tertiary)' }}>亏损50%+概率</div>
                   </div>
-                </div>
+                </Tooltip>
+              </div>
+
+              {/* 风险提示 */}
+              <div className="mt-3 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                ⚠️ 模拟基于历史数据，假设未来交易模式与过去相似。市场环境变化可能导致实际结果偏离预测。
               </div>
             </div>
           </div>
@@ -669,26 +736,132 @@ const DiagnosticDashboard = ({ report, instruments }) => {
                 </div>
                 <div>
                   <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>最优止损分析</div>
-                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>回测不同止损位的表现</div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>基于历史 MAE 回测不同止损位的效果</div>
                 </div>
               </div>
-              {analyses.stopLossAnalysis.optimal && (
-                <Tag style={{ background: 'var(--color-profit-bg)', color: 'var(--color-profit)', border: 'none' }}>
-                  建议: ${analyses.stopLossAnalysis.optimal.stopLevel}
-                </Tag>
-              )}
+              <Tooltip title="基于历史 MAE 数据回测">
+                <AlertTriangle size={14} style={{ color: 'var(--text-tertiary)' }} />
+              </Tooltip>
             </div>
             <div className="p-4">
-              {getStopLossChartOption() && (
-                <ReactECharts option={getStopLossChartOption()} style={{ height: '200px' }} />
-              )}
-              {analyses.stopLossAnalysis.improvement > 0 && (
-                <div className="mt-3 p-3 rounded text-center" style={{ background: 'var(--color-profit-bg)' }}>
-                  <span className="text-sm" style={{ color: 'var(--color-profit)' }}>
-                    优化后预计提升 <strong>${analyses.stopLossAnalysis.improvement.toFixed(0)}</strong> ({analyses.stopLossAnalysis.improvementPercent}%)
-                  </span>
+              {/* 原理说明 */}
+              <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <div className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>📊 分析原理</div>
+                <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+                  系统回测您的历史交易：假设在入场时设置不同的固定止损金额，如果交易过程中的浮亏（MAE）
+                  触及止损，则以止损价离场；否则按实际盈亏结算。找出使总收益最大化的止损值。
+                </div>
+              </div>
+
+              {/* 您的每手 MAE 分布 */}
+              {analyses.stopLossAnalysis.maeStats && (
+                <div className="mb-4">
+                  <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                    📈 您的每手浮亏(MAE)分布
+                    <span className="ml-2 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                      (已标准化，消除仓位差异干扰)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { label: '平均', value: analyses.stopLossAnalysis.maeStats.avg, desc: '每手平均浮亏' },
+                      { label: '中位数', value: analyses.stopLossAnalysis.maeStats.median, desc: '50%交易每手浮亏低于此值' },
+                      { label: '75%位', value: analyses.stopLossAnalysis.maeStats.percentile75, desc: '75%交易每手浮亏低于此值' },
+                      { label: '90%位', value: analyses.stopLossAnalysis.maeStats.percentile90, desc: '90%交易每手浮亏低于此值' },
+                      { label: '最大', value: analyses.stopLossAnalysis.maeStats.max, desc: '历史最大每手浮亏' },
+                    ].map((item, i) => (
+                      <Tooltip key={i} title={item.desc}>
+                        <div className="text-center p-2 rounded cursor-help" style={{ background: 'var(--bg-secondary)' }}>
+                          <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{item.label}</div>
+                          <div className="font-bold font-mono text-xs" style={{ color: 'var(--color-loss)' }}>
+                            ${item.value?.toFixed(0) || 0}
+                          </div>
+                        </div>
+                      </Tooltip>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* 图表 */}
+              <div className="mb-4">
+                <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>📉 不同每手止损位的总收益对比</div>
+                <div className="text-[10px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                  X轴：每手止损金额（美元/手） | Y轴：采用该止损后的预计总收益
+                </div>
+                {getStopLossChartOption() && (
+                  <ReactECharts option={getStopLossChartOption()} style={{ height: '200px' }} />
+                )}
+              </div>
+
+              {/* 分析结论 */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div className="text-[10px] mb-1" style={{ color: 'var(--text-tertiary)' }}>当前实际总收益</div>
+                  <div className="text-lg font-bold font-mono" style={{ color: analyses.stopLossAnalysis.actualTotalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                    ${analyses.stopLossAnalysis.actualTotalPnL?.toFixed(0) || 0}
+                  </div>
+                  <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                    基于 {analyses.stopLossAnalysis.tradeCount} 笔交易 · 平均 {analyses.stopLossAnalysis.avgQuantity?.toFixed(1)} 手/笔
+                  </div>
+                </div>
+                {/* 根据是否有改善空间显示不同内容 */}
+                {analyses.stopLossAnalysis.improvement > 10 ? (
+                  <div className="p-3 rounded-lg" style={{ background: 'var(--color-profit-bg)', border: '1px solid var(--color-profit)' }}>
+                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-secondary)' }}>最优止损后预计收益</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: 'var(--color-profit)' }}>
+                      ${analyses.stopLossAnalysis.optimal?.totalPnL?.toFixed(0) || 0}
+                    </div>
+                    <div className="text-[10px]" style={{ color: 'var(--color-profit)' }}>
+                      每手止损: ${analyses.stopLossAnalysis.optimal?.stopLevel || 0}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--color-profit)' }}>
+                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-secondary)' }}>策略评估</div>
+                    <div className="text-lg font-bold" style={{ color: 'var(--color-profit)' }}>
+                      ✓ 已最优
+                    </div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                      当前止损策略无需调整
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 建议说明 */}
+              <div className="p-4 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <div className="flex items-start gap-3">
+                  <div className="text-xl">💡</div>
+                  <div>
+                    <div className="font-medium text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
+                      {analyses.stopLossAnalysis.recommendation}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      {analyses.stopLossAnalysis.recommendationDetail}
+                    </div>
+                    {analyses.stopLossAnalysis.avgQuantity > 1 && analyses.stopLossAnalysis.optimal?.forAvgPosition && (
+                      <div className="mt-2 text-xs p-2 rounded" style={{ background: 'var(--bg-secondary)', color: 'var(--color-brand)' }}>
+                        💰 示例：若交易 {analyses.stopLossAnalysis.avgQuantity?.toFixed(0)} 手，
+                        最大亏损限额 = ${analyses.stopLossAnalysis.optimal?.stopLevel} × {analyses.stopLossAnalysis.avgQuantity?.toFixed(0)} = 
+                        <span className="font-bold"> ${analyses.stopLossAnalysis.optimal?.forAvgPosition?.toFixed(0)}</span>
+                      </div>
+                    )}
+                    {analyses.stopLossAnalysis.improvement > 0 && (
+                      <div className="mt-2 p-2 rounded text-center" style={{ background: 'var(--color-profit-bg)' }}>
+                        <span className="text-sm font-medium" style={{ color: 'var(--color-profit)' }}>
+                          📈 预计可提升 ${analyses.stopLossAnalysis.improvement?.toFixed(0)} ({analyses.stopLossAnalysis.improvementPercent}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 注意事项 */}
+              <div className="mt-3 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                ⚠️ 注意：此分析基于历史数据回测，仅供参考。实际交易中应结合市场波动率(ATR)、品种特性等因素动态调整止损。
+              </div>
             </div>
           </div>
         )}
@@ -704,100 +877,125 @@ const DiagnosticDashboard = ({ report, instruments }) => {
             </div>
             <div>
               <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>行为特征分析</div>
-              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>自动识别的交易行为标签</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>自动识别潜在的交易心理问题</div>
             </div>
           </div>
-          <div className="p-4 grid grid-cols-2 gap-3">
-            {/* 报复性交易 */}
-            {analyses.revengeTrades?.hasData && (
-              <div className="p-3 rounded" style={{ background: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)' }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span>🔥</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>报复性交易</span>
-                </div>
-                <div className="text-lg font-bold font-mono" style={{ color: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
-                  {analyses.revengeTrades.revengeCount} 笔
-                </div>
+          <div className="p-4">
+            {/* 原理说明 */}
+            <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+              <div className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>🧠 什么是行为特征分析？</div>
+              <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+                系统通过分析您的交易时间、频率、止损位置、执行次数等数据，
+                自动识别可能存在的交易心理问题。这些"行为标签"帮助您发现无意识的坏习惯。
               </div>
-            )}
-            
-            {/* 止损极点 */}
-            {analyses.badStopLoss?.hasData && (
-              <div className="p-3 rounded" style={{ background: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)' }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span>🎯</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>割肉极点</span>
-                </div>
-                <div className="text-lg font-bold font-mono" style={{ color: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
-                  {analyses.badStopLoss.atBottomRate}%
-                </div>
-              </div>
-            )}
-            
-            {/* 执行焦虑 */}
-            {analyses.executionAnxiety?.hasData && (
-              <div className="p-3 rounded" style={{ background: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)' }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span>⏳</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>执行犹豫</span>
-                </div>
-                <div className="text-lg font-bold font-mono" style={{ color: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
-                  {analyses.executionAnxiety.anxiousRate}%
-                </div>
-              </div>
-            )}
-            
-            {/* 处置效应 */}
-            {analyses.dispositionEffect?.hasData && (
-              <div className="p-3 rounded" style={{ background: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)' }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span>⏱️</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>处置效应</span>
-                </div>
-                <div className="text-lg font-bold font-mono" style={{ color: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss)' : 'var(--color-profit)' }}>
-                  {analyses.dispositionEffect.hasDispositionEffect ? '存在' : '正常'}
-                </div>
-                <div className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                  亏损持仓 / 盈利持仓: {analyses.dispositionEffect.ratio}x
-                </div>
-              </div>
-            )}
-            
-            {/* 平均压力 */}
-            {analyses.stressScores?.hasData && (
-              <div className="p-3 rounded col-span-2" style={{ background: 'var(--bg-tertiary)' }}>
-                <div className="flex items-center justify-between">
-                  <div>
+            </div>
+
+            {/* 指标解释网格 */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* 报复性交易 */}
+              {analyses.revengeTrades?.hasData && (
+                <Tooltip title="亏损后5分钟内立即开新仓，通常是情绪驱动而非理性分析。建议亏损后休息至少15分钟">
+                  <div className="p-3 rounded cursor-help" style={{ background: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)', border: `1px solid ${analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss)' : 'var(--border-primary)'}` }}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span>💪</span>
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>平均心理压力</span>
+                      <span>🔥</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>报复性交易</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div 
-                          key={i}
-                          className="w-6 h-3 rounded"
-                          style={{ 
-                            background: i <= Math.round(analyses.stressScores.avgStressScore) 
-                              ? (analyses.stressScores.avgStressScore >= 4 ? 'var(--color-loss)' : 
-                                 analyses.stressScores.avgStressScore >= 3 ? 'var(--color-brand)' : 'var(--color-profit)')
-                              : 'var(--bg-primary)'
-                          }}
-                        />
-                      ))}
-                      <span className="font-bold font-mono ml-2" style={{ color: 'var(--text-primary)' }}>
-                        {analyses.stressScores.avgStressScore.toFixed(1)}/5
-                      </span>
+                    <div className="text-lg font-bold font-mono" style={{ color: analyses.revengeTrades.revengeCount > 0 ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                      {analyses.revengeTrades.revengeCount} 笔
+                    </div>
+                    <div className="text-[9px] mt-1" style={{ color: 'var(--text-tertiary)' }}>亏损后5分钟内开仓</div>
+                  </div>
+                </Tooltip>
+              )}
+              
+              {/* 止损极点 */}
+              {analyses.badStopLoss?.hasData && (
+                <Tooltip title="止损时价格刚好在最低/高点附近（差距<10%），说明可能被洗出。建议使用更宽松的止损或等待确认信号">
+                  <div className="p-3 rounded cursor-help" style={{ background: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)', border: `1px solid ${analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand)' : 'var(--border-primary)'}` }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>🎯</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>割肉极点</span>
+                    </div>
+                    <div className="text-lg font-bold font-mono" style={{ color: analyses.badStopLoss.atBottomCount > 0 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
+                      {analyses.badStopLoss.atBottomRate}%
+                    </div>
+                    <div className="text-[9px] mt-1" style={{ color: 'var(--text-tertiary)' }}>在极点附近止损比例</div>
+                  </div>
+                </Tooltip>
+              )}
+              
+              {/* 执行焦虑 */}
+              {analyses.executionAnxiety?.hasData && (
+                <Tooltip title="Fills次数远超交易数量，说明执行时犹豫不决、频繁加减仓。建议制定明确的入场计划并一次性执行">
+                  <div className="p-3 rounded cursor-help" style={{ background: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)', border: `1px solid ${analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand)' : 'var(--border-primary)'}` }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>⏳</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>执行犹豫</span>
+                    </div>
+                    <div className="text-lg font-bold font-mono" style={{ color: analyses.executionAnxiety.anxiousRate > 20 ? 'var(--color-brand)' : 'var(--color-profit)' }}>
+                      {analyses.executionAnxiety.anxiousRate}%
+                    </div>
+                    <div className="text-[9px] mt-1" style={{ color: 'var(--text-tertiary)' }}>频繁加减仓比例</div>
+                  </div>
+                </Tooltip>
+              )}
+              
+              {/* 处置效应 */}
+              {analyses.dispositionEffect?.hasData && (
+                <Tooltip title="亏损时持仓时间远超盈利时持仓时间，说明存在'死扛亏损、快速止盈'的心理偏差。建议设置固定止损，让盈利奔跑">
+                  <div className="p-3 rounded cursor-help" style={{ background: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss-bg)' : 'var(--bg-tertiary)', border: `1px solid ${analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss)' : 'var(--border-primary)'}` }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>⏱️</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>处置效应</span>
+                    </div>
+                    <div className="text-lg font-bold font-mono" style={{ color: analyses.dispositionEffect.hasDispositionEffect ? 'var(--color-loss)' : 'var(--color-profit)' }}>
+                      {analyses.dispositionEffect.hasDispositionEffect ? '存在' : '正常'}
+                    </div>
+                    <div className="text-[9px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                      亏损/盈利持仓时间比: {analyses.dispositionEffect.ratio}x
                     </div>
                   </div>
+                </Tooltip>
+              )}
+            </div>
+            
+            {/* 平均压力 - 单独一行 */}
+            {analyses.stressScores?.hasData && (
+              <Tooltip title="基于浮亏深度、持仓时间、最终结果等因素计算的心理压力值。1-2为低压力，3为中等，4-5为高压力需关注">
+                <div className="p-3 rounded mt-3 cursor-help" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span>💪</span>
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>平均心理压力</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <div 
+                            key={i}
+                            className="w-6 h-3 rounded"
+                            style={{ 
+                              background: i <= Math.round(analyses.stressScores.avgStressScore) 
+                                ? (analyses.stressScores.avgStressScore >= 4 ? 'var(--color-loss)' : 
+                                   analyses.stressScores.avgStressScore >= 3 ? 'var(--color-brand)' : 'var(--color-profit)')
+                                : 'var(--bg-primary)'
+                            }}
+                          />
+                        ))}
+                        <span className="font-bold font-mono ml-2" style={{ color: 'var(--text-primary)' }}>
+                          {analyses.stressScores.avgStressScore.toFixed(1)}/5
+                        </span>
+                      </div>
+                    </div>
                   <div className="text-right">
-                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>高压交易</div>
-                    <div className="font-bold font-mono" style={{ color: 'var(--color-loss)' }}>
-                      {analyses.stressScores.highStressCount} 笔
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>高压交易</div>
+                      <div className="font-bold font-mono" style={{ color: 'var(--color-loss)' }}>
+                        {analyses.stressScores.highStressCount} 笔
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -889,6 +1087,8 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
     loadRecords();
     loadHistory();
     setAnalysis(null);
+    // 同步外部传入的 activeRecordId 到 filters
+    setFilters(prev => ({ ...prev, recordId: activeRecordId || 'all' }));
   }, [activeRecordId]);
 
   useEffect(() => {
@@ -1309,7 +1509,8 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   );
 
   return (
-    <div className="flex gap-6 min-h-full">
+    <div className="max-w-[1600px] mx-auto p-6">
+      <div className="flex gap-6 min-h-full">
 
       {/* ========== 左侧历史记录面板（重新设计）========== */}
       <div className="w-72 flex-shrink-0">
@@ -1672,14 +1873,14 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             >
               <div className="relative z-10 flex flex-col items-center">
                 {/* 极简 Logo 容器 */}
-                <div className="mb-6 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-[var(--color-brand)] animate-pulse" />
+                <div className="mb-8 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-3xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center overflow-hidden p-5 shadow-2xl shadow-[var(--color-brand)]/5">
+                    <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
                   </div>
                 </div>
                 
                 <h2 className="text-xl font-semibold mb-2 tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  新建 AI 智能分析
+                  新建深度交易数据分析
                 </h2>
                 <p className="text-sm max-w-md text-center leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
                   基于量化引擎深度扫描您的交易行为，生成包含风险评估与策略优化的诊断报告
@@ -1941,9 +2142,9 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
               <StatCard 
                 icon={Activity}
                 label="利润系数"
-                value={analysis.summary.profitFactor === Infinity ? '∞' : analysis.summary.profitFactor.toFixed(2)}
+                value={analysis.summary.profitFactor === Infinity ? '∞' : (analysis.summary.profitFactor ?? 0).toFixed(2)}
                 valueColor="var(--color-brand)"
-                subText={analysis.summary.profitFactor >= 2 ? '优秀' : analysis.summary.profitFactor >= 1.5 ? '良好' : '待提升'}
+                subText={(analysis.summary.profitFactor ?? 0) >= 2 ? '优秀' : (analysis.summary.profitFactor ?? 0) >= 1.5 ? '良好' : '待提升'}
               />
               <div 
                 className="p-5 rounded-lg"
@@ -2670,13 +2871,13 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                       <div className="p-3 rounded-lg text-center" style={{ background: 'var(--bg-primary)' }}>
                         <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>盈亏比</div>
                         <div className="text-xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
-                          {analysis.riskAnalysis.profitLossRatio.toFixed(2)}
+                          {(analysis.riskAnalysis.profitLossRatio ?? 0).toFixed(2)}
                         </div>
                       </div>
                       <div className="p-3 rounded-lg text-center" style={{ background: 'var(--bg-primary)' }}>
                         <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>夏普比率</div>
                         <div className="text-xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
-                          {analysis.riskAnalysis.sharpeRatio.toFixed(2)}
+                          {(analysis.riskAnalysis.sharpeRatio ?? 0).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -2718,28 +2919,28 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                       <Crosshair size={16} style={{ color: 'var(--color-profit)' }} />
                     </div>
                     <div>
-                      <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>执行质量 (MAE/MFE)</div>
+                      <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>执行质量 (浮亏/浮盈分析)</div>
                       <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{analysis.executionQualityAnalysis.totalTrades} 笔有效数据</div>
                     </div>
                   </div>
                   <div className="p-5">
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       <div className="p-3 rounded-lg text-center" style={{ background: 'var(--bg-primary)' }}>
-                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>平均 MAE</div>
+                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>均浮亏</div>
                         <div className="text-lg font-bold font-mono" style={{ color: 'var(--color-loss)' }}>
                           {analysis.executionQualityAnalysis.overall.avgMAETicks}t
                         </div>
                         <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>≈ ${analysis.executionQualityAnalysis.overall.avgMAEUsd}</div>
                       </div>
                       <div className="p-3 rounded-lg text-center" style={{ background: 'var(--bg-primary)' }}>
-                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>平均 MFE</div>
+                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>均浮盈</div>
                         <div className="text-lg font-bold font-mono" style={{ color: 'var(--color-profit)' }}>
                           {analysis.executionQualityAnalysis.overall.avgMFETicks}t
                         </div>
                         <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>≈ ${analysis.executionQualityAnalysis.overall.avgMFEUsd}</div>
                       </div>
                       <div className="p-3 rounded-lg text-center" style={{ background: 'var(--bg-primary)' }}>
-                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>MFE/MAE 比</div>
+                        <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>浮盈/浮亏比</div>
                         <div className="text-lg font-bold font-mono" style={{ color: 'var(--color-brand)' }}>
                           {analysis.executionQualityAnalysis.overall.mfeMaeRatio}
                         </div>
@@ -2874,13 +3075,13 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
                       <div className="p-3 rounded-lg" style={{ background: 'var(--bg-primary)' }}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>恢复因子</span>
-                          <span className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{analysis.equityAnalysis.recoveryFactor.toFixed(2)}</span>
+                          <span className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{(analysis.equityAnalysis.recoveryFactor ?? 0).toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="p-3 rounded-lg" style={{ background: 'var(--bg-primary)' }}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>交易天数</span>
-                          <span className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{analysis.equityAnalysis.tradingDays.total}</span>
+                          <span className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{analysis.equityAnalysis.tradingDays?.total ?? 0}</span>
                         </div>
                       </div>
                     </div>
@@ -3193,6 +3394,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
           if (onShowUpgrade) onShowUpgrade();
         }}
       />
+      </div>
     </div>
   );
 };

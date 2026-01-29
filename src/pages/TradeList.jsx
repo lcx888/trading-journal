@@ -81,42 +81,13 @@ const calculateTradeFee = (trade, instruments) => {
 
 /**
  * 利润捕获率 (Profit Capture Rate)
- * 公式：min(100, max(0, PnL) / MFE × 100%)
+ * 公式：max(0, PnL) / MFE × 100%
  * 意义：反映你能留住多少浮盈。100% = 完美止盈在最高点，0% = 浮盈全部回吐
  * 越高越好
- * 注意：理论上不应超过100%，超过说明 MFE 数据可能不准确（Jigsaw 采样问题）
  */
 const calcProfitCaptureRate = (mfeUSD, pnl) => {
   if (!mfeUSD || mfeUSD <= 0) return null;
-  // 如果盈利为0或负数，捕获率为0
-  if (pnl <= 0) return 0;
-  // 计算捕获率，限制最大值为100%
-  const rate = (pnl / mfeUSD) * 100;
-  return Math.min(100, rate);
-};
-
-/**
- * 判断交易是否为分批建仓/减仓（MFE可能不可靠）
- * 规则：fills > 2 表示有多次成交，可能是分批交易
- * @param {object} trade - 交易对象
- * @returns {boolean} - true 表示是分批交易，MFE不可靠
- */
-const isMultiFillTrade = (trade) => {
-  const fills = trade.fills ?? trade.jigsawData?.fills;
-  // fills > 2 表示超过一次开仓+一次平仓，可能是分批交易
-  return fills !== undefined && fills > 2;
-};
-
-/**
- * 获取MFE可靠性标记
- */
-const getMfeReliabilityTag = (trade) => {
-  if (!isMultiFillTrade(trade)) return null;
-  return {
-    label: 'MFE不可靠',
-    color: 'orange',
-    tooltip: `分批交易（${trade.fills ?? trade.jigsawData?.fills}次成交），MFE/MAE数据可能不准确`,
-  };
+  return (Math.max(0, pnl) / mfeUSD) * 100;
 };
 
 /**
@@ -182,8 +153,8 @@ const calcExecutionComplexity = (fills, quantity) => {
 
 /**
  * 风险回报比 (Risk-Reward Ratio based on MAE)
- * 逻辑：PnL / |MAE|，使用实际最大回撤作为风险基准
- * 注意：这是事后计算，基于实际 MAE 而非预设止损
+ * 逻辑：PnL / |MAE|，使用实际最大浮亏作为风险基准
+ * 注意：这是事后计算，基于实际 MAE（最大不利偏移）而非预设止损
  * 正值表示盈利超过最大浮亏，负值表示亏损
  */
 const calcRiskRewardRatio = (pnl, maeUSD) => {
@@ -322,27 +293,47 @@ const getTradeRating = (trade, maeUSD, mfeUSD) => {
 };
 
 // MAE/MFE 可视化条组件
+// MAE = 最大不利偏移（最大浮亏），MFE = 最大有利偏移（最大浮盈）
+// 图示：[---MAE区域(红)---|入场点|---MFE区域(绿)---]
+//       最低点          0     最高点
+// 出场点(PnL)可能在入场点左侧(亏损)或右侧(盈利)
 const TradeRangeBar = ({ mae, mfe, pnl, maeUSD, mfeUSD }) => {
   if (!mae && !mfe) return null;
   
-  // 计算相对位置
+  // 使用绝对值
   const absMAE = Math.abs(maeUSD || 0);
   const absMFE = Math.abs(mfeUSD || 0);
   const total = absMAE + absMFE;
   
   if (total === 0) return null;
   
-  const maePercent = (absMAE / total) * 100;
-  const mfePercent = (absMFE / total) * 100;
+  // 入场点在整个条的位置（MAE占比的位置就是入场点）
+  const entryPercent = (absMAE / total) * 100;
+  const maePercent = entryPercent;
+  const mfePercent = 100 - entryPercent;
   
   // PnL 在范围内的位置
-  let pnlPosition = 50; // 默认中间（入场点）
+  // - 入场点 = entryPercent
+  // - 盈利时：出场点在入场点右侧，最大到100%（当 pnl = MFE）
+  // - 亏损时：出场点在入场点左侧，最小到0%（当 pnl = -MAE）
+  let pnlPosition = entryPercent; // 默认入场点（即 pnl=0）
+  
   if (pnl >= 0 && absMFE > 0) {
-    pnlPosition = maePercent + (pnl / absMFE) * mfePercent * 0.5;
+    // 盈利：从入场点向右移动
+    // pnl = MFE 时，位置 = 100%
+    // pnl = 0 时，位置 = entryPercent
+    const ratio = Math.min(pnl / absMFE, 1); // 限制最大为1
+    pnlPosition = entryPercent + ratio * mfePercent;
   } else if (pnl < 0 && absMAE > 0) {
-    pnlPosition = maePercent - (Math.abs(pnl) / absMAE) * maePercent * 0.5;
+    // 亏损：从入场点向左移动
+    // pnl = -MAE 时，位置 = 0%
+    // pnl = 0 时，位置 = entryPercent
+    const ratio = Math.min(Math.abs(pnl) / absMAE, 1); // 限制最大为1
+    pnlPosition = entryPercent - ratio * maePercent;
   }
-  pnlPosition = Math.max(5, Math.min(95, pnlPosition));
+  
+  // 确保在可见范围内
+  pnlPosition = Math.max(2, Math.min(98, pnlPosition));
   
   return (
     <div className="w-full">
@@ -466,8 +457,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     dateRange: null,
     keyword: '',
     source: 'ALL',
-    rating: 'ALL', // 评级筛选
-    mfeReliable: 'ALL', // MFE可靠性筛选：ALL, reliable, unreliable
+    rating: 'ALL', // 新增评级筛选
   });
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
@@ -492,7 +482,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     { key: 'feeRatio', label: '费率' },
     { key: 'marketSession', label: '时段' },
     { key: 'duration', label: '时长' },
-    { key: 'mae', label: '最大回撤', jigsaw: true },
+    { key: 'mae', label: '最大浮亏', jigsaw: true },
     { key: 'mfe', label: '最大浮盈', jigsaw: true },
     { key: 'fills', label: '成交', jigsaw: true },
     { key: 'riskReward', label: '风险回报', jigsaw: true },
@@ -655,15 +645,6 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return rating.grade === filters.rating;
       });
     }
-    // MFE可靠性筛选
-    if (filters.mfeReliable !== 'ALL') {
-      result = result.filter(t => {
-        const isUnreliable = isMultiFillTrade(t);
-        if (filters.mfeReliable === 'reliable') return !isUnreliable;
-        if (filters.mfeReliable === 'unreliable') return isUnreliable;
-        return true;
-      });
-    }
     setFilteredTrades(result);
   };
 
@@ -777,8 +758,6 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       dateRange: null,
       keyword: '',
       source: 'ALL',
-      rating: 'ALL',
-      mfeReliable: 'ALL',
     });
   };
 
@@ -788,7 +767,6 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     filters.result !== 'ALL' || 
     filters.source !== 'ALL' ||
     filters.rating !== 'ALL' ||
-    filters.mfeReliable !== 'ALL' ||
     filters.dateRange !== null ||
     filters.keyword !== '';
 
@@ -884,9 +862,25 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       });
     });
     
+    // 计算最大MAE（单笔最大浮亏/最大不利偏移）
+    let maxMAEUSD = 0;
+    tradesWithMAE.forEach(t => {
+      const mae = t.mae ?? t.jigsawData?.mae ?? 0;
+      const maeUSD = ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments) || 0;
+      if (maeUSD > maxMAEUSD) maxMAEUSD = maeUSD;
+    });
+    
+    // 计算最大实际亏损（单笔最大平仓亏损）
+    const lossTrades = filteredTrades.filter(t => t.pnl !== null && t.pnl !== undefined && t.pnl < 0);
+    const maxLoss = lossTrades.length > 0 
+      ? Math.max(...lossTrades.map(t => Math.abs(t.pnl || 0))) 
+      : 0;
+    
     return {
       avgMAE: tradesWithMAE.length > 0 ? (totalMAEUSD / tradesWithMAE.length) : 0,
       avgMFE: tradesWithMFE.length > 0 ? (totalMFEUSD / tradesWithMFE.length) : 0,
+      maxMAE: maxMAEUSD,  // 单笔最大浮亏
+      maxLoss: maxLoss,   // 单笔最大实际亏损
       totalFills: filteredTrades.reduce((sum, t) => sum + (t.fills ?? t.jigsawData?.fills ?? 0), 0),
       avgRMultiple: rMultipleCount > 0 ? totalRMultiple / rMultipleCount : 0,
       avgProfitCapture: profitCaptureCount > 0 ? totalProfitCapture / profitCaptureCount : 0,
@@ -1050,7 +1044,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     },
     // Jigsaw 专属列 - 灰度风格
     ...(hasJigsawData ? [{
-      title: '最大回撤',
+      title: '最大浮亏',
       key: 'mae',
       width: 90,
       align: 'right',
@@ -1126,7 +1120,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     ...(hasJigsawData ? [{
       title: '捕获率',
       key: 'profitCapture',
-      width: 90,
+      width: 80,
       align: 'right',
       sorter: (a, b) => {
         const mfeA = ticksToUSD(a.mfe ?? a.jigsawData?.mfe, a.instrumentCode, a.openQuantity, instruments);
@@ -1141,21 +1135,20 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
         const capture = calcProfitCaptureRate(mfeUSD, r.pnl);
         if (capture === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        // 大于80%显示绿色
+        // 大于80%显示绿色，超过100%显示警告
         const isGood = capture >= 80;
-        const reliabilityTag = getMfeReliabilityTag(r);
+        const isAbnormal = capture > 100;
         return (
-          <Tooltip title={reliabilityTag?.tooltip}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-              <span 
-                className="font-mono text-sm font-semibold" 
-                style={{ color: isGood ? 'var(--color-profit)' : 'var(--text-secondary)' }}
-              >
-                {capture.toFixed(0)}%
-              </span>
-              {reliabilityTag && (
-                <span style={{ color: 'var(--color-brand)', fontSize: 10 }}>⚠</span>
-              )}
+          <Tooltip title={isAbnormal ? '⚠️ 超过100%可能因分批建仓导致统计不准确' : `利润捕获率: ${capture.toFixed(1)}%`}>
+            <span 
+              className="font-mono text-sm font-semibold" 
+              style={{ 
+                color: isAbnormal ? '#f59e0b' : (isGood ? 'var(--color-profit)' : 'var(--text-secondary)'),
+                cursor: isAbnormal ? 'help' : 'default'
+              }}
+            >
+              {capture.toFixed(0)}%
+              {isAbnormal && <span style={{ marginLeft: 2, fontSize: 10 }}>⚠</span>}
             </span>
           </Tooltip>
         );
@@ -1321,11 +1314,11 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-[1600px] mx-auto p-6 space-y-6">
       {/* 页面头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>交易明细</h1>
+          <h1 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--text-primary)' }}>交易明细</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
             查看和管理所有交易记录
           </p>
@@ -1439,18 +1432,6 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 ]}
               />
             )}
-            {hasJigsawData && (
-              <Select
-                value={filters.mfeReliable}
-                onChange={v => setFilters({ ...filters, mfeReliable: v })}
-                style={{ width: 120 }}
-                options={[
-                  { value: 'ALL', label: '全部交易' },
-                  { value: 'reliable', label: '✓ MFE可靠' },
-                  { value: 'unreliable', label: '⚠ 分批交易' },
-                ]}
-              />
-            )}
             <RangePicker
               value={filters.dateRange}
               onChange={v => setFilters({ ...filters, dateRange: v })}
@@ -1549,13 +1530,33 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             {hasJigsawData && jigsawStats && (
               <>
                 <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MAE</div>
+                  <Tooltip title="单笔最大实际亏损（平仓后的亏损金额）">
+                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>最大亏损</div>
+                  </Tooltip>
+                  <div className="text-xl font-mono font-semibold" style={{ color: 'var(--color-loss)' }}>
+                    ${(jigsawStats.maxLoss ?? 0).toFixed(0)}
+                  </div>
+                </div>
+                <div>
+                  <Tooltip title="单笔最大浮亏（持仓期间承受的最大不利偏移）">
+                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>最大浮亏</div>
+                  </Tooltip>
+                  <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    ${(jigsawStats.maxMAE ?? 0).toFixed(0)}
+                  </div>
+                </div>
+                <div>
+                  <Tooltip title="平均每笔交易承受的最大浮亏">
+                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均浮亏</div>
+                  </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     ${(jigsawStats.avgMAE ?? 0).toFixed(0)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均MFE</div>
+                  <Tooltip title="平均每笔交易达到的最大浮盈">
+                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均浮盈</div>
+                  </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     ${(jigsawStats.avgMFE ?? 0).toFixed(0)}
                   </div>
@@ -1929,16 +1930,25 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                     
                     {/* 利润捕获率 */}
                     <div className="p-3 rounded" style={{ background: 'var(--bg-primary)' }}>
-                      <Tooltip title="利润捕获率: 实际盈利 / 最大浮盈，越高越好">
+                      <Tooltip title={profitCapture !== null && profitCapture > 100 
+                        ? "⚠️ 超过100%可能因分批建仓导致统计不准确" 
+                        : "利润捕获率: 实际盈利 / 最大浮盈，越高越好"
+                      }>
                         <div className="text-xs mb-1 flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
                           利润捕获 <InfoCircleOutlined />
                         </div>
                       </Tooltip>
                       <div 
-                        className="text-xl font-bold font-mono"
-                        style={{ color: profitCapture !== null ? (profitCapture >= 70 ? 'var(--color-profit)' : profitCapture < 30 ? 'var(--color-loss)' : 'var(--color-brand)') : 'var(--text-tertiary)' }}
+                        className="text-xl font-bold font-mono flex items-center gap-1"
+                        style={{ color: profitCapture !== null 
+                          ? (profitCapture > 100 ? '#f59e0b' : profitCapture >= 70 ? 'var(--color-profit)' : profitCapture < 30 ? 'var(--color-loss)' : 'var(--color-brand)') 
+                          : 'var(--text-tertiary)' 
+                        }}
                       >
                         {profitCapture !== null ? `${profitCapture.toFixed(0)}%` : '-'}
+                        {profitCapture !== null && profitCapture > 100 && (
+                          <span style={{ fontSize: 12 }}>⚠</span>
+                        )}
                       </div>
                     </div>
                     

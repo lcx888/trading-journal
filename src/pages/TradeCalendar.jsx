@@ -604,13 +604,11 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const isProfit = reviewStats.totalPnL >= 0;
     
     return (
-      <div style={{ 
+      <div className="max-w-[1600px] mx-auto p-6" style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         gap: 24,
         animation: 'fadeIn 0.4s ease-out',
-        maxWidth: 1400,
-        margin: '0 auto',
         width: '100%'
       }}>
         {/* 顶部导航 */}
@@ -1077,7 +1075,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
   // ==================== 日历视图 ====================
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="max-w-[1600px] mx-auto p-6" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* 顶部：月份导航 + 核心数据 */}
       <div style={{ 
         display: 'flex', 
@@ -1411,8 +1409,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           )}
         </div>
       </div>
-
-      
 
       <style>{`
         @keyframes pulse {

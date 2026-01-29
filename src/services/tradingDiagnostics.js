@@ -49,9 +49,14 @@ const getMinutesDiff = (time1, time2) => {
  * 2.1 最优止损位预测
  * 通过回溯所有历史订单的 MAE 表现，计算不同止损位对总盈亏的影响
  * 
+ * 核心逻辑：
+ * - 将所有 MAE 和 PnL 标准化到【每手/每张合约】，消除仓位大小的干扰
+ * - 如果 MAE/手 >= 止损位，交易会被止损出局
+ * - 最终结果再乘以各交易的实际仓位计算总盈亏
+ * 
  * @param {Array} trades - 交易数组
  * @param {Array} instruments - 品种配置
- * @param {Array} stopLossLevels - 止损水平数组（美元）
+ * @param {Array} stopLossLevels - 止损水平数组（美元/手）
  * @returns {Object} 最优止损分析结果
  */
 export const calculateOptimalStopLoss = (trades, instruments = [], stopLossLevels = null) => {
@@ -65,50 +70,126 @@ export const calculateOptimalStopLoss = (trades, instruments = [], stopLossLevel
     return { hasData: false, message: '没有足够的 MAE 数据进行分析' };
   }
 
-  // 计算每笔交易的 MAE（美元）
+  // 计算每笔交易的数据（标准化到每手）
   const tradesWithMAE = validTrades.map(t => {
     const mae = t.mae ?? t.jigsawData?.mae;
-    const maeUSD = ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments);
-    return { ...t, maeUSD: Math.abs(maeUSD || 0), originalPnL: t.pnl };
+    const quantity = Math.abs(t.openQuantity || 1);
+    const tickValue = getTickValue(t.instrumentCode, instruments);
+    
+    // MAE 和 PnL 标准化到每手
+    const maeUSDTotal = Math.abs(mae * tickValue * quantity);  // 总 MAE（美元）
+    const maeUSDPerContract = Math.abs(mae * tickValue);       // 每手 MAE（美元）
+    const pnlPerContract = (t.pnl || 0) / quantity;            // 每手盈亏
+    
+    return { 
+      ...t, 
+      quantity,
+      tickValue,
+      maeUSDTotal,           // 总 MAE（用于显示）
+      maeUSDPerContract,     // 每手 MAE（用于计算）
+      pnlPerContract,        // 每手盈亏
+      originalPnL: t.pnl || 0 
+    };
   });
 
-  // 如果没有提供止损水平，自动生成
+  // 基于每手 MAE 分布自动生成止损水平
   if (!stopLossLevels) {
-    const maxMAE = Math.max(...tradesWithMAE.map(t => t.maeUSD));
-    const step = Math.ceil(maxMAE / 10);
+    const allMAEsPerContract = tradesWithMAE.map(t => t.maeUSDPerContract).sort((a, b) => a - b);
+    const maxMAE = Math.max(...allMAEsPerContract);
+    const minMAE = Math.min(...allMAEsPerContract);
+    const medianMAE = allMAEsPerContract[Math.floor(allMAEsPerContract.length / 2)] || maxMAE / 2;
+    
+    // 从很低的水平开始测试，一直到超过最大 MAE
+    // 这样才能找到真正的最优止损点
+    const step = Math.max(10, Math.round(medianMAE / 5 / 5) * 5);  // 步长：中位数的1/5，最少$10，$5的倍数
+    
+    // 起点：从 step 或 minMAE 的 30% 开始（取较小值），确保能测试到紧止损的效果
+    const startLevel = Math.max(step, Math.round(Math.min(minMAE * 0.3, step) / 5) * 5) || step;
+    
     stopLossLevels = [];
-    for (let i = step; i <= maxMAE + step; i += step) {
+    // 测试从紧止损到宽止损的整个范围
+    for (let i = startLevel; stopLossLevels.length < 15; i += step) {
       stopLossLevels.push(i);
+      // 如果已经超过最大 MAE，再多加 2 个点就停止
+      if (i > maxMAE && stopLossLevels.length >= 8) break;
+    }
+    
+    // 确保覆盖关键分位点
+    const p50 = allMAEsPerContract[Math.floor(allMAEsPerContract.length * 0.50)] || medianMAE;
+    const p75 = allMAEsPerContract[Math.floor(allMAEsPerContract.length * 0.75)] || maxMAE * 0.75;
+    const p90 = allMAEsPerContract[Math.floor(allMAEsPerContract.length * 0.90)] || maxMAE * 0.9;
+    
+    // 添加分位点（如果不在列表中）
+    [p50, p75, p90, maxMAE].forEach(val => {
+      const rounded = Math.round(val / 5) * 5;
+      if (rounded > 0 && !stopLossLevels.includes(rounded)) {
+        stopLossLevels.push(rounded);
+      }
+    });
+    
+    // 排序并去重
+    stopLossLevels = [...new Set(stopLossLevels)].sort((a, b) => a - b);
+    
+    // 最多保留 15 个
+    if (stopLossLevels.length > 15) {
+      // 均匀采样
+      const indices = Array.from({ length: 15 }, (_, i) => Math.floor(i * (stopLossLevels.length - 1) / 14));
+      stopLossLevels = indices.map(i => stopLossLevels[i]);
     }
   }
 
-  // 对每个止损水平计算假设盈亏
-  const results = stopLossLevels.map(stopLevel => {
+  // 统计原始数据
+  const originalWins = tradesWithMAE.filter(t => t.originalPnL > 0);
+  const originalLosses = tradesWithMAE.filter(t => t.originalPnL < 0);
+  const originalWinRate = (originalWins.length / tradesWithMAE.length * 100);
+
+  // 对每个止损水平（每手）计算假设盈亏
+  const results = stopLossLevels.map(stopLevelPerContract => {
     let totalPnL = 0;
     let stoppedCount = 0;
-    let preservedWins = 0;
+    let lostWins = 0;           // 因止损而丢失的盈利单
+    let savedLosses = 0;        // 因止损而减少亏损的单数
+    let savedAmount = 0;        // 止损减少的亏损金额
 
     tradesWithMAE.forEach(t => {
-      if (t.maeUSD >= stopLevel) {
-        // 如果 MAE 超过止损水平，视为被止损出局
-        totalPnL -= stopLevel;
+      // 使用每手 MAE 与每手止损位比较
+      if (t.maeUSDPerContract >= stopLevelPerContract) {
+        // 每手 MAE 超过止损水平，交易会被止损出局
+        // 实际止损金额 = 每手止损 × 仓位
+        const stoppedLoss = stopLevelPerContract * t.quantity;
+        totalPnL -= stoppedLoss;
         stoppedCount++;
-        // 如果原本是盈利单，记录"保住"了多少
+        
         if (t.originalPnL > 0) {
-          preservedWins++;
+          // 原本是盈利单，被止损变成亏损单
+          lostWins++;
+        } else if (t.originalPnL < 0) {
+          // 原本是亏损单，检查止损是否减少了亏损
+          const originalLoss = Math.abs(t.originalPnL);
+          if (originalLoss > stoppedLoss) {
+            savedLosses++;
+            savedAmount += (originalLoss - stoppedLoss);
+          }
         }
       } else {
-        // 否则使用原始盈亏
+        // 每手 MAE 未达到止损位，交易正常结束
         totalPnL += t.originalPnL;
       }
     });
 
+    // 计算新的胜率（未被止损的盈利单 / 总交易数）
+    const remainingWins = originalWins.filter(t => t.maeUSDPerContract < stopLevelPerContract).length;
+    const newWinRate = (remainingWins / tradesWithMAE.length * 100);
+
     return {
-      stopLevel,
+      stopLevel: stopLevelPerContract,  // 每手止损（美元）
       totalPnL: Number(totalPnL.toFixed(2)),
       stoppedCount,
-      stoppedRate: ((stoppedCount / tradesWithMAE.length) * 100).toFixed(1),
-      preservedWins,
+      stoppedRate: Number((stoppedCount / tradesWithMAE.length * 100).toFixed(1)),
+      lostWins,           // 因止损丢失的盈利单数量
+      savedLosses,        // 因止损减少亏损的单数
+      savedAmount: Number(savedAmount.toFixed(2)),  // 减少的亏损金额
+      newWinRate: Number(newWinRate.toFixed(1)),    // 新胜率
     };
   });
 
@@ -120,19 +201,83 @@ export const calculateOptimalStopLoss = (trades, instruments = [], stopLossLevel
   // 计算当前实际总盈亏
   const actualTotalPnL = tradesWithMAE.reduce((sum, t) => sum + t.originalPnL, 0);
 
+  // 计算改善幅度
+  const improvement = optimal.totalPnL - actualTotalPnL;
+  const improvementPercent = actualTotalPnL !== 0 
+    ? (improvement / Math.abs(actualTotalPnL) * 100)
+    : (improvement > 0 ? 100 : 0);
+
+  // 计算平均仓位
+  const avgQuantity = tradesWithMAE.reduce((sum, t) => sum + t.quantity, 0) / tradesWithMAE.length;
+  
+  // 计算每手 MAE 分布统计（这才是正确的参考值）
+  const allMAEsPerContract = tradesWithMAE.map(t => t.maeUSDPerContract).sort((a, b) => a - b);
+  const medianMAE = allMAEsPerContract[Math.floor(allMAEsPerContract.length / 2)] || 0;
+  const avgMAE = allMAEsPerContract.reduce((a, b) => a + b, 0) / allMAEsPerContract.length;
+  const percentile75 = allMAEsPerContract[Math.floor(allMAEsPerContract.length * 0.75)] || 0;
+  const percentile90 = allMAEsPerContract[Math.floor(allMAEsPerContract.length * 0.9)] || 0;
+  const maxMAE = Math.max(...allMAEsPerContract);
+
+  // 检查最优止损位是否是"不设止损"（stoppedCount === 0）
+  const isNoStopOptimal = optimal.stoppedCount === 0;
+  
+  // 找出有实际止损效果的最优止损位（用于对比）
+  const activeResults = results.filter(r => r.stoppedCount > 0);
+  const bestActiveStopLoss = activeResults.length > 0 
+    ? activeResults.reduce((best, curr) => curr.totalPnL > best.totalPnL ? curr : best, activeResults[0])
+    : null;
+  
+  // 生成建议（更详细易懂）
+  let recommendation;
+  let recommendationDetail;
+  
+  if (isNoStopOptimal) {
+    // 最优策略是不设固定止损
+    recommendation = '当前策略已最优';
+    if (bestActiveStopLoss) {
+      const diff = actualTotalPnL - bestActiveStopLoss.totalPnL;
+      recommendationDetail = `历史回测显示，您现有的止损/离场策略已经是最优的。如果设置每手 $${bestActiveStopLoss.stopLevel} 的固定止损，反而会损失 $${diff.toFixed(0)}。建议继续保持当前灵活的风控策略。`;
+    } else {
+      recommendationDetail = '历史数据显示，设置固定止损会降低总收益，建议继续保持当前灵活的风控策略。';
+    }
+  } else if (improvement > 10) {  // 至少改善 $10 才建议调整
+    recommendation = `建议每手止损: $${optimal.stopLevel}`;
+    recommendationDetail = `基于历史回测，如果每手（每张合约）止损不超过 $${optimal.stopLevel}，总收益可提升 $${improvement.toFixed(0)} (${improvementPercent.toFixed(1)}%)。例如：交易 ${Math.round(avgQuantity)} 手时，最大亏损限额为 $${(optimal.stopLevel * avgQuantity).toFixed(0)}。`;
+  } else if (improvement < -10) {
+    recommendation = '当前策略在回测中表现更优';
+    recommendationDetail = `历史数据显示，设置固定止损反而会降低总收益约 $${Math.abs(improvement).toFixed(0)}，建议根据市场情况灵活止损。`;
+  } else {
+    recommendation = '当前止损策略已较优';
+    recommendationDetail = `回测显示改善空间较小（$${Math.abs(improvement).toFixed(0)}），无需特别调整。可参考 MAE 中位数 $${medianMAE.toFixed(0)} 作为风控参考。`;
+  }
+
   return {
     hasData: true,
     tradeCount: tradesWithMAE.length,
+    originalWinCount: originalWins.length,
+    originalLossCount: originalLosses.length,
+    originalWinRate: Number(originalWinRate.toFixed(1)),
     actualTotalPnL: Number(actualTotalPnL.toFixed(2)),
+    // 每手 MAE 分布统计（消除仓位干扰）
+    maeStats: {
+      avg: Number(avgMAE.toFixed(2)),
+      median: Number(medianMAE.toFixed(2)),
+      percentile75: Number(percentile75.toFixed(2)),
+      percentile90: Number(percentile90.toFixed(2)),
+      max: Number(maxMAE.toFixed(2)),
+    },
+    avgQuantity: Number(avgQuantity.toFixed(1)),
     results,
-    optimal,
-    improvement: Number((optimal.totalPnL - actualTotalPnL).toFixed(2)),
-    improvementPercent: actualTotalPnL !== 0 
-      ? ((optimal.totalPnL - actualTotalPnL) / Math.abs(actualTotalPnL) * 100).toFixed(1) 
-      : 0,
-    recommendation: optimal.totalPnL > actualTotalPnL
-      ? `建议将止损设为 $${optimal.stopLevel}，预计可提升 ${((optimal.totalPnL - actualTotalPnL) / Math.abs(actualTotalPnL) * 100).toFixed(1)}% 收益`
-      : '当前止损策略已较优，无需调整',
+    optimal: {
+      ...optimal,
+      // 最优止损位（每手）已经在 stopLevel 中
+      // 如果需要多手止损示例
+      forAvgPosition: Number((optimal.stopLevel * avgQuantity).toFixed(2)),
+    },
+    improvement: Number(improvement.toFixed(2)),
+    improvementPercent: Number(improvementPercent.toFixed(1)),
+    recommendation,
+    recommendationDetail,
   };
 };
 

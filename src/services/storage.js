@@ -8,6 +8,7 @@ const USER_SETTINGS_KEY = 'tradewhy_user_settings';
 const DEFAULT_USER_SETTINGS = {
   timezone: 'Asia/Shanghai', // 用户所在时区（用于显示）
   dataSourceTimezone: 'Asia/Shanghai', // 数据源时区（交易软件使用的时区）
+  traderName: '', // 交易员名称
 };
 
 export const StorageService = {
@@ -50,6 +51,14 @@ export const StorageService = {
 
   setDataSourceTimezone(dataSourceTimezone) {
     return this.saveUserSettings({ dataSourceTimezone });
+  },
+
+  getTraderName() {
+    return this.getUserSettings().traderName || '';
+  },
+
+  setTraderName(traderName) {
+    return this.saveUserSettings({ traderName });
   },
 
   // ========== 交易记录 ==========

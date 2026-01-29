@@ -207,16 +207,16 @@ const AICoachItem = ({ icon, title, description }) => (
 const Home = ({ onStart, onDocs }) => {
   const features = [
     { icon: <RobotOutlined />, title: 'AI 行为诊断', description: '自动识别情绪交易周期，诊断报复性交易与执行焦虑', isNew: true },
-    { icon: <ExperimentOutlined />, title: 'MAE/MFE 效率分析', description: '专业级资金效率评估，分析止损是否过宽或止盈是否过于保守', isNew: true },
+    { icon: <ExperimentOutlined />, title: '浮亏/浮盈效率分析', description: '专业级 MAE/MFE 评估，分析止损是否过宽或止盈是否过于保守', isNew: true },
     { icon: <AimOutlined />, title: '最优止损回测', description: '回测不同止损位对总盈亏的影响，智能推荐符合数学期望的最佳止损', isNew: true },
-    { icon: <BarChartOutlined />, title: '期望值分布', description: '按时段、方向、品种分析期望值，找出您的“提款机”与“碎钞机”', isNew: true },
-    { icon: <HeartOutlined />, title: '心理压力评分', description: '基于 MAE 深度和持仓时长，量化您的心理承压能力与执行质量', isNew: true },
+    { icon: <BarChartOutlined />, title: '期望值分布', description: '按时段、方向、品种分析期望值，找出您的"提款机"与"碎钞机"', isNew: true },
+    { icon: <HeartOutlined />, title: '心理压力评分', description: '基于最大浮亏深度和持仓时长，量化您的心理承压能力与执行质量', isNew: true },
     { icon: <DashboardOutlined />, title: 'R倍数质量追踪', description: '计算风险回报倍数，剔除运气成分，评估每一笔交易的真实质量', isNew: true },
   ];
 
   const aiCoachFeatures = [
     { icon: <AlertOutlined />, title: '报复性交易检测', description: '自动识别亏损后 5 分钟内的冲动交易' },
-    { icon: <FireOutlined />, title: '利润留存率分析', description: '计算 (MFE - PnL) / MFE，识别严重的获利回吐' },
+    { icon: <FireOutlined />, title: '利润留存率分析', description: '计算动态回撤比例，识别严重的获利回吐问题' },
     { icon: <LineChartOutlined />, title: '处置效应诊断', description: '对比盈亏单持仓时长，检测过早止盈过晚止损' },
     { icon: <TrophyOutlined />, title: '行动建议生成', description: '基于诊断结果生成下周操作建议' },
   ];
@@ -296,7 +296,7 @@ const Home = ({ onStart, onDocs }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-10">
             {[
               { title: '报复性交易', desc: '在亏损后疯狂加仓，试图一次性回本？AI 实时监控您的情绪波动，在失控前发出预警。', icon: <AlertOutlined /> },
-              { title: '过早止盈', desc: '拿不住盈利单，却死扛亏损单直到爆仓？通过 MFE 分析，量化您的利润留存率。', icon: <FireOutlined /> },
+              { title: '过早止盈', desc: '拿不住盈利单，却死扛亏损单直到爆仓？通过最大浮盈分析，量化您的利润留存率。', icon: <FireOutlined /> },
               { title: '品种黑洞', desc: '在某个特定品种上持续失血而不自知？AI 自动识别您的"碎钞机"品种，优化资产配置。', icon: <ExperimentOutlined /> },
             ].map((item, i) => (
               <div key={i} className="p-6 md:p-10 rounded-xl md:rounded-2xl bg-[#0a0a0c] border border-[#1a1a1f] hover:border-[#c9a227]/30 transition-all group">
@@ -319,8 +319,8 @@ const Home = ({ onStart, onDocs }) => {
                 <div className="text-[9px] md:text-[10px] text-[#c9a227] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] mb-5 md:mb-8">数学优势 // 框架</div>
                 <div className="space-y-4 md:space-y-6">
                   {[
-                    { label: 'MAE (最大不利偏移)', desc: '量化入场后的最大浮亏，评估入场精准度。' },
-                    { label: 'MFE (最大有利偏移)', desc: '量化入场后的最大浮盈，评估止盈效率。' },
+                    { label: 'MAE (最大浮亏)', desc: '量化单笔交易的最大不利偏移，评估入场精准度。' },
+                    { label: 'MFE (最大浮盈)', desc: '量化单笔交易的最大有利偏移，评估止盈效率。' },
                     { label: 'R-Multiple 分布', desc: '分析风险回报比的数学分布，剔除运气成分。' },
                     { label: '蒙特卡洛模拟', desc: '1000次随机序列模拟，预测账户破产概率。' },
                   ].map((item, i) => (

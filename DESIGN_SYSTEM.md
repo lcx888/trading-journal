@@ -46,44 +46,64 @@
 
 ```css
 :root {
-  /* ========== 背景色 ========== */
-  --bg-primary: #181A20;      /* 页面主背景 */
-  --bg-secondary: #1E2026;    /* 卡片/模块背景 */
-  --bg-tertiary: #2B3139;     /* 悬浮/选中/输入框背景 */
-  --bg-hover: #363C47;        /* 悬浮高亮 */
+  /* ========== 背景色（极深黑，沉浸式体验）========== */
+  --bg-primary: #0a0a0c;      /* 页面主背景 - 极深黑 */
+  --bg-secondary: #0d0d10;    /* 卡片/模块背景 */
+  --bg-tertiary: #0f0f12;     /* 悬浮/选中/输入框背景 */
+  --bg-hover: #1a1a1f;        /* 悬浮高亮 */
   
-  /* ========== 品牌色 ========== */
-  --color-brand: #F0B90B;           /* 币安金 - 主品牌色 */
-  --color-brand-light: #FCD535;     /* 品牌色浅 */
-  --color-brand-dark: #C99400;      /* 品牌色深 */
-  --color-brand-bg: rgba(240, 185, 11, 0.1); /* 品牌色背景 */
+  /* ========== 品牌色（专业金）========== */
+  --color-brand: #eab308;           /* 专业金 - 主品牌色 */
+  --color-brand-light: #fbbf24;     /* 品牌色浅 */
+  --color-brand-dark: #ca8a04;      /* 品牌色深 */
+  --color-brand-bg: rgba(234, 179, 8, 0.1); /* 品牌色背景 */
   
   /* ========== 盈亏语义色 ========== */
-  --color-profit: #0ECB81;          /* 盈利/涨幅 - 绿色 */
-  --color-profit-light: #2EE59D;    /* 盈利色浅 */
-  --color-profit-bg: rgba(14, 203, 129, 0.1); /* 盈利背景 */
+  --color-profit: #10b981;          /* 盈利/涨幅 - 翡翠绿 */
+  --color-profit-light: #34d399;    /* 盈利色浅 */
+  --color-profit-bg: rgba(16, 185, 129, 0.1); /* 盈利背景 */
   
-  --color-loss: #F6465D;            /* 亏损/跌幅 - 红色 */
-  --color-loss-light: #FF707E;      /* 亏损色浅 */
-  --color-loss-bg: rgba(246, 70, 93, 0.1); /* 亏损背景 */
+  --color-loss: #f43f5e;            /* 亏损/跌幅 - 玫瑰红 */
+  --color-loss-light: #fb7185;      /* 亏损色浅 */
+  --color-loss-bg: rgba(244, 63, 94, 0.1); /* 亏损背景 */
   
   /* ========== 文字色 ========== */
-  --text-primary: #EAECEF;    /* 主要文字 */
-  --text-secondary: #848E9C;  /* 次要文字 */
-  --text-tertiary: #5E6673;   /* 辅助文字 */
-  --text-disabled: #474D57;   /* 禁用文字 */
+  --text-primary: #ffffff;    /* 主要文字 - 纯白 */
+  --text-secondary: #9ca3af;  /* 次要文字 */
+  --text-tertiary: #6b7280;   /* 辅助文字 */
+  --text-disabled: #4b5563;   /* 禁用文字 */
   
   /* ========== 边框色 ========== */
-  --border-primary: #2B3139;  /* 主边框 */
-  --border-secondary: #363C47; /* 次边框/分割线 */
-  --border-hover: #474D57;    /* 悬浮边框 */
+  --border-primary: rgba(255, 255, 255, 0.05);  /* 主边框 - 极淡 */
+  --border-secondary: rgba(255, 255, 255, 0.08); /* 次边框/分割线 */
+  --border-hover: rgba(255, 255, 255, 0.12);    /* 悬浮边框 */
   
   /* ========== 功能色 ========== */
-  --color-info: #1E9EF5;      /* 信息蓝 */
-  --color-warning: #F0B90B;   /* 警告黄 */
-  --color-error: #F6465D;     /* 错误红 */
-  --color-success: #0ECB81;   /* 成功绿 */
+  --color-info: #3b82f6;      /* 信息蓝 */
+  --color-warning: #eab308;   /* 警告黄 */
+  --color-error: #f43f5e;     /* 错误红 */
+  --color-success: #10b981;   /* 成功绿 */
 }
+```
+
+### JavaScript 配色对象（用于 ECharts 等）
+
+```javascript
+const COLORS = {
+  profit: '#10b981',
+  profitBg: 'rgba(16, 185, 129, 0.1)',
+  loss: '#f43f5e',
+  lossBg: 'rgba(244, 63, 94, 0.1)',
+  brand: '#eab308',
+  brandBg: 'rgba(234, 179, 8, 0.1)',
+  bgPrimary: '#0a0a0c',
+  bgSecondary: '#0d0d10',
+  bgTertiary: '#0f0f12',
+  textPrimary: '#ffffff',
+  textSecondary: '#9ca3af',
+  textTertiary: '#6b7280',
+  border: 'rgba(255, 255, 255, 0.05)',
+};
 ```
 
 ### 配色使用规则
@@ -393,78 +413,137 @@
 ### ECharts 主题配置
 
 ```javascript
-const BINANCE_CHART_THEME = {
+const TRADEWHY_CHART_THEME = {
   backgroundColor: 'transparent',
   
   // 文字样式
   textStyle: {
-    color: '#848E9C',
-    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif'
+    color: '#9ca3af',
+    fontFamily: 'JetBrains Mono, -apple-system, BlinkMacSystemFont, sans-serif'
   },
   
   // 标题
   title: {
-    textStyle: { color: '#EAECEF', fontSize: 16, fontWeight: 600 }
+    textStyle: { color: '#ffffff', fontSize: 16, fontWeight: 600 }
   },
   
   // 图例
   legend: {
-    textStyle: { color: '#848E9C' }
+    textStyle: { color: '#9ca3af' }
   },
   
   // 提示框
   tooltip: {
-    backgroundColor: '#1E2026',
-    borderColor: '#2B3139',
+    backgroundColor: '#0d0d10',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    textStyle: { color: '#EAECEF' },
-    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 4px;'
+    textStyle: { 
+      color: '#ffffff',
+      fontFamily: 'JetBrains Mono, monospace'
+    },
+    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-radius: 4px;'
   },
   
   // 坐标轴
   xAxis: {
-    axisLine: { lineStyle: { color: '#2B3139' } },
-    axisLabel: { color: '#5E6673' },
-    splitLine: { lineStyle: { color: '#2B3139', type: 'dashed' } }
+    axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
+    axisLabel: { color: '#6b7280', fontSize: 10, fontFamily: 'JetBrains Mono' },
+    axisTick: { show: false },
+    splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)', type: 'dashed' } }
   },
   
   yAxis: {
     axisLine: { show: false },
-    axisLabel: { color: '#5E6673' },
-    splitLine: { lineStyle: { color: '#2B3139', type: 'dashed' } }
+    axisLabel: { color: '#6b7280', fontSize: 10, fontFamily: 'JetBrains Mono' },
+    splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)', type: 'dashed' } }
   },
   
   // K线图颜色
   candlestick: {
     itemStyle: {
-      color: '#0ECB81',        // 涨 - 实心绿
-      color0: '#F6465D',       // 跌 - 实心红
-      borderColor: '#0ECB81',  // 涨边框
-      borderColor0: '#F6465D'  // 跌边框
+      color: '#10b981',        // 涨 - 翡翠绿
+      color0: '#f43f5e',       // 跌 - 玫瑰红
+      borderColor: '#10b981',
+      borderColor0: '#f43f5e'
     }
   },
   
   // 折线图颜色
   line: {
-    itemStyle: { color: '#F0B90B' },
-    lineStyle: { width: 2 }
+    itemStyle: { color: '#eab308' },
+    lineStyle: { width: 2 },
+    smooth: 0.3,
+    symbol: 'none'
   },
   
   // 柱状图颜色
   bar: {
-    itemStyle: { borderRadius: [2, 2, 0, 0] }
+    itemStyle: { borderRadius: [2, 2, 0, 0] },
+    barWidth: '50%'
   }
 };
 
-// 盈亏曲线配色
+// 盈亏曲线配色（动态切换）
 const EQUITY_CURVE_COLORS = {
   profit: {
-    line: '#0ECB81',
-    area: 'rgba(14, 203, 129, 0.1)'
+    line: '#10b981',
+    area: 'rgba(16, 185, 129, 0.3)',      // 30% 透明度起始
+    areaEnd: 'rgba(16, 185, 129, 0)'      // 0% 透明度结束
   },
   loss: {
-    line: '#F6465D',
-    area: 'rgba(246, 70, 93, 0.1)'
+    line: '#f43f5e',
+    area: 'rgba(244, 63, 94, 0.3)',
+    areaEnd: 'rgba(244, 63, 94, 0)'
+  }
+};
+
+// 权益曲线颜色应根据累计盈亏动态切换
+// 示例：
+// const lineColor = cumPnL >= 0 ? EQUITY_CURVE_COLORS.profit.line : EQUITY_CURVE_COLORS.loss.line;
+```
+
+### 标记点 (Mark Points) 规范
+
+```javascript
+// 最高点标记
+const maxPointStyle = {
+  symbol: 'circle',
+  symbolSize: 10,
+  itemStyle: { 
+    color: '#10b981', // profit color
+    borderColor: '#0d0d10', 
+    borderWidth: 2 
+  },
+  label: {
+    show: true,
+    position: 'top',
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#10b981',
+    backgroundColor: '#0f0f12',
+    padding: [2, 6],
+    borderRadius: 2
+  }
+};
+
+// 最低点标记
+const minPointStyle = {
+  symbol: 'circle',
+  symbolSize: 10,
+  itemStyle: { 
+    color: '#f43f5e', // loss color
+    borderColor: '#0d0d10', 
+    borderWidth: 2 
+  },
+  label: {
+    show: true,
+    position: 'bottom',
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#f43f5e',
+    backgroundColor: '#0f0f12',
+    padding: [2, 6],
+    borderRadius: 2
   }
 };
 ```
@@ -538,6 +617,79 @@ const EQUITY_CURVE_COLORS = {
 
 ---
 
+## 页面布局规范
+
+### 统一页面容器
+
+所有内容页面**必须**使用以下统一的容器规范：
+
+```jsx
+// 标准页面容器
+<div className="max-w-[1600px] mx-auto p-6 space-y-6">
+  {/* 页面内容 */}
+</div>
+```
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| 最大宽度 | `max-w-[1600px]` | 所有页面统一 |
+| 水平居中 | `mx-auto` | 左右自动边距 |
+| 内边距 | `p-6` (24px) | 页面四周留白 |
+| 模块间距 | `space-y-6` (24px) | 模块垂直间距 |
+
+### 页面标题规范
+
+```jsx
+// 标准页面标题
+<div className="mb-6">
+  <h1 className="text-2xl font-medium tracking-tight text-[var(--text-primary)]">
+    页面标题
+  </h1>
+  <p className="text-sm text-[var(--text-tertiary)] mt-1">
+    页面副标题或说明
+  </p>
+</div>
+```
+
+| 元素 | 样式 |
+|------|------|
+| 主标题 | `text-2xl font-medium tracking-tight` |
+| 副标题 | `text-sm text-[var(--text-tertiary)]` |
+| 标题间距 | `mb-6` |
+
+### 卡片标题规范
+
+```jsx
+// 标准卡片标题
+<h2 className="text-base font-medium text-[var(--text-primary)] mb-4">
+  卡片标题
+</h2>
+```
+
+| 元素 | 样式 |
+|------|------|
+| 卡片标题 | `text-base font-medium` |
+| 标题间距 | `mb-4` |
+
+### 最小宽度保护
+
+为防止小屏幕布局错乱，添加最小宽度限制：
+
+```css
+/* 添加到 index.css */
+.main-content {
+  min-width: 320px;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+}
+```
+
+---
+
 ## 响应式规范
 
 ### 断点
@@ -562,22 +714,264 @@ const EQUITY_CURVE_COLORS = {
 | 992-1200px | 笔记本 | 四列布局 |
 | > 1200px | 桌面 | 完整布局 |
 
+### 响应式实现
+
+```jsx
+// Grid 响应式布局示例
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+  {/* 内容 */}
+</div>
+
+// Flex 响应式布局示例  
+<div className="flex flex-col md:flex-row gap-4">
+  {/* 内容 */}
+</div>
+```
+
+### 小屏幕适配规则
+
+1. **隐藏次要元素**：使用 `hidden md:block` 在小屏幕隐藏
+2. **文字截断**：长文本使用 `truncate` 或 `line-clamp-2`
+3. **弹性布局**：优先使用 `flex-wrap` 允许换行
+4. **触控优化**：按钮最小高度 `min-h-[44px]` 满足触控
+
+---
+
+## 总览页面专属规范
+
+### 交易指挥中心 (Command Center)
+
+总览页面顶部的核心模块，整合身份信息、职业进度和风险状态。
+
+```jsx
+/* 容器样式 */
+.command-center {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px; /* rounded-xl */
+  padding: 32px; /* p-8 */
+  position: relative;
+  overflow: hidden;
+}
+
+/* 背景微光装饰 */
+.command-center::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 500px;
+  height: 500px;
+  background: var(--color-brand);
+  opacity: 0.03;
+  filter: blur(120px);
+  margin-right: -192px;
+  margin-top: -192px;
+  pointer-events: none;
+}
+```
+
+### 职业生涯进度条 (Career Roadmap)
+
+```jsx
+/* 进度条节点 */
+.roadmap-node {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.5s ease;
+}
+
+/* 已达成节点 */
+.roadmap-node.reached {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  transform: scale(1.25);
+  box-shadow: 0 0 8px var(--color-brand);
+}
+
+/* 未达成节点 */
+.roadmap-node.pending {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+}
+
+/* 进度线 */
+.roadmap-progress {
+  height: 1px;
+  background: var(--color-brand);
+  box-shadow: 0 0 8px var(--color-brand);
+  transition: width 1s ease;
+}
+
+/* 等级标签 */
+.level-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: bold;
+}
+```
+
+### 统计指标项 (StatItem)
+
+极简主义的核心指标展示组件。
+
+```jsx
+/* 指标项容器 */
+.stat-item {
+  flex: 1;
+  border-left: 1px solid var(--border-primary);
+  padding-left: 24px; /* pl-6 */
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* 标签样式 */
+.stat-item-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* tracking-wider */
+  margin-bottom: 8px;
+}
+
+/* 数值样式 */
+.stat-item-value {
+  font-size: 24px; /* text-2xl */
+  font-weight: 300; /* font-light */
+  letter-spacing: -0.025em; /* tracking-tight */
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+/* 副标题样式 */
+.stat-item-sub {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+```
+
+### 快速筛选标签 (Quick Filter Tags)
+
+```jsx
+/* 筛选器容器 */
+.quick-filter-container {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+/* 筛选按钮 - 默认 */
+.quick-filter-btn {
+  padding: 4px 12px;
+  font-size: 10px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
+}
+
+/* 筛选按钮 - 激活 */
+.quick-filter-btn.active {
+  background: var(--color-brand);
+  color: #000000;
+  font-weight: bold;
+}
+```
+
+### 动态金句系统
+
+```jsx
+/* 金句容器 */
+.quote-container {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 300; /* font-light */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 脉冲指示点 */
+.quote-pulse {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  animation: pulse 2s infinite;
+}
+
+/* 金句文本 */
+.quote-text {
+  font-style: italic;
+}
+```
+
+### 控制中枢 (Filter Bar)
+
+```jsx
+/* 筛选器条 */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: rgba(13, 13, 16, 0.5); /* bg-secondary/50 */
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+}
+
+/* 分隔线 */
+.filter-divider {
+  height: 12px;
+  width: 1px;
+  background: var(--border-primary);
+}
+```
+
 ---
 
 ## 开发检查清单
 
 在开发每个页面/组件时，请确认：
 
-- [ ] 使用 `--bg-primary` 作为页面背景
-- [ ] 使用 `--bg-secondary` 作为卡片背景
-- [ ] 盈利数据使用 `--color-profit` (#0ECB81)
-- [ ] 亏损数据使用 `--color-loss` (#F6465D)
-- [ ] 数字使用 `--font-mono` 等宽字体
+### 颜色规范
+- [ ] 使用 `--bg-primary` (#0a0a0c) 作为页面背景
+- [ ] 使用 `--bg-secondary` (#0d0d10) 作为卡片背景
+- [ ] 盈利数据使用 `--color-profit` (#10b981)
+- [ ] 亏损数据使用 `--color-loss` (#f43f5e)
+- [ ] 品牌强调使用 `--color-brand` (#eab308)
+- [ ] 边框使用 `rgba(255, 255, 255, 0.05)` 极淡白色
+
+### 字体规范
+- [ ] 数字使用 `font-mono` (JetBrains Mono) 等宽字体
+- [ ] 大数值标题使用 `font-light` (font-weight: 300)
+- [ ] 标签使用 `uppercase tracking-widest text-[10px]`
+- [ ] 数值字号为 `text-2xl` (24px)
+
+### 布局规范
+- [ ] 页面最大宽度 `max-w-[1600px]`
+- [ ] 卡片内边距 `p-6` (24px) 或 `p-8` (32px)
+- [ ] 模块间距 `space-y-6` (24px)
+- [ ] 使用 `border-l` 左边框作为指标项分隔
+
+### 组件规范
 - [ ] 按钮圆角为 4px
-- [ ] 卡片圆角为 6px
-- [ ] 避免使用阴影（仅弹出层使用）
-- [ ] 表格行高紧凑（40-48px）
+- [ ] 卡片圆角为 6px，大容器为 12px (rounded-xl)
+- [ ] 避免使用阴影（仅品牌元素使用光晕 shadow-[0_0_8px]）
 - [ ] 动画时长不超过 0.3s
+- [ ] 脉冲动画使用 `animate-pulse`
+
+### 图表规范
+- [ ] 图表背景透明 `backgroundColor: 'transparent'`
+- [ ] 盈利曲线使用 `#10b981`，亏损曲线使用 `#f43f5e`
+- [ ] 曲线根据累计盈亏状态动态切换颜色
+- [ ] 渐变填充透明度为 30% → 0%
+- [ ] Y 轴标签使用等宽字体
 
 ---
 
@@ -623,6 +1017,7 @@ const StatCard = ({ label, value, change }) => (
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0 | 2026-01-24 | 初版发布，基于币安设计语言 |
+| v1.1 | 2026-01-29 | 更新配色系统为极深黑主题；新增总览页面专属规范；新增交易指挥中心、职业生涯进度条、统计指标项、快速筛选标签、动态金句系统等组件规范 |
 
 ---
 

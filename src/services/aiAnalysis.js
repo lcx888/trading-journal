@@ -352,9 +352,9 @@ const analyzeEquityCurve = (trades) => {
     };
   });
 
-  // 计算恢复因子
-  const totalProfit = validTrades.filter(t => t.pnl > 0).reduce((a, t) => a + t.pnl, 0);
-  const recoveryFactor = maxDrawdown > 0 ? totalProfit / maxDrawdown : 0;
+  // 计算恢复因子（使用最终净盈亏 / 最大回撤）
+  // 如果最终盈利且有回撤，恢复因子 = 最终盈利 / 最大回撤
+  const recoveryFactor = maxDrawdown > 0 && cumPnL > 0 ? cumPnL / maxDrawdown : 0;
 
   // 计算盈利天数和亏损天数
   const byDate = {};
@@ -428,8 +428,10 @@ const analyzeRiskMetrics = (trades) => {
   const maxProfit = profits.length > 0 ? Math.max(...profits) : 0;
   const maxLoss = losses.length > 0 ? Math.max(...losses) : 0;
 
-  // 计算盈亏占比
-  const profitContribution = grossProfit / (grossProfit + grossLoss) * 100;
+  // 计算盈亏占比（防止除零）
+  const profitContribution = (grossProfit + grossLoss) > 0 
+    ? (grossProfit / (grossProfit + grossLoss) * 100) 
+    : 0;
 
   return {
     totalTrades: pnls.length,
@@ -579,12 +581,13 @@ const analyzeExecutionQuality = (trades, instrumentsConfig = []) => {
   else if (precisionRate >= 30) entryPrecisionRating = { level: '一般', color: 'orange' };
   else entryPrecisionRating = { level: '需改进', color: 'red' };
 
-  // 利润捕获评级
+  // 利润捕获评级（处理负值情况）
   let profitCaptureRating;
   if (profitCaptureRatio >= 50) profitCaptureRating = { level: '优秀', color: 'green' };
   else if (profitCaptureRatio >= 30) profitCaptureRating = { level: '良好', color: 'blue' };
   else if (profitCaptureRatio >= 10) profitCaptureRating = { level: '一般', color: 'orange' };
-  else profitCaptureRating = { level: '需改进', color: 'red' };
+  else if (profitCaptureRatio >= 0) profitCaptureRating = { level: '需改进', color: 'red' };
+  else profitCaptureRating = { level: '亏损', color: 'red' }; // 负值情况
 
   return {
     hasData: true,
@@ -1409,19 +1412,29 @@ export const generateAIAnalysis = async (filters = {}) => {
   try {
     let allTrades = await StorageService.getAllTrades();
     
-    // 按交易记录筛选
-    if (filters.activeRecordId && filters.activeRecordId !== 'all') {
-      allTrades = allTrades.filter(t => t.recordId === filters.activeRecordId);
+    // 按交易记录筛选（兼容两种参数名）
+    const targetRecordId = filters.recordId || filters.activeRecordId;
+    if (targetRecordId && targetRecordId !== 'all') {
+      allTrades = allTrades.filter(t => t.recordId === targetRecordId);
     }
     
-    // 应用筛选
-    if (filters.instrument && filters.instrument !== 'ALL') {
-      allTrades = allTrades.filter(t => t.instrumentCode === filters.instrument);
+    // 应用品种筛选（兼容两种参数名）
+    const instrumentFilter = filters.instrument || filters.instrumentCode;
+    if (instrumentFilter && instrumentFilter !== 'ALL') {
+      allTrades = allTrades.filter(t => t.instrumentCode === instrumentFilter);
     }
     
+    // 应用日期筛选（兼容两种格式：dateRange数组 或 startDate/endDate字符串）
     if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
       const start = filters.dateRange[0].startOf('day').toDate();
       const end = filters.dateRange[1].endOf('day').toDate();
+      allTrades = allTrades.filter(t => {
+        const tradeDate = new Date(t.openTime);
+        return tradeDate >= start && tradeDate <= end;
+      });
+    } else if (filters.startDate && filters.endDate) {
+      const start = dayjs(filters.startDate).startOf('day').toDate();
+      const end = dayjs(filters.endDate).endOf('day').toDate();
       allTrades = allTrades.filter(t => {
         const tradeDate = new Date(t.openTime);
         return tradeDate >= start && tradeDate <= end;
@@ -1518,39 +1531,74 @@ export const generateAIAnalysis = async (filters = {}) => {
 
 /**
  * 计算整体评级
+ * 总分 100 分，分为以下维度：
+ * - 胜率评分：25分
+ * - 利润系数评分：25分
+ * - 盈亏状态评分：25分
+ * - 风控评分：25分（基于问题数量）
  */
 const calculateOverallRating = (stats, problems) => {
-  let score = 100;
+  let score = 0;
 
-  // 胜率评分 (30分)
-  if (stats.winRate >= 60) score += 30;
-  else if (stats.winRate >= 50) score += 20;
-  else if (stats.winRate >= 40) score += 10;
-  else score -= 20;
+  // 1. 胜率评分 (满分25分)
+  const winRate = stats.winRate || 0;
+  if (winRate >= 65) score += 25;
+  else if (winRate >= 55) score += 22;
+  else if (winRate >= 50) score += 18;
+  else if (winRate >= 45) score += 14;
+  else if (winRate >= 40) score += 10;
+  else if (winRate >= 30) score += 5;
+  else score += 0;
 
-  // 利润系数评分 (30分)
-  if (stats.profitFactor >= 2) score += 30;
-  else if (stats.profitFactor >= 1.5) score += 20;
-  else if (stats.profitFactor >= 1.2) score += 10;
-  else score -= 10;
+  // 2. 利润系数评分 (满分25分)
+  const profitFactor = stats.profitFactor || 0;
+  if (profitFactor >= 2.5) score += 25;
+  else if (profitFactor >= 2.0) score += 22;
+  else if (profitFactor >= 1.5) score += 18;
+  else if (profitFactor >= 1.2) score += 14;
+  else if (profitFactor >= 1.0) score += 10;
+  else if (profitFactor >= 0.8) score += 5;
+  else score += 0;
 
-  // 总盈亏评分 (20分)
-  if (stats.totalPnL > 0) {
-    score += 20;
+  // 3. 盈亏状态评分 (满分25分)
+  const totalPnL = stats.totalPnL || 0;
+  const avgPnL = stats.avgPnL || (stats.totalTrades > 0 ? totalPnL / stats.totalTrades : 0);
+  if (totalPnL > 0) {
+    // 盈利：根据平均盈亏给分
+    if (avgPnL >= 100) score += 25;
+    else if (avgPnL >= 50) score += 22;
+    else if (avgPnL >= 20) score += 18;
+    else if (avgPnL >= 0) score += 15;
+    else score += 12;
+  } else if (totalPnL === 0) {
+    score += 12; // 不赚不亏
   } else {
-    score -= 30;
+    // 亏损：根据亏损程度扣分
+    if (avgPnL >= -20) score += 8;
+    else if (avgPnL >= -50) score += 5;
+    else if (avgPnL >= -100) score += 2;
+    else score += 0;
   }
 
-  // 问题扣分 (20分)
-  const highSeverityProblems = problems.filter(p => p.severity === 'high').length;
-  const mediumSeverityProblems = problems.filter(p => p.severity === 'medium').length;
-  score -= highSeverityProblems * 10;
-  score -= mediumSeverityProblems * 5;
+  // 4. 风控评分 (满分25分) - 基于问题数量扣分
+  let riskScore = 25;
+  const highSeverityProblems = (problems || []).filter(p => p.severity === 'high').length;
+  const mediumSeverityProblems = (problems || []).filter(p => p.severity === 'medium').length;
+  const lowSeverityProblems = (problems || []).filter(p => p.severity === 'low').length;
+  
+  riskScore -= highSeverityProblems * 6;   // 每个高风险问题扣6分
+  riskScore -= mediumSeverityProblems * 3; // 每个中等问题扣3分
+  riskScore -= lowSeverityProblems * 1;    // 每个低风险问题扣1分
+  
+  score += Math.max(0, riskScore); // 最低0分
+
+  // 确保分数在 0-100 范围内
+  score = Math.max(0, Math.min(100, Math.round(score)));
 
   // 确定等级
-  if (score >= 90) return { level: '优秀', score, color: 'green' };
-  if (score >= 75) return { level: '良好', score, color: 'blue' };
-  if (score >= 60) return { level: '一般', score, color: 'orange' };
+  if (score >= 85) return { level: '优秀', score, color: 'green' };
+  if (score >= 70) return { level: '良好', score, color: 'blue' };
+  if (score >= 55) return { level: '一般', score, color: 'orange' };
   if (score >= 40) return { level: '需改进', score, color: 'red' };
   return { level: '风险较高', score, color: 'red' };
 };

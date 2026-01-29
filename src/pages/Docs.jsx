@@ -169,16 +169,17 @@ const Docs = ({ onBack, onStart }) => {
     },
     {
       question: '什么是 MAE 和 MFE？为什么重要？',
-      answer: `MAE（Maximum Adverse Excursion）最大逆向波动：
-• 定义：持仓期间价格向不利方向移动的最大幅度
-• 意义：反映您承受的最大浮亏，评估止损设置是否合理
+      answer: `MAE（Maximum Adverse Excursion）最大浮亏/最大不利偏移：
+• 定义：单笔交易持仓期间，价格向不利方向移动的最大幅度
+• 意义：反映您在该笔交易中承受的最大浮亏，评估入场时机和止损设置
+• 注意：这是单笔交易的指标，不同于"最大回撤"（账户级别指标）
 
-MFE（Maximum Favorable Excursion）最大顺向波动：
-• 定义：持仓期间价格向有利方向移动的最大幅度  
-• 意义：反映您曾经触及的最大浮盈，评估止盈策略效果
+MFE（Maximum Favorable Excursion）最大浮盈/最大有利偏移：
+• 定义：单笔交易持仓期间，价格向有利方向移动的最大幅度  
+• 意义：反映该笔交易中您曾经触及的最大浮盈，评估止盈策略效果
 
 为什么重要？
-1. 评估执行质量：MFE 很大但实际盈利很小 = 存在利润回吐问题
+1. 评估执行质量：MFE 很大但实际盈利很小 = 存在动态回撤（利润回吐）问题
 2. 优化止损位：分析 MAE 分布，找到最优止损距离
 3. 量化心理压力：MAE 越大，持仓期间心理压力越大
 4. 改进入场时机：MAE 过大可能意味着入场位置不佳`
@@ -673,7 +674,7 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                 <p className="mb-3">
                   <strong className="text-[#fff]">为什么推荐 Jigsaw？</strong>
                   Jigsaw 是专业的订单流交易软件，导出的数据包含最完整的信息：
-                  MAE（最大逆向波动）、MFE（最大顺向波动）、Fills（成交次数）、持仓时间等。
+                  MAE（最大浮亏）、MFE（最大浮盈）、Fills（成交次数）、持仓时间等。
                   这些数据能让 TradeWhy.AI 进行最深入的分析。
                 </p>
                 <p className="mb-3 text-[#fff] font-medium">使用 Jigsaw 数据您能获得：</p>
@@ -760,8 +761,8 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
                 <h4 className="text-sm font-semibold text-[#fff] mt-4 mb-2">可选字段（增强分析）：</h4>
                 <div className="bg-[#0a0a0c] rounded-lg p-4 border border-[#1a1a1f] font-mono text-xs">
                   <div className="grid grid-cols-2 gap-2">
-                    <div><span className="text-[#c9a227]">MAE</span> - 最大逆向波动</div>
-                    <div><span className="text-[#c9a227]">MFE</span> - 最大顺向波动</div>
+                    <div><span className="text-[#c9a227]">MAE</span> - 最大浮亏（最大不利偏移）</div>
+                    <div><span className="text-[#c9a227]">MFE</span> - 最大浮盈（最大有利偏移）</div>
                     <div><span className="text-[#c9a227]">Fills</span> - 成交次数</div>
                     <div><span className="text-[#c9a227]">Time In</span> - 持仓时间</div>
                     <div><span className="text-[#c9a227]">Close Time</span> - 平仓时间</div>
@@ -1043,32 +1044,35 @@ R倍数 = 实际盈亏 / 初始风险（|MAE|）
         return (
           <>
             <DocSection icon={<BookOutlined />} title="核心概念">
-              <DocItem title="MAE（最大逆向波动）">
-                <p><strong>Maximum Adverse Excursion</strong></p>
-                <p className="mt-2">定义：持仓期间价格向不利方向移动的最大幅度。</p>
+              <DocItem title="MAE（最大浮亏 / 最大不利偏移）">
+                <p><strong>Maximum Adverse Excursion - 最大不利偏移</strong></p>
+                <p className="mt-2">定义：单笔交易持仓期间，价格向不利方向移动的最大幅度（即最大浮亏）。</p>
                 <div className="bg-[#0a0a0c] rounded-lg p-4 border border-[#1a1a1f] mt-3">
-                  <p className="text-xs">举例：您做多后，价格最低跌到了 -$200，即使最后盈利，MAE = -$200</p>
+                  <p className="text-xs">举例：您做多后，价格最低跌到了 -$200，即使最后盈利，MAE = $200（最大浮亏 $200）</p>
                 </div>
                 <p className="mt-3">意义：</p>
                 <ul className="list-disc list-inside space-y-1 mt-1">
-                  <li>反映您承受的最大浮亏压力</li>
-                  <li>用于评估止损位是否合理</li>
-                  <li>帮助计算 R倍数</li>
+                  <li>反映单笔交易中您承受的最大浮亏压力</li>
+                  <li>用于评估入场时机和止损位是否合理</li>
+                  <li>帮助计算 R倍数（风险回报比）</li>
                   <li>量化交易过程中的心理压力</li>
                 </ul>
+                <Tip type="info">
+                  注意：MAE 是单笔交易的指标，不同于"最大回撤"。最大回撤是资金曲线从峰值下跌的幅度，是账户级别的指标。
+                </Tip>
               </DocItem>
 
-              <DocItem title="MFE（最大顺向波动）">
-                <p><strong>Maximum Favorable Excursion</strong></p>
-                <p className="mt-2">定义：持仓期间价格向有利方向移动的最大幅度。</p>
+              <DocItem title="MFE（最大浮盈 / 最大有利偏移）">
+                <p><strong>Maximum Favorable Excursion - 最大有利偏移</strong></p>
+                <p className="mt-2">定义：单笔交易持仓期间，价格向有利方向移动的最大幅度（即最大浮盈）。</p>
                 <div className="bg-[#0a0a0c] rounded-lg p-4 border border-[#1a1a1f] mt-3">
-                  <p className="text-xs">举例：您做多后，价格最高涨到了 +$500，最后平仓盈利 $300，MFE = $500</p>
+                  <p className="text-xs">举例：您做多后，价格最高涨到了 +$500，最后平仓盈利 $300，MFE = $500（最大浮盈 $500）</p>
                 </div>
                 <p className="mt-3">意义：</p>
                 <ul className="list-disc list-inside space-y-1 mt-1">
-                  <li>反映您曾经触及的最大浮盈</li>
+                  <li>反映单笔交易中您曾经触及的最大浮盈</li>
                   <li>用于评估止盈策略效果</li>
-                  <li>MFE - PnL = 利润回吐金额</li>
+                  <li>MFE - PnL = 动态回撤（利润回吐金额）</li>
                   <li>帮助优化出场时机</li>
                 </ul>
               </DocItem>

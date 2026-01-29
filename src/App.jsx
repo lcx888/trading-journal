@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ConfigProvider, Layout, Menu, Select, Spin, Button, Dropdown, Tooltip } from 'antd';
 import {
   DashboardOutlined,
@@ -18,24 +18,29 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   CrownOutlined,
+  AlertOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 
-import Dashboard from './pages/Dashboard';
-import TradeList from './pages/TradeList';
-import ImportData from './pages/ImportData';
-import Settings from './pages/Settings';
-import AIAnalysis from './pages/AIAnalysis';
-import TradeCalendar from './pages/TradeCalendar';
-import TradingRecords from './pages/TradingRecords';
-import TradingStrategies from './pages/TradingStrategies';
-import Auth from './pages/Auth';
-import Admin from './pages/Admin';
-import Home from './pages/Home';
-import Docs from './pages/Docs';
-import Pricing from './pages/Pricing';
+// 懒加载页面组件 - 优化首屏加载速度
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const TradeList = lazy(() => import('./pages/TradeList'));
+const ImportData = lazy(() => import('./pages/ImportData'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AIAnalysis = lazy(() => import('./pages/AIAnalysis'));
+const TradeCalendar = lazy(() => import('./pages/TradeCalendar'));
+const TradingRecords = lazy(() => import('./pages/TradingRecords'));
+const TradingStrategies = lazy(() => import('./pages/TradingStrategies'));
+const RiskControl = lazy(() => import('./pages/RiskControl'));
+const Auth = lazy(() => import('./pages/Auth'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Home = lazy(() => import('./pages/Home'));
+const Docs = lazy(() => import('./pages/Docs'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
@@ -76,6 +81,11 @@ const buildMenuItems = (user) => {
       ),
     },
     { 
+      key: 'risk-control', 
+      icon: <AlertOutlined />, 
+      label: '风控测试',
+    },
+    { 
       key: 'data', 
       icon: <DatabaseOutlined />, 
       label: '数据',
@@ -109,6 +119,7 @@ const getPageTitle = (key) => {
     'dashboard': '总览',
     'trades': '交易明细',
     'ai-analysis': 'AI 交易教练',
+    'risk-control': '风控测试',
     'records': '账本管理',
     'import': '导入数据',
     'strategies': '策略库',
@@ -272,45 +283,58 @@ function App() {
     setPageKey(k => k + 1);
   };
 
+  // 页面加载占位符
+  const PageLoading = () => (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Spin indicator={<LoadingOutlined style={{ fontSize: 32, color: 'var(--color-brand)' }} spin />} />
+    </div>
+  );
+
   const renderContent = () => {
     const pageClass = "page-enter";
     
-    switch (currentPage) {
-      case 'dashboard': 
-        return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} subscription={subscription} onUpgrade={goToPricing} /></div>;
-      case 'records': 
-        return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
-      case 'trades': 
-        return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
-      case 'strategies': 
-        return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} /></div>;
-      case 'ai-analysis': 
-        return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} subscription={subscription} onShowUpgrade={goToPricing} /></div>;
-      case 'calendar': 
-        return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
-      case 'import': 
-        return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
-      case 'settings': 
-        return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} subscription={subscription} onUpgrade={goToPricing} /></div>;
-      case 'pricing':
-        return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => setCurrentPage(page)} /></div>;
-      case 'admin':
-        if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
-          return <div key={pageKey} className={pageClass}><Admin /></div>;
-        }
-        return (
-          <div key={pageKey} className={`${pageClass} card p-8`}>
-            <div className="text-[var(--text-primary)] font-bold mb-2">无权限访问</div>
-            <div className="text-[var(--text-secondary)] text-sm">仅管理员可访问此页面。</div>
-          </div>
-        );
-      default: 
-        return <div key={pageKey} className={pageClass}><Dashboard onNavigateToImport={() => setCurrentPage('import')} /></div>;
-    }
+    const content = (() => {
+      switch (currentPage) {
+        case 'dashboard': 
+          return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} subscription={subscription} onUpgrade={goToPricing} onNavigate={setCurrentPage} /></div>;
+        case 'records': 
+          return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
+        case 'trades': 
+          return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+        case 'strategies': 
+          return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} /></div>;
+        case 'ai-analysis': 
+          return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} subscription={subscription} onShowUpgrade={goToPricing} /></div>;
+        case 'risk-control':
+          return <div key={pageKey} className={pageClass}><RiskControl key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+        case 'calendar': 
+          return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+        case 'import': 
+          return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
+        case 'settings': 
+          return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} subscription={subscription} onUpgrade={goToPricing} /></div>;
+        case 'pricing':
+          return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => setCurrentPage(page)} /></div>;
+        case 'admin':
+          if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
+            return <div key={pageKey} className={pageClass}><Admin /></div>;
+          }
+          return (
+            <div key={pageKey} className={`${pageClass} card p-8`}>
+              <div className="text-[var(--text-primary)] font-bold mb-2">无权限访问</div>
+              <div className="text-[var(--text-secondary)] text-sm">仅管理员可访问此页面。</div>
+            </div>
+          );
+        default: 
+          return <div key={pageKey} className={pageClass}><Dashboard onNavigateToImport={() => setCurrentPage('import')} /></div>;
+      }
+    })();
+
+    return <Suspense fallback={<PageLoading />}>{content}</Suspense>;
   };
 
   const menuItems = useMemo(() => buildMenuItems(authUser), [authUser]);
-  const showRecordSelector = ['dashboard', 'trades', 'ai-analysis', 'calendar'].includes(currentPage);
+  const showRecordSelector = ['dashboard', 'trades', 'ai-analysis', 'calendar', 'risk-control'].includes(currentPage);
 
   const selectedKeys = useMemo(() => {
     if (['records', 'import', 'strategies', 'calendar'].includes(currentPage)) {

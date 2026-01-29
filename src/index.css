@@ -1249,7 +1249,32 @@ body {
 /* ============================================
    响应式
    ============================================ */
+
+/* 主内容区最小宽度保护 */
+.main-content,
+[class*="max-w-[1600px]"],
+[class*="max-w-[1400px]"] {
+  min-width: 320px;
+}
+
+/* 页面容器响应式 */
+.page-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 1200px) {
+  .page-container {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+  
   .stat-value {
     font-size: 22px;
   }
@@ -1265,6 +1290,32 @@ body {
   .ai-report-minimal th,
   .ai-report-minimal td {
     padding: 8px 12px;
+  }
+  
+  /* 小屏幕标题缩小 */
+  h1.text-2xl {
+    font-size: 1.25rem;
+  }
+  
+  /* 小屏幕卡片间距减少 */
+  .space-y-6 > * + * {
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-container {
+    padding: 12px;
+  }
+  
+  /* 超小屏幕隐藏次要元素 */
+  .hide-xs {
+    display: none !important;
+  }
+  
+  /* 表格水平滚动 */
+  .ant-table-wrapper {
+    overflow-x: auto;
   }
 }
 

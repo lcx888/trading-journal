@@ -748,15 +748,20 @@ MAE/MFE 术语说明：
 3. 不使用 emoji 表情
 4. 控制在200字以内`;
 
+  // 过滤掉无效的聊天历史消息（content 为空或 undefined 的消息）
+  const validChatHistory = (chatHistory || [])
+    .filter(msg => msg && msg.role && msg.content && typeof msg.content === 'string' && msg.content.trim())
+    .slice(-10);
+
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...chatHistory.slice(-10),
+    ...validChatHistory,
     { role: 'user', content: userMessage },
   ];
 
-  const response = await callDeepSeek(messages, { maxTokens: 1000 });
+  const reply = await callDeepSeek(messages, { maxTokens: 1000 });
   
-  return { success: true, response };
+  return { success: true, reply };
 }
 
 /**

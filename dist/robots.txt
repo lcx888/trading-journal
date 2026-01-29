@@ -1,11 +1,11 @@
-# MetworthAI - 智能交易日志
-# https://metworth.ai
+# TradeWhy.AI - 智能交易日志
+# https://tradewhy.ai
 
 User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://metworth.ai/sitemap.xml
+Sitemap: https://tradewhy.ai/sitemap.xml
 
 # Crawl-delay for respectful crawling
 Crawl-delay: 1
