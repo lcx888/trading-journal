@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense, startTransition } from 'react';
 import { ConfigProvider, Layout, Menu, Select, Spin, Button, Dropdown, Tooltip } from 'antd';
 import {
   DashboardOutlined,
@@ -263,7 +263,9 @@ function App() {
   // 跳转到订阅页面
   const goToPricing = () => {
     setShowUpgradeModal(false);
-    setCurrentPage('pricing');
+    startTransition(() => {
+      setCurrentPage('pricing');
+    });
   };
 
   const loadRecords = async () => {
@@ -279,8 +281,10 @@ function App() {
   };
 
   const handleMenuClick = ({ key }) => {
-    setCurrentPage(key);
-    setPageKey(k => k + 1);
+    startTransition(() => {
+      setCurrentPage(key);
+      setPageKey(k => k + 1);
+    });
   };
 
   // 页面加载占位符
@@ -296,9 +300,9 @@ function App() {
     const content = (() => {
       switch (currentPage) {
         case 'dashboard': 
-          return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => setCurrentPage('import')} subscription={subscription} onUpgrade={goToPricing} onNavigate={setCurrentPage} /></div>;
+          return <div key={pageKey} className={pageClass}><Dashboard key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} onNavigateToImport={() => startTransition(() => setCurrentPage('import'))} subscription={subscription} onUpgrade={goToPricing} onNavigate={(page) => startTransition(() => setCurrentPage(page))} /></div>;
         case 'records': 
-          return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); setCurrentPage('import'); }} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
+          return <div key={pageKey} className={pageClass}><TradingRecords key={refreshKey} onNavigateToImport={(id) => { setSelectedRecordId(id); startTransition(() => setCurrentPage('import')); }} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
         case 'trades': 
           return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
         case 'strategies': 
@@ -310,11 +314,11 @@ function App() {
         case 'calendar': 
           return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
         case 'import': 
-          return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => setCurrentPage('records')} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
+          return <div key={pageKey} className={pageClass}><ImportData onImportSuccess={() => setRefreshKey(k => k + 1)} selectedRecordId={selectedRecordId} onNavigateToRecords={() => startTransition(() => setCurrentPage('records'))} subscription={subscription} onShowUpgrade={showUpgrade} /></div>;
         case 'settings': 
           return <div key={pageKey} className={pageClass}><Settings onLogout={handleLogout} subscription={subscription} onUpgrade={goToPricing} /></div>;
         case 'pricing':
-          return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => setCurrentPage(page)} /></div>;
+          return <div key={pageKey} className={pageClass}><Pricing onNavigate={(page) => startTransition(() => setCurrentPage(page))} /></div>;
         case 'admin':
           if (authUser?.role === 'admin' || authUser?.role === 'superadmin') {
             return <div key={pageKey} className={pageClass}><Admin /></div>;
@@ -326,7 +330,7 @@ function App() {
             </div>
           );
         default: 
-          return <div key={pageKey} className={pageClass}><Dashboard onNavigateToImport={() => setCurrentPage('import')} /></div>;
+          return <div key={pageKey} className={pageClass}><Dashboard onNavigateToImport={() => startTransition(() => setCurrentPage('import'))} /></div>;
       }
     })();
 
@@ -597,7 +601,7 @@ function App() {
                   <Button 
                     type="text" 
                     icon={<SettingOutlined style={{ fontSize: 16 }} />} 
-                    onClick={() => setCurrentPage('settings')}
+                    onClick={() => startTransition(() => setCurrentPage('settings'))}
                     className="w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
                   />
                 </Tooltip>
@@ -643,7 +647,7 @@ function App() {
                       key: 'settings', 
                       label: '账户设置', 
                       icon: <SettingOutlined />,
-                      onClick: () => setCurrentPage('settings'),
+                      onClick: () => startTransition(() => setCurrentPage('settings')),
                     },
                     { 
                       key: 'pricing', 
