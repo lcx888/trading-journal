@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Table, Tag, Space, Select, DatePicker, Input, Button, 
   Modal, Form, message, Popconfirm, Tooltip, Dropdown, Progress,
-  Switch, Radio, Drawer, Checkbox
+  Switch, Radio, Drawer, Checkbox, InputNumber
 } from 'antd';
 import {
   SearchOutlined,
@@ -463,6 +463,11 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [editingTrade, setEditingTrade] = useState(null);
   const [form] = Form.useForm();
   
+  // MAE/MFE 编辑状态
+  const [maeMfeEditVisible, setMaeMfeEditVisible] = useState(false);
+  const [maeMfeEditingTrade, setMaeMfeEditingTrade] = useState(null);
+  const [maeMfeForm] = Form.useForm();
+  
   // ========== 表格配置状态 ==========
   const [tableConfig, setTableConfig] = useState(loadTableConfig);
   const [showTableSettings, setShowTableSettings] = useState(false);
@@ -693,6 +698,52 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       message.success('删除成功');
       loadData();
     } catch (e) { message.error('删除失败'); }
+  };
+
+  // 打开 MAE/MFE 编辑弹窗
+  const handleEditMaeMfe = (trade) => {
+    setMaeMfeEditingTrade(trade);
+    const mae = trade.mae ?? trade.jigsawData?.mae;
+    const mfe = trade.mfe ?? trade.jigsawData?.mfe;
+    const maeUSD = mae !== undefined ? ticksToUSD(mae, trade.instrumentCode, trade.openQuantity, instruments) : null;
+    const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, trade.instrumentCode, trade.openQuantity, instruments) : null;
+    maeMfeForm.setFieldsValue({
+      maeUSD: maeUSD ? Math.abs(maeUSD) : null,
+      mfeUSD: mfeUSD ? Math.abs(mfeUSD) : null,
+    });
+    setMaeMfeEditVisible(true);
+  };
+
+  // 保存 MAE/MFE
+  const handleSaveMaeMfe = async () => {
+    try {
+      const vals = maeMfeForm.getFieldsValue();
+      const trade = maeMfeEditingTrade;
+      const tickValue = getTickValue(trade.instrumentCode, instruments);
+      const quantity = Math.abs(trade.openQuantity || 1);
+      
+      // 将美元转换为 ticks
+      const maeUSD = vals.maeUSD;
+      const mfeUSD = vals.mfeUSD;
+      const maeTicks = maeUSD !== null && maeUSD !== undefined && tickValue > 0 && quantity > 0
+        ? Math.round(maeUSD / tickValue / quantity)
+        : null;
+      const mfeTicks = mfeUSD !== null && mfeUSD !== undefined && tickValue > 0 && quantity > 0
+        ? Math.round(mfeUSD / tickValue / quantity)
+        : null;
+      
+      await StorageService.updateTrade(trade.id, {
+        mae: maeTicks,
+        mfe: mfeTicks,
+      });
+      
+      message.success('MAE/MFE 已更新');
+      setMaeMfeEditVisible(false);
+      loadData();
+    } catch (e) {
+      message.error('保存失败');
+      console.error(e);
+    }
   };
 
   const handleExport = () => {
@@ -1042,7 +1093,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         </span>
       ),
     },
-    // Jigsaw 专属列 - 灰度风格
+    // Jigsaw 专属列 - 灰度风格（可点击编辑）
     ...(hasJigsawData ? [{
       title: '最大浮亏',
       key: 'mae',
@@ -1050,12 +1101,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       align: 'right',
       render: (_, r) => {
         const mae = r.mae ?? r.jigsawData?.mae;
-        if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
+        const maeUSD = mae !== undefined && mae !== null ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
         return (
-          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-            ${maeUSD?.toFixed(0)}
-          </span>
+          <Tooltip title="点击编辑">
+            <span 
+              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
+              style={{ color: maeUSD ? 'var(--text-secondary)' : 'var(--text-tertiary)' }}
+              onClick={(e) => { e.stopPropagation(); handleEditMaeMfe(r); }}
+            >
+              {maeUSD ? `$${maeUSD.toFixed(0)}` : '—'}
+            </span>
+          </Tooltip>
         );
       },
     }] : []),
@@ -1066,12 +1122,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       align: 'right',
       render: (_, r) => {
         const mfe = r.mfe ?? r.jigsawData?.mfe;
-        if (mfe === undefined || mfe === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
+        const mfeUSD = mfe !== undefined && mfe !== null ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
         return (
-          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-            ${mfeUSD?.toFixed(0)}
-          </span>
+          <Tooltip title="点击编辑">
+            <span 
+              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
+              style={{ color: mfeUSD ? 'var(--text-secondary)' : 'var(--text-tertiary)' }}
+              onClick={(e) => { e.stopPropagation(); handleEditMaeMfe(r); }}
+            >
+              {mfeUSD ? `$${mfeUSD.toFixed(0)}` : '—'}
+            </span>
+          </Tooltip>
         );
       },
     }] : []),
@@ -2075,6 +2136,131 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* MAE/MFE 编辑弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <div style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 6, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <EditOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>编辑 MAE / MFE</span>
+          </div>
+        }
+        open={maeMfeEditVisible}
+        onOk={handleSaveMaeMfe}
+        onCancel={() => setMaeMfeEditVisible(false)}
+        okText="保存"
+        cancelText="取消"
+        width={400}
+        okButtonProps={{
+          style: {
+            background: 'var(--color-brand)',
+            borderColor: 'var(--color-brand)',
+            color: 'var(--bg-primary)',
+            fontWeight: 600,
+            borderRadius: 4
+          }
+        }}
+        cancelButtonProps={{
+          style: {
+            borderColor: 'var(--border-primary)',
+            color: 'var(--text-secondary)',
+            borderRadius: 4
+          }
+        }}
+      >
+        {maeMfeEditingTrade && (
+          <>
+            {/* 交易信息概览 */}
+            <div 
+              className="mb-4 p-3 rounded-lg flex items-center justify-between"
+              style={{ background: 'var(--bg-tertiary)' }}
+            >
+              <div className="flex items-center gap-3">
+                <span 
+                  className="font-mono font-bold px-2 py-1 rounded"
+                  style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                >
+                  {maeMfeEditingTrade.instrumentCode}
+                </span>
+                <span style={{ color: maeMfeEditingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' }}>
+                  {maeMfeEditingTrade.direction === 'LONG' ? '多' : '空'}
+                </span>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+                  {dayjs(maeMfeEditingTrade.openTime).format('MM-DD HH:mm')}
+                </span>
+              </div>
+              <div 
+                className="font-mono font-bold"
+                style={{ color: maeMfeEditingTrade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+              >
+                {maeMfeEditingTrade.pnl >= 0 ? '+' : ''}{maeMfeEditingTrade.pnl?.toFixed(2)}
+              </div>
+            </div>
+
+            {/* 说明 */}
+            <div 
+              className="mb-4 p-3 rounded-lg text-xs"
+              style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', color: 'var(--text-secondary)' }}
+            >
+              <InfoCircleOutlined style={{ color: 'var(--color-brand)', marginRight: 6 }} />
+              MAE = 最大浮亏（持仓期间最大不利偏移）<br/>
+              MFE = 最大浮盈（持仓期间最大有利偏移）<br/>
+              请输入美元金额，系统将自动转换。
+            </div>
+
+            <Form form={maeMfeForm} layout="vertical">
+              <Form.Item 
+                name="maeUSD" 
+                label={
+                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: 'var(--color-loss)' }}>●</span>
+                    最大浮亏 (MAE)
+                  </span>
+                }
+              >
+                <InputNumber
+                  className="w-full"
+                  placeholder="输入最大浮亏金额"
+                  prefix="$"
+                  min={0}
+                  step={10}
+                  precision={0}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+              <Form.Item 
+                name="mfeUSD" 
+                label={
+                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: 'var(--color-profit)' }}>●</span>
+                    最大浮盈 (MFE)
+                  </span>
+                }
+              >
+                <InputNumber
+                  className="w-full"
+                  placeholder="输入最大浮盈金额"
+                  prefix="$"
+                  min={0}
+                  step={10}
+                  precision={0}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Form>
+          </>
+        )}
       </Modal>
 
       <style>{`
