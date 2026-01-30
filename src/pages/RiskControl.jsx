@@ -245,9 +245,9 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
           <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)]">
             <span>{trades.length} 笔交易</span>
             <span className="w-1 h-1 rounded-full bg-[var(--border-primary)]" />
-            <span>初始资金 ${config.initialBalance.toLocaleString()}</span>
+            <span>初始资金 ${(config.initialBalance ?? 100000).toLocaleString()}</span>
             <span className="w-1 h-1 rounded-full bg-[var(--border-primary)]" />
-            <span>限制 {config.maxDrawdownPercent}% / {config.dailyDrawdownPercent}%</span>
+            <span>限制 {config.maxDrawdownPercent ?? 10}% / {config.dailyDrawdownPercent ?? 5}%</span>
           </div>
         </div>
         

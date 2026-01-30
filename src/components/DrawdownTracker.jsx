@@ -411,7 +411,9 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
           const idx = params[0]?.dataIndex;
           if (idx === undefined || !equityCurve[idx]) return '';
           const data = equityCurve[idx];
-          const pnl = pnlData[idx];
+          const pnl = pnlData[idx] ?? 0;
+          const hwmPnl = hwmPnlData[idx] ?? 0;
+          const lowestPnl = lowestPnlData[idx] ?? 0;
           
           let html = `
             <div style="font-size:10px;color:${COLORS.textTertiary};margin-bottom:8px">#${idx + 1} · ${data.date}</div>
@@ -423,7 +425,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
             </div>
             <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:4px">
               <span style="color:${COLORS.profit}">高水位</span>
-              <span>+$${hwmPnlData[idx].toLocaleString()}</span>
+              <span>+$${hwmPnl.toLocaleString()}</span>
             </div>`;
           
           if (data.maeUSD > 0) {
@@ -432,11 +434,11 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
               <div style="font-size:9px;color:${COLORS.textTertiary};margin-bottom:6px;text-transform:uppercase">本笔风险</div>
               <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:2px">
                 <span style="color:${COLORS.loss}">浮亏 (MAE)</span>
-                <span style="color:${COLORS.loss}">-$${data.maeUSD.toLocaleString()}</span>
+                <span style="color:${COLORS.loss}">-$${(data.maeUSD ?? 0).toLocaleString()}</span>
               </div>
               <div style="display:flex;justify-content:space-between;gap:20px">
                 <span style="color:${COLORS.textTertiary}">最低点</span>
-                <span style="color:${COLORS.loss}">${lowestPnlData[idx] >= 0 ? '+' : ''}$${lowestPnlData[idx].toLocaleString()}</span>
+                <span style="color:${COLORS.loss}">${lowestPnl >= 0 ? '+' : ''}$${lowestPnl.toLocaleString()}</span>
               </div>
             </div>`;
           }
@@ -445,7 +447,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
             <div style="border-top:1px solid ${COLORS.border};margin-top:8px;padding-top:8px">
               <div style="display:flex;justify-content:space-between;gap:20px">
                 <span style="color:${COLORS.textSecondary}">最大回撤</span>
-                <span style="color:${COLORS.loss};font-weight:700">-$${data.maxDrawdownSeen.toLocaleString()} (${data.maxDrawdownPercent.toFixed(2)}%)</span>
+                <span style="color:${COLORS.loss};font-weight:700">-$${(data.maxDrawdownSeen ?? 0).toLocaleString()} (${(data.maxDrawdownPercent ?? 0).toFixed(2)}%)</span>
               </div>
             </div>
           `;
@@ -638,7 +640,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
         textStyle: { color: COLORS.textPrimary, fontSize: 11 },
         formatter: (params) => {
           const data = params[0];
-          const val = data.value;
+          const val = data.value ?? 0;
           const color = val >= 0 ? COLORS.profit : COLORS.loss;
           return `<div style="font-size:10px;color:${COLORS.textTertiary}">${data.name}</div>
                   <div style="font-size:13px;font-weight:600;color:${color}">${val >= 0 ? '+' : ''}$${val.toLocaleString()}</div>`;
@@ -1025,7 +1027,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
               {item.label}
             </div>
             <div style={{ fontSize: 20, fontWeight: 500, color: item.color, fontFamily: 'JetBrains Mono' }}>
-              ${item.value.toLocaleString()}
+              ${(item.value ?? 0).toLocaleString()}
             </div>
           </div>
         ))}
@@ -1066,7 +1068,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 11, color: COLORS.textTertiary }}>日内回撤</span>
             <span style={{ fontSize: 12, color: drawdownData.dailyDrawdown > drawdownData.dailyLimit ? COLORS.loss : COLORS.textSecondary, fontFamily: 'JetBrains Mono' }}>
-              ${drawdownData.dailyDrawdown.toLocaleString()} / ${drawdownData.dailyLimit.toLocaleString()}
+              ${(drawdownData.dailyDrawdown ?? 0).toLocaleString()} / ${(drawdownData.dailyLimit ?? 0).toLocaleString()}
             </span>
           </div>
           <div style={{ height: 3, background: COLORS.border, borderRadius: 2, position: 'relative' }}>
