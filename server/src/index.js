@@ -19,7 +19,7 @@ import fs from 'fs';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
-import { setupInstallRoutes, isInstalled } from './install.js';
+import { setupInstallRoutes } from './install.js';
 import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeEmail, generateToken, generateVerificationCode, sendRegistrationCodeEmail } from './email.js';
 
 // 内存存储注册验证码（生产环境建议使用 Redis）
@@ -109,9 +109,10 @@ const mapTrade = (row) => {
     pnl: row.pnl,
     source: row.source || 'atas',
     account: row.account,
-    mae: row.mae,
-    mfe: row.mfe,
-    fills: row.fills,
+    // 优先使用数据库列的值，如果为 null 则回退到 data JSON 中的值
+    mae: row.mae ?? data?.mae ?? data?.jigsawData?.mae ?? null,
+    mfe: row.mfe ?? data?.mfe ?? data?.jigsawData?.mfe ?? null,
+    fills: row.fills ?? data?.fills ?? data?.jigsawData?.fills ?? null,
     holdingSeconds: row.holdingSeconds,
   };
 };
@@ -734,7 +735,16 @@ app.patch('/trades/:id', authRequired, async (req, res) => {
     const existing = await prisma.trade.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ message: '交易不存在' });
     const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
-    const merged = { ...existingData, ...(req.body || {}) };
+    
+    // 过滤掉 undefined 值，避免覆盖已有数据
+    const updates = req.body || {};
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, v]) => v !== undefined)
+    );
+    
+    const merged = { ...existingData, ...filteredUpdates };
+    
+    // 同步更新数据库列，确保 mae/mfe 等字段不会丢失
     const updated = await prisma.trade.update({
       where: { id: req.params.id },
       data: {
@@ -743,6 +753,11 @@ app.patch('/trades/:id', authRequired, async (req, res) => {
         instrumentCode: merged.instrumentCode || null,
         openTime: merged.openTime ? new Date(merged.openTime) : null,
         pnl: merged.pnl ?? null,
+        // 同步更新 MAE/MFE 等关键字段到数据库列
+        mae: merged.mae ?? merged.jigsawData?.mae ?? existing.mae,
+        mfe: merged.mfe ?? merged.jigsawData?.mfe ?? existing.mfe,
+        fills: merged.fills ?? merged.jigsawData?.fills ?? existing.fills,
+        holdingSeconds: merged.holdingSeconds ?? existing.holdingSeconds,
       },
     });
     return res.json(mapTrade(updated));
@@ -1809,7 +1824,7 @@ app.post('/subscription/cancel', authRequired, async (req, res) => {
       return res.status(400).json({ message: '未找到订阅' });
     }
 
-    const updated = await prisma.subscription.update({
+    await prisma.subscription.update({
       where: { userId: req.user.id },
       data: {
         status: 'cancelled',
@@ -2257,6 +2272,32 @@ app.post('/subscription/redeem', authRequired, async (req, res) => {
   } catch (error) {
     console.error('兑换失败:', error);
     return res.status(500).json({ message: '兑换失败，请稍后重试' });
+  }
+});
+
+// ========== 错误报告 API ==========
+app.post('/api/error-report', async (req, res) => {
+  try {
+    const errorData = req.body;
+    
+    // 记录到控制台
+    console.error('🚨 前端错误报告:', JSON.stringify(errorData, null, 2));
+    
+    // 发送邮件通知
+    const { sendErrorReportEmail } = await import('./email.js');
+    if (sendErrorReportEmail) {
+      await sendErrorReportEmail({
+        to: '631402323@qq.com',
+        subject: `[交易日志] 前端错误报告 - ${errorData.type}`,
+        errorData,
+      });
+    }
+    
+    res.json({ success: true, message: '错误报告已接收' });
+  } catch (error) {
+    console.error('处理错误报告失败:', error);
+    // 即使发送邮件失败也返回成功，避免前端重试
+    res.json({ success: true, message: '错误报告已接收' });
   }
 });
 

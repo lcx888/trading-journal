@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Tooltip, Progress, InputNumber, Switch, Modal, Form, Select, message, Button } from 'antd';
 import { 
   WarningOutlined, 
@@ -85,7 +85,7 @@ const CONFIGURED_KEY = 'tradewhy_drawdown_configured';  // 是否已配置过
  * @param {Array} instruments - 品种配置（用于 MAE 转换）
  * @param {boolean} compact - 紧凑模式
  */
-const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideSettings = false }) => {
+const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => {
   // 检查用户是否已配置过
   const [isConfigured, setIsConfigured] = useState(() => {
     try {
@@ -151,7 +151,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false, hideS
     const drawdownHistory = [];
     
     // 计算权益曲线和追踪回撤（含浮亏）
-    sortedTrades.forEach((trade, index) => {
+    sortedTrades.forEach((trade) => {
       const pnl = trade.pnl || 0;
       const prevCumulative = cumulative;
       

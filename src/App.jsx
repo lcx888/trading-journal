@@ -44,7 +44,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
 import { getAuthToken } from './services/api';
-import { getSubscriptionStatus, getPlanDisplayInfo, clearSubscriptionCache } from './services/subscription';
+import { getSubscriptionStatus, clearSubscriptionCache } from './services/subscription';
 import { UpgradeModal, SidebarFooter } from './components/UpgradePrompt';
 
 dayjs.locale('zh-cn');
@@ -138,7 +138,6 @@ function App() {
   const [selectedRecordId, setSelectedRecordId] = useState(null);
   const [activeRecordId, setActiveRecordId] = useState('all');
   const [records, setRecords] = useState([]);
-  const [loadingRecords, setLoadingRecords] = useState(true);
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
@@ -238,7 +237,6 @@ function App() {
       loadSubscription();
     } else {
       setRecords([]);
-      setLoadingRecords(false);
       setSubscription(null);
       clearSubscriptionCache();
     }
@@ -269,7 +267,6 @@ function App() {
   };
 
   const loadRecords = async () => {
-    setLoadingRecords(true);
     try {
       const allRecords = await StorageService.getAllRecords();
       setRecords(allRecords || []);
@@ -277,7 +274,6 @@ function App() {
       console.error('加载账本失败:', e); 
       setRecords([]);
     }
-    finally { setLoadingRecords(false); }
   };
 
   const handleMenuClick = ({ key }) => {

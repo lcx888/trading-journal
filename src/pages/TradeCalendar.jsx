@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, Table, Tag, Button, Spin, Input, Popover, Empty
+  Calendar, Table, Tag, Button, Spin, Input, Popover, Empty, message
 } from 'antd';
 import {
   LeftOutlined,
@@ -65,7 +65,8 @@ const analyzeTradeData = (dayTrades) => {
   };
 };
 
-const generateReviewQuestions = (stats) => {
+// 复盘问题生成器（预留用于未来的引导式复盘功能）
+const _generateReviewQuestions = (stats) => {
   const questions = [];
   questions.push({
     id: 'market_overview',
@@ -396,26 +397,34 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   };
   
   // 保存复盘
-  const saveReview = async () => {
+  const handleSaveReview = async () => {
     setIsSaving(true);
     try {
-      // 保存到本地状态
-      const newSavedReviews = {
-        ...savedReviews,
-        [selectedDate]: { ...reviewForm, savedAt: new Date().toISOString() }
+      // 构建复盘数据
+      const reviewData = {
+        date: selectedDate,
+        ...reviewForm,
+        savedAt: new Date().toISOString()
       };
-      setSavedReviews(newSavedReviews);
       
-      // 保存到本地存储
-      StorageService.saveReviews(newSavedReviews);
+      // 保存到后端
+      await StorageService.saveReview(reviewData);
       
-      // 显示成功提示
+      // 更新本地状态
+      setSavedReviews(prev => ({
+        ...prev,
+        [selectedDate]: reviewData
+      }));
+      
+      // 显示成功提示并返回日历
+      message.success('复盘保存成功');
       setTimeout(() => {
         setIsSaving(false);
-        setReviewDrawerVisible(false);
-      }, 500);
+        backToCalendar();
+      }, 300);
     } catch (error) {
       console.error('保存复盘失败:', error);
+      message.error('保存失败，请重试');
       setIsSaving(false);
     }
   };
@@ -441,7 +450,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const data = tradesByDate[key];
     const isCurrentMonth = date.month() === currentMonth.month();
     const isWeekend = date.day() === 0 || date.day() === 6;
-    const isToday = date.isSame(dayjs(), 'day');
     
     // 非当前月份的日期 - 极简淡化
     if (!isCurrentMonth) {
@@ -593,13 +601,18 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         animation: 'fadeIn 0.4s ease-out',
         width: '100%'
       }}>
-        {/* 顶部导航 */}
+        {/* 顶部导航 - 包含保存按钮 */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          padding: '8px 0',
-          borderBottom: '1px solid var(--border-primary)'
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--border-primary)',
+          background: 'var(--bg-secondary)',
+          borderRadius: 12,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100
         }}>
           <Button 
             icon={<LeftOutlined />} 
@@ -627,7 +640,25 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               Daily Trade Performance Review
             </div>
           </div>
-          <div style={{ width: 88 }} />
+          <Button 
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={isSaving}
+            onClick={handleSaveReview}
+            style={{ 
+              borderRadius: 8,
+              height: 36,
+              padding: '0 20px',
+              background: 'var(--color-brand)',
+              borderColor: 'var(--color-brand)',
+              color: '#000',
+              fontWeight: 700,
+              fontSize: 13,
+              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)'
+            }}
+          >
+            保存复盘
+          </Button>
         </div>
 
         {/* 三栏布局：统计摘要 + 交易列表 + 复盘表单 */}
@@ -635,12 +666,13 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           display: 'grid', 
           gridTemplateColumns: '280px 380px 1fr', 
           gap: 24, 
-          alignItems: 'stretch', // 确保三栏高度一致
-          minHeight: 'calc(100vh - 220px)' 
+          alignItems: 'start',
+          height: 'calc(100vh - 180px)',
+          overflow: 'hidden'
         }}>
           
           {/* 第一栏：核心指标卡片 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '100%', overflowY: 'auto' }}>
             {/* 盈亏大卡片 */}
             <div style={{ 
               background: isProfit 
@@ -728,7 +760,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             borderRadius: 16,
             display: 'flex',
             flexDirection: 'column',
-            height: '100%', // 撑满容器高度
+            maxHeight: '100%',
             overflow: 'hidden'
           }}>
             <div style={{ 
@@ -853,7 +885,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            height: '100%' // 撑满容器高度
+            maxHeight: '100%',
+            overflowY: 'auto'
           }}>
             <div style={{ 
               padding: '16px 24px', 
@@ -1004,51 +1037,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               </div>
             </div>
 
-            {/* 底部操作区 */}
-            <div style={{ 
-              padding: '20px 24px', 
-              borderTop: '1px solid var(--border-primary)',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 12,
-              background: 'rgba(255,255,255,0.01)',
-              borderBottomLeftRadius: 16,
-              borderBottomRightRadius: 16
-            }}>
-              <Button 
-                onClick={backToCalendar}
-                style={{ 
-                  borderRadius: 8,
-                  height: 38,
-                  padding: '0 20px',
-                  background: 'transparent',
-                  borderColor: 'var(--border-primary)',
-                  color: 'var(--text-secondary)',
-                  fontSize: 13
-                }}
-              >
-                取消
-              </Button>
-              <Button 
-                type="primary"
-                icon={<SaveOutlined />}
-                loading={isSaving}
-                onClick={saveReview}
-                style={{ 
-                  borderRadius: 8,
-                  height: 38,
-                  padding: '0 24px',
-                  background: 'var(--color-brand)',
-                  borderColor: 'var(--color-brand)',
-                  color: '#000',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)'
-                }}
-              >
-                保存复盘
-              </Button>
-            </div>
           </div>
         </div>
       </div>

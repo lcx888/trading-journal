@@ -74,7 +74,6 @@ export function UpgradeModal({
   visible, 
   onClose, 
   featureKey = 'smartDiagnosis',
-  usage = null,
   onUpgrade,
 }) {
   const featureInfo = FEATURE_INFO[featureKey] || FEATURE_INFO.smartDiagnosis;
@@ -220,7 +219,7 @@ export function ProBadge({ size = 'small' }) {
 /**
  * 订阅状态徽章（用于顶部导航）
  */
-export function SubscriptionBadge({ plan, usage, onClick }) {
+export function SubscriptionBadge({ plan, onClick }) {
   const planColors = {
     free: { bg: '#374151', text: '#9ca3af', label: 'Free' },
     pro: { bg: '#d97706', text: '#ffffff', label: 'Pro' },
@@ -433,7 +432,6 @@ export function SubscriptionCard({ subscription: subscriptionData, onUpgrade, on
 export function SidebarFooter({ subscription: subscriptionData, collapsed, onUpgrade, onToggleCollapse }) {
   // 正确解构嵌套的 subscription 对象
   const { plan, usage, subscription: subDetails } = subscriptionData || {};
-  const currentPeriodStart = subDetails?.currentPeriodStart;
   const currentPeriodEnd = subDetails?.currentPeriodEnd;
   
   const planName = plan?.name || 'free';
@@ -451,7 +449,7 @@ export function SidebarFooter({ subscription: subscriptionData, collapsed, onUpg
   const aiPercent = aiLimit === -1 ? 0 : Math.min(100, (aiUsed / aiLimit) * 100);
   const isNearLimit = tradesPercent > 80 || aiPercent > 80;
 
-  // 格式化日期
+  // 格式化日期和计算剩余天数
   const formatDate = (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-';
   const daysRemaining = currentPeriodEnd ? dayjs(currentPeriodEnd).diff(dayjs(), 'day') : null;
   
@@ -583,8 +581,7 @@ export function SidebarFooter({ subscription: subscriptionData, collapsed, onUpg
  */
 export function SidebarSubscriptionCard({ subscription: subscriptionData, collapsed, onUpgrade }) {
   // 正确解构嵌套的 subscription 对象
-  const { plan, usage, subscription: subDetails } = subscriptionData || {};
-  const currentPeriodEnd = subDetails?.currentPeriodEnd;
+  const { plan, usage } = subscriptionData || {};
   
   const planName = plan?.name || 'free';
   const isFreePlan = planName === 'free';
@@ -597,10 +594,6 @@ export function SidebarSubscriptionCard({ subscription: subscriptionData, collap
 
   const tradesPercent = tradesLimit === -1 ? 0 : Math.min(100, (tradesUsed / tradesLimit) * 100);
   const aiPercent = aiLimit === -1 ? 0 : Math.min(100, (aiUsed / aiLimit) * 100);
-  
-  // 格式化日期
-  const formatDate = (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-';
-  const daysRemaining = currentPeriodEnd ? dayjs(currentPeriodEnd).diff(dayjs(), 'day') : null;
   
   if (collapsed) {
     return (

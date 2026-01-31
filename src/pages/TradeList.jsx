@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Table, Tag, Space, Select, DatePicker, Input, Button, 
@@ -32,11 +32,12 @@ import {
   SplitCellsOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import StorageService from '../services/storage';
-import { processTradesWithMerge, formatDuration as formatMergeDuration } from '../services/tradeMerge';
+import { processTradesWithMerge } from '../services/tradeMerge';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
@@ -494,7 +495,32 @@ const saveReviewNotes = (tradeGroupId, notes) => {
   localStorage.setItem(getReviewStorageKey(tradeGroupId), JSON.stringify(notes));
 };
 
-const PositionChart = ({ trades, overallDirection, dayjs, tradeGroupId, onStartReview, reviewNotes }) => {
+// 检查合并组是否有复盘数据（localStorage）
+const hasMergeReviewData = (tradeId) => {
+  try {
+    const key = getReviewStorageKey(tradeId);
+    const data = localStorage.getItem(key);
+    if (!data) return false;
+    const notes = JSON.parse(data);
+    // 检查是否有任何非空的复盘笔记
+    return Object.values(notes).some(note => {
+      if (!note || typeof note !== 'object') return false;
+      return Object.values(note).some(val => val && String(val).trim() !== '');
+    });
+  } catch {
+    return false;
+  }
+};
+
+// 检查单笔交易是否有复盘数据（数据库字段）
+const hasTradeReviewData = (trade) => {
+  if (!trade) return false;
+  // 检查复盘相关字段是否有内容
+  const reviewFields = ['notes', 'entryReason', 'stopLossReason', 'takeProfitReason', 'expectedTrend'];
+  return reviewFields.some(field => trade[field] && String(trade[field]).trim() !== '');
+};
+
+const PositionChart = ({ trades, overallDirection, dayjs, onStartReview, reviewNotes }) => {
   const [scale, setScale] = useState(1);
   const [hoveredNode, setHoveredNode] = useState(null);
   const containerRef = useRef(null);
@@ -521,7 +547,7 @@ const PositionChart = ({ trades, overallDirection, dayjs, tradeGroupId, onStartR
 
   // 构建时间线事件
   const events = [];
-  trades.forEach((t, tradeIdx) => {
+  trades.forEach((t) => {
     const qty = Math.abs(t.openQuantity || 1);
     events.push({
       time: new Date(t.openTime).getTime(),
@@ -824,9 +850,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [form] = Form.useForm();
   
   // MAE/MFE 内联编辑状态
-  const [editingMaeMfe, setEditingMaeMfe] = useState({ tradeId: null, field: null });
+  const [editingMaeMfe, setEditingMaeMfe] = useState({ tradeId: null, field: null, trade: null });
   const [editingValue, setEditingValue] = useState(null);
   const [maeMfeInputMode, setMaeMfeInputMode] = useState('tick'); // 'tick' 或 'usd' - 输入模式
+  const maeMfeInputRef = useRef(null); // 输入框引用
   
   // 合并交易状态
   const [mergeEnabled, setMergeEnabled] = useState(true); // 是否启用合并显示
@@ -838,6 +865,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [reviewingEvent, setReviewingEvent] = useState(null); // { index, point, groupId }
   const [reviewNotes, setReviewNotes] = useState({});
   const [editingReview, setEditingReview] = useState({});
+  
+  // 保存为策略状态
+  const [saveStrategyModalVisible, setSaveStrategyModalVisible] = useState(false);
+  const [strategyForm] = Form.useForm();
   
   // ========== 表格配置状态 ==========
   const [tableConfig, setTableConfig] = useState(loadTableConfig);
@@ -895,55 +926,65 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   
   // ========== 拖动滚动 ==========
   useEffect(() => {
-    if (!tableWrapperRef.current) return;
+    let cleanup = () => {};
     
-    const wrapper = tableWrapperRef.current;
-    // 查找可滚动的表格容器
-    const findScrollContainer = () => {
-      return wrapper.querySelector('.ant-table-body') || 
-             wrapper.querySelector('.ant-table-content') ||
-             wrapper.querySelector('.ant-table');
-    };
-    
-    const handleMouseDown = (e) => {
-      const scrollContainer = findScrollContainer();
-      if (!scrollContainer) return;
-      // 忽略按钮、链接等交互元素的点击
-      if (e.target.closest('button, a, .ant-dropdown-trigger, .ant-btn')) return;
+    // 延迟绑定以确保 Portal 渲染完成
+    const timer = setTimeout(() => {
+      const wrapper = tableWrapperRef.current;
+      if (!wrapper) return;
       
-      isDragging.current = true;
-      dragStart.current = { x: e.clientX, scrollLeft: scrollContainer.scrollLeft };
-      wrapper.style.cursor = 'grabbing';
-      wrapper.style.userSelect = 'none';
-      e.preventDefault();
-    };
-    
-    const handleMouseMove = (e) => {
-      if (!isDragging.current) return;
-      const scrollContainer = findScrollContainer();
-      if (!scrollContainer) return;
-      const dx = e.clientX - dragStart.current.x;
-      scrollContainer.scrollLeft = dragStart.current.scrollLeft - dx;
-    };
-    
-    const handleMouseUp = () => {
-      if (isDragging.current) {
-        wrapper.style.cursor = '';
-        wrapper.style.userSelect = '';
-        isDragging.current = false;
-      }
-    };
-    
-    wrapper.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+      // 查找可滚动的表格容器
+      const findScrollContainer = () => {
+        return wrapper.querySelector('.ant-table-body') || 
+               wrapper.querySelector('.ant-table-content') ||
+               wrapper.querySelector('.ant-table');
+      };
+      
+      const handleMouseDown = (e) => {
+        const scrollContainer = findScrollContainer();
+        if (!scrollContainer) return;
+        // 忽略按钮、链接等交互元素的点击
+        if (e.target.closest('button, a, .ant-dropdown-trigger, .ant-btn, .ant-input-number')) return;
+        
+        isDragging.current = true;
+        dragStart.current = { x: e.clientX, scrollLeft: scrollContainer.scrollLeft };
+        wrapper.style.cursor = 'grabbing';
+        wrapper.style.userSelect = 'none';
+        e.preventDefault();
+      };
+      
+      const handleMouseMove = (e) => {
+        if (!isDragging.current) return;
+        const scrollContainer = findScrollContainer();
+        if (!scrollContainer) return;
+        const dx = e.clientX - dragStart.current.x;
+        scrollContainer.scrollLeft = dragStart.current.scrollLeft - dx;
+      };
+      
+      const handleMouseUp = () => {
+        if (isDragging.current) {
+          wrapper.style.cursor = '';
+          wrapper.style.userSelect = '';
+          isDragging.current = false;
+        }
+      };
+      
+      wrapper.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      cleanup = () => {
+        wrapper.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }, 50);
     
     return () => {
-      wrapper.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      clearTimeout(timer);
+      cleanup();
     };
-  }, [filteredTrades]); // 数据变化时重新绑定
+  }, [filteredTrades, isFullscreen]); // 数据变化或全屏状态变化时重新绑定
 
   useEffect(() => { loadData(); }, [activeRecordId]);
   useEffect(() => { applyFilters(); }, [trades, filters, mergeEnabled, instruments]);
@@ -1136,6 +1177,65 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     } catch (e) { message.error('保存失败'); }
   };
 
+  // 打开保存为策略对话框
+  const handleOpenSaveStrategy = () => {
+    const vals = form.getFieldsValue();
+    // 检查是否有内容可保存
+    if (!vals.entryReason && !vals.stopLossReason && !vals.takeProfitReason && !vals.notes) {
+      message.warning('请先填写复盘内容再保存为策略');
+      return;
+    }
+    strategyForm.resetFields();
+    strategyForm.setFieldsValue({
+      category: '通用',
+      color: '#eab308',
+    });
+    setSaveStrategyModalVisible(true);
+  };
+
+  // 保存为策略
+  const handleSaveAsStrategy = async () => {
+    try {
+      const strategyVals = await strategyForm.validateFields();
+      const reviewVals = form.getFieldsValue();
+      
+      // 构建策略描述
+      const descParts = [];
+      if (reviewVals.entryReason) descParts.push(`【入场】${reviewVals.entryReason}`);
+      if (reviewVals.stopLossReason) descParts.push(`【止损】${reviewVals.stopLossReason}`);
+      if (reviewVals.takeProfitReason) descParts.push(`【止盈】${reviewVals.takeProfitReason}`);
+      if (reviewVals.notes) descParts.push(`【备注】${reviewVals.notes}`);
+      
+      const colorValue = typeof strategyVals.color === 'string' 
+        ? strategyVals.color 
+        : strategyVals.color?.toHexString?.() || '#eab308';
+      
+      // 创建策略
+      const newStrategy = await StorageService.createStrategy({
+        name: strategyVals.name,
+        description: descParts.join('\n'),
+        color: colorValue,
+        category: strategyVals.category,
+      });
+      
+      // 自动关联到当前交易
+      const currentStrategyIds = reviewVals.strategyIds || [];
+      if (!currentStrategyIds.includes(newStrategy.id)) {
+        form.setFieldsValue({ strategyIds: [...currentStrategyIds, newStrategy.id] });
+      }
+      
+      // 刷新策略列表
+      const updatedStrategies = await StorageService.getAllStrategies();
+      setStrategies(updatedStrategies);
+      
+      setSaveStrategyModalVisible(false);
+      message.success('策略创建成功，已自动关联到当前交易');
+    } catch (e) { 
+      console.error('保存策略失败:', e);
+      message.error('保存策略失败'); 
+    }
+  };
+
   const handleDelete = async (id) => {
     try {
       await StorageService.deleteTrade(id);
@@ -1146,7 +1246,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
 
   // 开始编辑 MAE/MFE
   const startEditMaeMfe = (tradeId, field, currentValue, trade) => {
-    setEditingMaeMfe({ tradeId, field });
+    setEditingMaeMfe({ tradeId, field, trade });
     // 如果是 tick 模式，显示原始 tick 值；如果是 USD 模式，显示换算后的 USD 值
     if (maeMfeInputMode === 'tick') {
       // 直接使用 tick 值
@@ -1159,7 +1259,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   };
 
   // 保存 MAE/MFE 内联编辑
-  const saveMaeMfeInline = async (trade, field, value) => {
+  const saveMaeMfeInline = useCallback(async (trade, field, value) => {
     try {
       let ticks;
       
@@ -1184,17 +1284,44 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         t.id === trade.id ? { ...t, [field]: ticks } : t
       ));
       
-      setEditingMaeMfe({ tradeId: null, field: null });
+      setEditingMaeMfe({ tradeId: null, field: null, trade: null });
       setEditingValue(null);
     } catch (e) {
       message.error('保存失败');
       console.error(e);
     }
-  };
+  }, [maeMfeInputMode, instruments]);
+  
+  // 全局点击监听：点击输入框外部时自动保存
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      // 如果没有正在编辑的状态，直接返回
+      if (!editingMaeMfe.tradeId || !editingMaeMfe.trade) return;
+      
+      // 检查点击是否在输入框内
+      const inputElement = maeMfeInputRef.current;
+      if (inputElement && (inputElement.contains(e.target) || inputElement === e.target)) {
+        return; // 点击在输入框内，不处理
+      }
+      
+      // 检查是否点击了 ant-input-number 的内部元素（包括上下箭头）
+      const isAntInputNumber = e.target.closest('.ant-input-number');
+      if (isAntInputNumber) {
+        return; // 点击在 InputNumber 组件内，不处理
+      }
+      
+      // 点击在输入框外，保存当前编辑
+      saveMaeMfeInline(editingMaeMfe.trade, editingMaeMfe.field, editingValue);
+    };
+    
+    // 使用 mousedown 而不是 click，这样可以在 blur 之前触发
+    document.addEventListener('mousedown', handleGlobalClick);
+    return () => document.removeEventListener('mousedown', handleGlobalClick);
+  }, [editingMaeMfe, editingValue, saveMaeMfeInline]);
 
   // 取消编辑
   const cancelEditMaeMfe = () => {
-    setEditingMaeMfe({ tradeId: null, field: null });
+    setEditingMaeMfe({ tradeId: null, field: null, trade: null });
     setEditingValue(null);
   };
 
@@ -1449,21 +1576,34 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                     {dayjs(stats.lastCloseTime).format('HH:mm')}
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-brand)', opacity: 0.8, fontWeight: 500 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-brand)', opacity: 0.8, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {stats.tradeCount} 笔合并交易记录
+                  {hasMergeReviewData(record.id) && (
+                    <Tooltip title="已完成复盘">
+                      <CheckOutlined style={{ color: '#52c41a', fontSize: 12 }} />
+                    </Tooltip>
+                  )}
                 </div>
               </div>
             </div>
           );
         }
+        const reviewed = hasTradeReviewData(record);
         return (
-          <div style={{ padding: '4px 0' }}>
-            <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
-              {dayjs(t).format('MM-DD HH:mm:ss')}
+          <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div>
+              <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
+                {dayjs(t).format('MM-DD HH:mm:ss')}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                {dayjs(t).format('YYYY')}
+              </div>
             </div>
-            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              {dayjs(t).format('YYYY')}
-            </div>
+            {reviewed && (
+              <Tooltip title="已完成复盘">
+                <CheckOutlined style={{ color: '#52c41a', fontSize: 12 }} />
+              </Tooltip>
+            )}
           </div>
         );
       },
@@ -1711,20 +1851,21 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         
         if (isEditing) {
           return (
-            <InputNumber
-              autoFocus
-              size="small"
-              value={editingValue}
-              onChange={setEditingValue}
-              onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
-              onBlur={() => saveMaeMfeInline(r, 'mae', editingValue)}
-              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
-              min={0}
-              precision={0}
-              style={{ width: 80 }}
-              className="mae-mfe-input"
-            />
+            <div ref={maeMfeInputRef}>
+              <InputNumber
+                autoFocus
+                size="small"
+                value={editingValue}
+                onChange={setEditingValue}
+                onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
+                onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+                prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
+                min={0}
+                precision={0}
+                style={{ width: 80 }}
+                className="mae-mfe-input"
+              />
+            </div>
           );
         }
         
@@ -1801,20 +1942,21 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         
         if (isEditing) {
           return (
-            <InputNumber
-              autoFocus
-              size="small"
-              value={editingValue}
-              onChange={setEditingValue}
-              onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
-              onBlur={() => saveMaeMfeInline(r, 'mfe', editingValue)}
-              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
-              min={0}
-              precision={0}
-              style={{ width: 80 }}
-              className="mae-mfe-input"
-            />
+            <div ref={maeMfeInputRef}>
+              <InputNumber
+                autoFocus
+                size="small"
+                value={editingValue}
+                onChange={setEditingValue}
+                onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
+                onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+                prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
+                min={0}
+                precision={0}
+                style={{ width: 80 }}
+                className="mae-mfe-input"
+              />
+            </div>
           );
         }
         
@@ -3029,7 +3171,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 // 计算每个事件的标签信息
                 let runningPos = 0;
                 let runningAvgPrice = 0;
-                const eventLabels = allEvents.map((event, idx) => {
+                const eventLabels = allEvents.map((event) => {
                   const prevPos = runningPos;
                   const prevAvgPrice = runningAvgPrice;
                   let label, color;
@@ -3110,7 +3252,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                                 <EditOutlined style={{ fontSize: 12, color: 'var(--text-tertiary)' }} />
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {Object.entries(note).filter(([k, v]) => v && v.trim()).map(([key, value]) => (
+                                {Object.entries(note).filter(([, v]) => v && v.trim()).map(([key, value]) => (
                                   <div key={key}>
                                     <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase', fontWeight: 600 }}>
                                       {REVIEW_TEMPLATES[eventInfo.label]?.questions?.find(q => q.key === key)?.label || 
@@ -3395,20 +3537,29 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           }
         }}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Button 
-              onClick={() => setEditModalVisible(false)}
-              style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+              icon={<PlusOutlined />}
+              onClick={handleOpenSaveStrategy}
+              style={{ borderColor: 'var(--color-brand)', color: 'var(--color-brand)' }}
             >
-              取消
+              保存为策略
             </Button>
-            <Button 
-              type="primary" 
-              onClick={handleEditSave}
-              style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }}
-            >
-              保存复盘
-            </Button>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Button 
+                onClick={() => setEditModalVisible(false)}
+                style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+              >
+                取消
+              </Button>
+              <Button 
+                type="primary" 
+                onClick={handleEditSave}
+                style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }}
+              >
+                保存复盘
+              </Button>
+            </div>
           </div>
         }
       >
@@ -3682,6 +3833,98 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </Form.Item>
         </Form>
       </Drawer>
+
+      {/* 保存为策略对话框 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BulbOutlined style={{ color: 'var(--color-brand)' }} />
+            <span>将复盘内容保存为策略</span>
+          </div>
+        }
+        open={saveStrategyModalVisible}
+        onCancel={() => setSaveStrategyModalVisible(false)}
+        onOk={handleSaveAsStrategy}
+        okText="创建策略"
+        cancelText="取消"
+        width={480}
+        styles={{
+          header: { background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-primary)' },
+          body: { background: 'var(--bg-primary)', padding: '24px' },
+          footer: { background: 'var(--bg-primary)', borderTop: '1px solid var(--border-primary)' },
+        }}
+      >
+        <Form form={strategyForm} layout="vertical">
+          <Form.Item 
+            name="name" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>策略名称</span>}
+            rules={[{ required: true, message: '请输入策略名称' }]}
+          >
+            <Input placeholder="例如：突破回踩做多、假突破反转..." />
+          </Form.Item>
+          
+          <Form.Item 
+            name="category" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>策略分类</span>}
+          >
+            <Select
+              options={[
+                { value: '趋势', label: '趋势策略' },
+                { value: '突破', label: '突破策略' },
+                { value: '反转', label: '反转策略' },
+                { value: '区间', label: '区间策略' },
+                { value: '剥头皮', label: '剥头皮策略' },
+                { value: '套利', label: '套利策略' },
+                { value: '实验', label: '实验策略' },
+                { value: '通用', label: '通用策略' },
+              ]}
+            />
+          </Form.Item>
+          
+          <Form.Item 
+            name="color" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>标签颜色</span>}
+          >
+            <Select
+              options={[
+                { value: '#eab308', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#eab308', marginRight: 8 }}></span>金色</span> },
+                { value: '#10b981', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#10b981', marginRight: 8 }}></span>绿色</span> },
+                { value: '#3b82f6', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#3b82f6', marginRight: 8 }}></span>蓝色</span> },
+                { value: '#f43f5e', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#f43f5e', marginRight: 8 }}></span>红色</span> },
+                { value: '#8B5CF6', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#8B5CF6', marginRight: 8 }}></span>紫色</span> },
+                { value: '#06B6D4', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#06B6D4', marginRight: 8 }}></span>青色</span> },
+                { value: '#F97316', label: <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 2, background: '#F97316', marginRight: 8 }}></span>橙色</span> },
+              ]}
+            />
+          </Form.Item>
+          
+          {/* 预览 */}
+          <div 
+            style={{ 
+              background: 'var(--bg-tertiary)', 
+              border: '1px solid var(--border-primary)',
+              borderRadius: 8,
+              padding: 16,
+              marginTop: 8
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              策略描述预览
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {(() => {
+                const vals = form.getFieldsValue();
+                const parts = [];
+                if (vals.entryReason) parts.push(`【入场】${vals.entryReason}`);
+                if (vals.stopLossReason) parts.push(`【止损】${vals.stopLossReason}`);
+                if (vals.takeProfitReason) parts.push(`【止盈】${vals.takeProfitReason}`);
+                if (vals.notes) parts.push(`【备注】${vals.notes}`);
+                return parts.join('\n') || '（请先填写复盘内容）';
+              })()}
+            </div>
+          </div>
+        </Form>
+      </Modal>
 
       <style>{`
         .binance-table .ant-table {

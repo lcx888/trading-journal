@@ -111,7 +111,7 @@ const StepList = ({ steps }) => (
 );
 
 // 提示框组件 - 统一灰色风格
-const Tip = ({ type = 'info', children }) => {
+const Tip = ({ children }) => {
   return (
     <div className="p-4 rounded border border-[#1a1a1f] bg-[#0a0a0c] text-sm text-[#888]">
       <div className="flex items-start gap-2">

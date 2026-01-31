@@ -9,7 +9,6 @@ import {
   CloseCircleOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 // 本地存储 key
 const STORAGE_KEY = 'tradewhy_drawdown_config';

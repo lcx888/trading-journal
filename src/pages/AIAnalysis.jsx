@@ -60,10 +60,6 @@ import { generateAIAnalysis } from '../services/aiAnalysis';
 import { aiApi } from '../services/api';
 import {
   generateDiagnosticReport,
-  calculateOptimalStopLoss,
-  simulateBreakEven,
-  monteCarloSimulation,
-  calculateExpectancy,
 } from '../services/tradingDiagnostics';
 import { FeatureLock, ProBadge, UpgradeModal } from '../components/UpgradePrompt';
 import { checkUsageLimit } from '../services/subscription';
@@ -346,7 +342,7 @@ const InsightCard = ({ Icon, title, content, type }) => {
 };
 
 // ========== 智能诊断仪表板组件 ==========
-const DiagnosticDashboard = ({ report, instruments }) => {
+const DiagnosticDashboard = ({ report }) => {
   if (!report) return null;
 
   const { summary, actionItems, analyses } = report;
@@ -396,7 +392,7 @@ const DiagnosticDashboard = ({ report, instruments }) => {
   const getExpectancyChartOption = () => {
     if (!analyses.expectancy?.hasData) return null;
     const sessions = Object.entries(analyses.expectancy.sessionExpectancy)
-      .filter(([_, v]) => v !== null)
+      .filter(([, v]) => v !== null)
       .sort((a, b) => b[1].expectancy - a[1].expectancy);
     
     return {
@@ -417,7 +413,7 @@ const DiagnosticDashboard = ({ report, instruments }) => {
       },
       series: [{
         type: 'bar',
-        data: sessions.map(([_, v]) => ({
+        data: sessions.map(([, v]) => ({
           value: v.expectancy,
           itemStyle: { color: v.expectancy >= 0 ? '#10b981' : '#f43f5e', borderRadius: [0, 4, 4, 0] }
         })),
@@ -1041,7 +1037,6 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
 
   // 检查是否为付费用户
   const isPaidUser = subscription?.plan?.name === 'pro' || subscription?.plan?.name === 'team' || subscription?.plan?.name === 'elite';
-  const planFeatures = subscription?.plan || {};
   
   // 显示升级弹窗
   const handleShowUpgrade = (featureKey) => {
@@ -1080,7 +1075,6 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   // 智能诊断系统状态
   const [diagnosticReport, setDiagnosticReport] = useState(null);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
-  const [showDiagnosticSidebar, setShowDiagnosticSidebar] = useState(false);
 
   useEffect(() => {
     loadInstruments();

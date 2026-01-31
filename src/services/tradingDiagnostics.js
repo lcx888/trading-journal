@@ -306,9 +306,7 @@ export const simulateBreakEven = (trades, instruments = [], triggerPercent = 50)
   let missedProfitTotal = 0; // 因保本而错过的利润
 
   const tradeDetails = validTrades.map(t => {
-    const mae = t.mae ?? t.jigsawData?.mae;
     const mfe = t.mfe ?? t.jigsawData?.mfe;
-    const maeUSD = Math.abs(ticksToUSD(mae, t.instrumentCode, t.openQuantity, instruments) || 0);
     const mfeUSD = ticksToUSD(mfe, t.instrumentCode, t.openQuantity, instruments) || 0;
     const triggerLevel = mfeUSD * (triggerPercent / 100);
 
@@ -685,7 +683,7 @@ export const calculateExpectancy = (trades) => {
 
   // 找出最佳和最差时段
   const sessionRanked = Object.entries(sessionExpectancy)
-    .filter(([_, v]) => v !== null)
+    .filter(([, v]) => v !== null)
     .sort((a, b) => b[1].expectancy - a[1].expectancy);
 
   const bestSession = sessionRanked[0];
@@ -693,7 +691,7 @@ export const calculateExpectancy = (trades) => {
 
   // 找出最佳品种
   const instrumentRanked = Object.entries(instrumentExpectancy)
-    .filter(([_, v]) => v !== null && v.count >= 5)
+    .filter(([, v]) => v !== null && v.count >= 5)
     .sort((a, b) => b[1].expectancy - a[1].expectancy);
 
   return {

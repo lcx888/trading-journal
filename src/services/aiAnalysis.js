@@ -937,7 +937,7 @@ const identifyProblemTrades = (trades) => {
   // 1. 连续亏损 - 找出所有连续亏损序列
   let consecutiveLosses = 0;
   let maxConsecutiveLosses = 0;
-  let maxConsecutiveLossesStart = -1;
+  let _maxConsecutiveLossesStart = -1;
   let currentStreakStart = -1;
   let consecutiveLossTrades = [];
   let maxConsecutiveLossTrades = [];
@@ -951,7 +951,7 @@ const identifyProblemTrades = (trades) => {
       }
       if (consecutiveLosses > maxConsecutiveLosses) {
         maxConsecutiveLosses = consecutiveLosses;
-        maxConsecutiveLossesStart = currentStreakStart;
+        _maxConsecutiveLossesStart = currentStreakStart;
         maxConsecutiveLossTrades = [...consecutiveLossTrades];
       }
     } else {
@@ -1097,7 +1097,7 @@ const identifyProblemTrades = (trades) => {
   
   // 找出亏损最多的时段
   const worstSession = Object.entries(sessionLosses)
-    .filter(([_, data]) => data.trades.length >= 5)
+    .filter(([, data]) => data.trades.length >= 5)
     .sort((a, b) => a[1].totalLoss - b[1].totalLoss)[0];
   
   if (worstSession && worstSession[1].totalLoss < -500) {

@@ -265,13 +265,6 @@ const Admin = () => {
     return { background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: 'none' };
   };
 
-  // 获取状态标签样式
-  const getStatusTagStyle = (status) => {
-    if (status === 'active') {
-      return { background: 'var(--color-profit-bg)', color: 'var(--color-profit)', border: 'none' };
-    }
-    return { background: 'var(--color-loss-bg)', color: 'var(--color-loss)', border: 'none' };
-  };
 
   const columns = [
     {
@@ -860,7 +853,6 @@ const Admin = () => {
         render: (_, record) => {
           const isExpired = record.expiresAt && new Date(record.expiresAt) < new Date();
           const isUsedUp = record.usedCount >= record.maxUses;
-          const isActive = record.isActive && !isExpired && !isUsedUp;
           
           let status = { label: '有效', bg: 'var(--color-profit-bg)', color: 'var(--color-profit)' };
           if (!record.isActive) {

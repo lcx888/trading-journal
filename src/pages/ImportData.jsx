@@ -21,7 +21,7 @@ import { UpgradeModal } from '../components/UpgradePrompt';
 
 const { Dragger } = Upload;
 
-const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, subscription, onShowUpgrade }) => {
+const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, onShowUpgrade }) => {
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [duplicateInfo, setDuplicateInfo] = useState(null);

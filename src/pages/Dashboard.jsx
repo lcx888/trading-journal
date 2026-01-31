@@ -99,7 +99,7 @@ const QuickFilterTags = ({ quickFilter, setQuickFilter }) => {
   );
 };
 
-const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, onUpgrade, onNavigate }) => {
+const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
@@ -107,7 +107,6 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
   const [dateRange, setDateRange] = useState(null);
   const [instruments, setInstruments] = useState([]);
   const [chartPeriod, setChartPeriod] = useState('all');
-  const [showDetailedStats, setShowDetailedStats] = useState(false);
   const [quickFilter, setQuickFilter] = useState(null);
   const [traderName, setTraderName] = useState('');
   const [quote, setQuote] = useState('');
@@ -250,7 +249,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
     if (!trades || trades.length === 0) return {};
     const sortedTrades = [...trades].sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
     let cumPnL = 0;
-    const data = sortedTrades.map((t, i) => {
+    const data = sortedTrades.map((t) => {
       cumPnL += (t.pnl || 0);
       return { value: Number(cumPnL.toFixed(2)), date: dayjs(t.openTime).format('MM-DD HH:mm'), pnl: t.pnl };
     });
@@ -324,7 +323,8 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, subscription, o
     };
   };
 
-  const trendData = useMemo(() => {
+  // 计算最近7日趋势数据（预留用于趋势图）
+  const _trendData = useMemo(() => {
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
       const day = dayjs().subtract(i, 'day');
