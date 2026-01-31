@@ -27,10 +27,13 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
   ColumnHeightOutlined,
+  MergeCellsOutlined,
+  SplitCellsOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import StorageService from '../services/storage';
+import { processTradesWithMerge, formatDuration as formatMergeDuration } from '../services/tradeMerge';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
@@ -440,6 +443,345 @@ const saveTableConfig = (config) => {
   localStorage.setItem(TABLE_CONFIG_KEY, JSON.stringify(config));
 };
 
+// 持仓路径可视化组件（支持缩放）
+// 复盘问题模板
+const REVIEW_TEMPLATES = {
+  '首仓': {
+    title: '开仓复盘',
+    questions: [
+      { key: 'entrySignal', label: '入场信号', placeholder: '是什么信号触发了这次入场？' },
+      { key: 'marketContext', label: '市场背景', placeholder: '当时的市场环境是怎样的？' },
+    ]
+  },
+  '加仓': {
+    title: '加仓复盘',
+    questions: [
+      { key: 'reason', label: '加仓原因', placeholder: '为什么选择在这个位置加仓？' },
+    ]
+  },
+  '减仓': {
+    title: '减仓复盘',
+    questions: [
+      { key: 'reason', label: '减仓原因', placeholder: '为什么选择减仓而不是持有？' },
+    ]
+  },
+  '平仓': {
+    title: '平仓复盘',
+    questions: [
+      { key: 'exitSignal', label: '平仓信号', placeholder: '是什么信号触发了平仓？' },
+    ]
+  }
+};
+
+// 获取复盘笔记存储 key
+const getReviewStorageKey = (tradeGroupId) => `trade_review_${tradeGroupId}`;
+
+// 读取复盘笔记
+const loadReviewNotes = (tradeGroupId) => {
+  try {
+    const data = localStorage.getItem(getReviewStorageKey(tradeGroupId));
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+};
+
+// 保存复盘笔记
+const saveReviewNotes = (tradeGroupId, notes) => {
+  localStorage.setItem(getReviewStorageKey(tradeGroupId), JSON.stringify(notes));
+};
+
+const PositionChart = ({ trades, overallDirection, dayjs, tradeGroupId, onStartReview, reviewNotes }) => {
+  const [scale, setScale] = useState(1);
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const containerRef = useRef(null);
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
+  };
+
+  // 构建时间线事件
+  const events = [];
+  trades.forEach((t, tradeIdx) => {
+    const qty = Math.abs(t.openQuantity || 1);
+    events.push({
+      time: new Date(t.openTime).getTime(),
+      type: 'open',
+      qty,
+      price: t.openPrice || 0,
+      trade: t
+    });
+    events.push({
+      time: new Date(t.closeTime).getTime(),
+      type: 'close',
+      qty,
+      price: t.closePrice || 0,
+      trade: t
+    });
+  });
+  events.sort((a, b) => a.time - b.time);
+
+  // 构建曲线数据点
+  const curvePoints = [];
+  let pos = 0;
+  let curveAvgPrice = 0;
+
+  events.forEach((event) => {
+    const prevPos = pos;
+    const prevAvgPrice = curveAvgPrice;
+
+    if (event.type === 'open') {
+      curveAvgPrice = prevPos === 0 ? event.price : (prevPos * curveAvgPrice + event.qty * event.price) / (prevPos + event.qty);
+      pos += event.qty;
+    } else {
+      pos -= event.qty;
+    }
+
+    let label, color, isProfitAction = false;
+    const priceDiff = (event.price - prevAvgPrice) * overallDirection;
+    
+    // 计算此时此刻的浮盈浮亏金额 (基于当前价格和之前的持仓均价)
+    // 浮盈亏 = (现价 - 均价) * 持仓数量 * 方向 * 乘数(如果有)
+    // 注意：这里的 pnl 应该是基于品种的最小跳动值和每跳价值计算的，
+    // 但如果 trades 中已经有了单笔 pnl，我们可以推算出价格与金额的比例
+    const firstTrade = trades[0];
+    const priceToPnlRatio = firstTrade && firstTrade.openQuantity && (firstTrade.closePrice - firstTrade.openPrice) !== 0 
+      ? Math.abs(firstTrade.pnl / ((firstTrade.closePrice - firstTrade.openPrice) * firstTrade.openQuantity))
+      : 1; // 默认比例为 1，如果无法推算
+
+    const floatingPnl = prevPos > 0 ? (event.price - prevAvgPrice) * prevPos * overallDirection * priceToPnlRatio : 0;
+
+    if (event.type === 'open') {
+      label = prevPos === 0 ? '首仓' : '加仓';
+      isProfitAction = prevPos > 0 && priceDiff > 0;
+      color = prevPos === 0 ? 'var(--color-brand)' : (isProfitAction ? '#22c55e' : '#ef4444');
+    } else {
+      label = pos === 0 ? '平仓' : '减仓';
+      isProfitAction = priceDiff > 0;
+      color = isProfitAction ? '#22c55e' : '#ef4444';
+    }
+
+    curvePoints.push({
+      time: event.time,
+      position: pos,
+      prevPosition: prevPos,
+      avgPrice: curveAvgPrice,
+      price: event.price,
+      label,
+      color,
+      isProfitAction,
+      qty: event.qty,
+      type: event.type,
+      floatingPnl,
+      // 如果是平仓，使用订单自带的精确盈亏金额；如果是加减仓，显示计算出的浮动盈亏金额
+      displayPnl: event.type === 'close' ? (event.trade?.pnl || (event.price - prevAvgPrice) * event.qty * overallDirection * priceToPnlRatio) : floatingPnl
+    });
+  });
+
+  const baseHeight = 500; // 增加基础高度
+  const svgWidth = 1200;
+  const svgHeight = baseHeight * scale;
+  const padding = { top: 140, right: 100, bottom: 140, left: 80 }; // 显著增加上下边距，防止标签超出 SVG 范围
+  const chartWidth = svgWidth - padding.left - padding.right;
+  const chartHeight = svgHeight - padding.top - padding.bottom;
+
+  // 计算价格范围 - 紧凑型
+  const allPrices = curvePoints.map(p => p.price);
+  const allAvgPrices = curvePoints.filter(p => p.avgPrice > 0).map(p => p.avgPrice);
+  const minPrice = Math.min(...allPrices, ...allAvgPrices);
+  const maxPrice = Math.max(...allPrices, ...allAvgPrices);
+  const priceMargin = (maxPrice - minPrice) * 0.4 || 0.1; // 增加价格边距，让曲线在中间，为上下标签留出更多空间
+  const chartMinPrice = minPrice - priceMargin;
+  const chartMaxPrice = maxPrice + priceMargin;
+  const priceRange = chartMaxPrice - chartMinPrice || 1;
+
+  const minTime = curvePoints[0]?.time || 0;
+  const maxTime = curvePoints[curvePoints.length - 1]?.time || 1;
+  const timeRange = maxTime - minTime || 1;
+  const maxPos = Math.max(...curvePoints.map(p => p.position), 1);
+
+  const getX = (time) => padding.left + ((time - minTime) / timeRange) * chartWidth;
+  const getY = (price) => padding.top + chartHeight - ((price - chartMinPrice) / priceRange) * chartHeight;
+
+  return (
+    <div ref={containerRef} className="modern-chart-container">
+      <div className="modern-chart-header">
+        <div className="header-info">
+          <div className="direction-tag" style={{ color: overallDirection === 1 ? '#22c55e' : '#ef4444' }}>
+            {overallDirection === 1 ? '做多' : '做空'}
+          </div>
+          <div className="stats-group">
+            <div className="stat">
+              <span className="label">总盈亏</span>
+              <span className="value" style={{ color: trades.reduce((s,t)=>s+(t.pnl||0),0) >= 0 ? '#22c55e' : '#ef4444' }}>
+                {trades.reduce((s,t)=>s+(t.pnl||0),0).toFixed(2)}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="label">交易数</span>
+              <span className="value">{trades.length}</span>
+            </div>
+          </div>
+          {/* 复盘引导提示 */}
+          <div style={{ 
+            marginLeft: 24, 
+            padding: '4px 12px', 
+            background: 'var(--color-brand)15', 
+            border: '1px solid var(--color-brand)30',
+            borderRadius: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            animation: 'pulse-soft 2s infinite'
+          }}>
+            <EditOutlined style={{ color: 'var(--color-brand)', fontSize: 12 }} />
+            <span style={{ fontSize: 11, color: 'var(--color-brand)', fontWeight: 600 }}>点击节点标签记录复盘逻辑</span>
+          </div>
+        </div>
+        <div className="header-controls">
+          <div className="legend">
+            <div className="item"><span className="dot" style={{ background: '#22c55e' }}></span> 盈利操作</div>
+            <div className="item"><span className="dot" style={{ background: '#ef4444' }}></span> 亏损操作</div>
+            <div className="item"><span className="line" style={{ borderTop: '1px dashed var(--text-tertiary)' }}></span> 均价线</div>
+          </div>
+          <button className="reset-btn" onClick={() => setScale(1)}>RESET</button>
+        </div>
+      </div>
+
+      <div className="modern-svg-wrapper" onWheel={handleWheel}>
+        <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="modern-svg">
+          <defs>
+            <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+
+          {/* 网格 - 仅显示实际出现的关键价格 */}
+          <g className="grid">
+            {[chartMinPrice, minPrice, (minPrice + maxPrice) / 2, maxPrice, chartMaxPrice].map((price, i) => (
+              <g key={i}>
+                <line x1={padding.left} y1={getY(price)} x2={svgWidth - padding.right} y2={getY(price)} stroke="var(--border-primary)" strokeWidth="0.5" strokeDasharray="4,4" opacity="0.3" />
+                <text x={padding.left - 10} y={getY(price) + 4} textAnchor="end" fontSize="10" fill="var(--text-tertiary)" fontFamily="monospace">{price.toFixed(2)}</text>
+              </g>
+            ))}
+          </g>
+
+          {/* 均价线 */}
+          <path
+            d={curvePoints.filter(p => p.avgPrice > 0).map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.time)} ${getY(p.avgPrice)}`).join(' ')}
+            fill="none" stroke="var(--text-tertiary)" strokeWidth="1" strokeDasharray="5,5" opacity="0.6"
+          />
+
+          {/* 价格主线 */}
+          {curvePoints.length > 1 && curvePoints.slice(0, -1).map((p, i) => {
+            const nextP = curvePoints[i + 1];
+            return (
+              <line
+                key={i}
+                x1={getX(p.time)} y1={getY(p.price)} x2={getX(nextP.time)} y2={getY(nextP.price)}
+                stroke="var(--text-primary)" strokeWidth={Math.max(1.5, (p.position / maxPos) * 6)} strokeLinecap="round"
+              />
+            );
+          })}
+
+          {/* 节点与标签 - 错位排列防止重叠 */}
+          {curvePoints.map((p, i) => {
+            const isHovered = hoveredNode === i;
+            
+            // 改进的防重叠逻辑：
+            // 1. 增加 Y 轴偏移的跨度，使用更大幅度的错位
+            // 2. 增加 X 轴微调：如果两个点的时间非常接近，则根据索引进行左右微调
+            const offsets = [-120, -60, 60, 120];
+            const labelYOffset = offsets[i % 4];
+            
+            // X 轴微调：如果相邻点 X 坐标差距小于 40 像素，则进行左右偏移
+            let xOffset = 0;
+            if (i > 0) {
+              const prevX = getX(curvePoints[i-1].time);
+              const currentX = getX(p.time);
+              if (Math.abs(currentX - prevX) < 40) {
+                // 根据索引奇偶性向左或向右偏移
+                xOffset = (i % 2 === 0 ? -30 : 30);
+              }
+            }
+            
+            const xPos = getX(p.time);
+            const yPos = getY(p.price);
+            const finalX = xPos + xOffset;
+
+            return (
+              <g key={i} onMouseEnter={() => setHoveredNode(i)} onMouseLeave={() => setHoveredNode(null)} style={{ cursor: 'pointer' }}>
+                {isHovered && <line x1={xPos} y1={padding.top} x2={xPos} y2={svgHeight - padding.bottom} stroke="var(--color-brand)" strokeWidth="0.5" strokeDasharray="2,2" />}
+                
+                {/* 连线：从节点到标签的指引线 */}
+                <path 
+                  d={`M ${xPos} ${yPos} L ${finalX} ${yPos + (labelYOffset > 0 ? labelYOffset - 25 : labelYOffset + 25)}`}
+                  fill="none"
+                  stroke={p.color} 
+                  strokeWidth="0.5" 
+                  opacity="0.4" 
+                />
+
+                <circle cx={xPos} cy={yPos} r={isHovered ? 6 : 4} fill={p.color} filter="url(#softGlow)" />
+                
+                <g transform={`translate(${finalX}, ${yPos + labelYOffset})`}>
+                  {/* 文字背景遮罩 - 增大尺寸以适应更大的字号 */}
+                  <rect 
+                    x="-50" y="-22" width="100" height="75" 
+                    fill="var(--bg-primary)" 
+                    fillOpacity="0.9" 
+                    rx="6"
+                    stroke="var(--border-primary)"
+                    strokeWidth="0.5"
+                  />
+
+                  {/* 可点击的标签 - 用于复盘 */}
+                  <g 
+                    onClick={(e) => { e.stopPropagation(); onStartReview && onStartReview(i, p); }}
+                    style={{ cursor: 'pointer' }}
+                    className="review-label-btn"
+                  >
+                    <rect x="-32" y="-18" width="64" height="22" rx="4" fill={reviewNotes[i] ? `${p.color}30` : 'transparent'} stroke={reviewNotes[i] ? p.color : 'transparent'} strokeWidth="1" />
+                    <text textAnchor="middle" fontSize="12" fontWeight="800" fill={p.color} dy="-3">{p.label}</text>
+                    {/* 已有笔记的标记 */}
+                    {reviewNotes[i] && (
+                      <circle cx="28" cy="-8" r="4" fill="var(--color-brand)" />
+                    )}
+                  </g>
+                  <text textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--text-primary)" dy="12">{p.type === 'open' ? '+' : '-'}{p.qty}手 @ {p.price.toFixed(2)}</text>
+                  
+                  {/* 显示此时此刻的手中单量 */}
+                  <text textAnchor="middle" fontSize="10" fill="var(--text-tertiary)" dy="26">
+                    持仓: {p.position.toFixed(1)}手
+                  </text>
+
+                  {/* 显示浮盈浮亏具体金额 */}
+                  {p.displayPnl !== 0 && (
+                    <text textAnchor="middle" fontSize="12" fontWeight="900" fill={p.displayPnl >= 0 ? '#22c55e' : '#ef4444'} dy="42">
+                      {p.displayPnl >= 0 ? '盈' : '亏'} {p.displayPnl >= 0 ? '+' : ''}{p.displayPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </text>
+                  )}
+                </g>
+
+                {isHovered && (
+                  <g transform={`translate(${getX(p.time)}, ${svgHeight - padding.bottom + 15})`}>
+                    <text textAnchor="middle" fontSize="10" fill="var(--text-secondary)" fontFamily="monospace">{dayjs(p.time).format('HH:mm:ss')}</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* curvePoints 导出给父组件用于交易明细列表 */}
+    </div>
+  );
+};
+
 const TradeList = ({ activeRecordId = 'all' }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
@@ -463,10 +805,20 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [editingTrade, setEditingTrade] = useState(null);
   const [form] = Form.useForm();
   
-  // MAE/MFE 编辑状态
-  const [maeMfeEditVisible, setMaeMfeEditVisible] = useState(false);
-  const [maeMfeEditingTrade, setMaeMfeEditingTrade] = useState(null);
-  const [maeMfeForm] = Form.useForm();
+  // MAE/MFE 内联编辑状态
+  const [editingMaeMfe, setEditingMaeMfe] = useState({ tradeId: null, field: null });
+  const [editingValue, setEditingValue] = useState(null);
+  
+  // 合并交易状态
+  const [mergeEnabled, setMergeEnabled] = useState(true); // 是否启用合并显示
+  const [selectedMergeGroup, setSelectedMergeGroup] = useState(null); // 选中的合并组（用于抽屉）
+  const [mergeDrawerOpen, setMergeDrawerOpen] = useState(false); // 抽屉开关
+  
+  // 复盘功能状态
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewingEvent, setReviewingEvent] = useState(null); // { index, point, groupId }
+  const [reviewNotes, setReviewNotes] = useState({});
+  const [editingReview, setEditingReview] = useState({});
   
   // ========== 表格配置状态 ==========
   const [tableConfig, setTableConfig] = useState(loadTableConfig);
@@ -574,7 +926,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   }, [filteredTrades]); // 数据变化时重新绑定
 
   useEffect(() => { loadData(); }, [activeRecordId]);
-  useEffect(() => { applyFilters(); }, [trades, filters]);
+  useEffect(() => { applyFilters(); }, [trades, filters, mergeEnabled, instruments]);
 
   const loadData = async () => {
     setLoading(true);
@@ -650,7 +1002,59 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return rating.grade === filters.rating;
       });
     }
-    setFilteredTrades(result);
+    // 应用合并检测
+    if (mergeEnabled) {
+      const mergedResult = processTradesWithMerge(result, instruments);
+      setFilteredTrades(mergedResult);
+    } else {
+      setFilteredTrades(result.map(t => ({ ...t, isMergedGroup: false })));
+    }
+  };
+
+  // 打开合并组详情抽屉
+  const openMergeDrawer = (record) => {
+    if (record.isMergedGroup && record.mergeStats) {
+      setSelectedMergeGroup(record);
+      setMergeDrawerOpen(true);
+      // 加载该组的复盘笔记
+      setReviewNotes(loadReviewNotes(record.id || 'default'));
+    }
+  };
+
+  // 关闭抽屉
+  const closeMergeDrawer = () => {
+    setMergeDrawerOpen(false);
+    setSelectedMergeGroup(null);
+    setReviewModalVisible(false);
+    setReviewingEvent(null);
+  };
+  
+  // 开始复盘某个事件
+  const handleStartReview = (index, point) => {
+    const groupId = selectedMergeGroup?.id || 'default';
+    setReviewingEvent({ index, point, groupId });
+    setEditingReview(reviewNotes[index] || {});
+    setReviewModalVisible(true);
+  };
+  
+  // 保存复盘
+  const handleSaveReview = () => {
+    if (reviewingEvent !== null) {
+      const newNotes = { ...reviewNotes, [reviewingEvent.index]: editingReview };
+      setReviewNotes(newNotes);
+      saveReviewNotes(reviewingEvent.groupId, newNotes);
+      setReviewModalVisible(false);
+      setReviewingEvent(null);
+      setEditingReview({});
+      message.success('复盘笔记已保存');
+    }
+  };
+  
+  // 取消复盘
+  const handleCancelReview = () => {
+    setReviewModalVisible(false);
+    setReviewingEvent(null);
+    setEditingReview({});
   };
 
   const getStrategyById = (id) => strategies.find(s => s.id === id);
@@ -700,50 +1104,44 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     } catch (e) { message.error('删除失败'); }
   };
 
-  // 打开 MAE/MFE 编辑弹窗
-  const handleEditMaeMfe = (trade) => {
-    setMaeMfeEditingTrade(trade);
-    const mae = trade.mae ?? trade.jigsawData?.mae;
-    const mfe = trade.mfe ?? trade.jigsawData?.mfe;
-    const maeUSD = mae !== undefined ? ticksToUSD(mae, trade.instrumentCode, trade.openQuantity, instruments) : null;
-    const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, trade.instrumentCode, trade.openQuantity, instruments) : null;
-    maeMfeForm.setFieldsValue({
-      maeUSD: maeUSD ? Math.abs(maeUSD) : null,
-      mfeUSD: mfeUSD ? Math.abs(mfeUSD) : null,
-    });
-    setMaeMfeEditVisible(true);
+  // 开始编辑 MAE/MFE
+  const startEditMaeMfe = (tradeId, field, currentValue) => {
+    setEditingMaeMfe({ tradeId, field });
+    setEditingValue(currentValue);
   };
 
-  // 保存 MAE/MFE
-  const handleSaveMaeMfe = async () => {
+  // 保存 MAE/MFE 内联编辑
+  const saveMaeMfeInline = async (trade, field, value) => {
     try {
-      const vals = maeMfeForm.getFieldsValue();
-      const trade = maeMfeEditingTrade;
       const tickValue = getTickValue(trade.instrumentCode, instruments);
       const quantity = Math.abs(trade.openQuantity || 1);
       
       // 将美元转换为 ticks
-      const maeUSD = vals.maeUSD;
-      const mfeUSD = vals.mfeUSD;
-      const maeTicks = maeUSD !== null && maeUSD !== undefined && tickValue > 0 && quantity > 0
-        ? Math.round(maeUSD / tickValue / quantity)
-        : null;
-      const mfeTicks = mfeUSD !== null && mfeUSD !== undefined && tickValue > 0 && quantity > 0
-        ? Math.round(mfeUSD / tickValue / quantity)
+      const ticks = value !== null && value !== undefined && tickValue > 0 && quantity > 0
+        ? Math.round(value / tickValue / quantity)
         : null;
       
       await StorageService.updateTrade(trade.id, {
-        mae: maeTicks,
-        mfe: mfeTicks,
+        [field]: ticks,
       });
       
-      message.success('MAE/MFE 已更新');
-      setMaeMfeEditVisible(false);
-      loadData();
+      // 更新本地状态
+      setTrades(prev => prev.map(t => 
+        t.id === trade.id ? { ...t, [field]: ticks } : t
+      ));
+      
+      setEditingMaeMfe({ tradeId: null, field: null });
+      setEditingValue(null);
     } catch (e) {
       message.error('保存失败');
       console.error(e);
     }
+  };
+
+  // 取消编辑
+  const cancelEditMaeMfe = () => {
+    setEditingMaeMfe({ tradeId: null, field: null });
+    setEditingValue(null);
   };
 
   const handleExport = () => {
@@ -946,17 +1344,75 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       title: '时间',
       dataIndex: 'openTime',
       key: 'openTime',
-      width: 180,
-      render: (t) => (
-        <div style={{ padding: '4px 0' }}>
-          <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
-            {dayjs(t).format('MM-DD HH:mm:ss')}
+      width: 200,
+      render: (t, record) => {
+        if (record.isMergedGroup && record.mergeStats) {
+          const stats = record.mergeStats;
+          return (
+            <div 
+              style={{ 
+                padding: '4px 0', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                position: 'relative',
+                marginLeft: '-12px', // 抵消 padding 让渐变从最左侧开始
+                paddingLeft: '12px'
+              }}
+              onClick={(e) => { e.stopPropagation(); openMergeDrawer(record); }}
+            >
+              {/* 左侧淡淡的品牌色渐变条 */}
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                top: '10%',
+                bottom: '10%',
+                width: '3px',
+                background: 'linear-gradient(to bottom, transparent, var(--color-brand), transparent)',
+                opacity: 0.4,
+                borderRadius: '0 4px 4px 0'
+              }} />
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                background: 'var(--color-brand)10',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--color-brand)20'
+              }}>
+                <MergeCellsOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {dayjs(stats.firstOpenTime).format('MM-DD HH:mm')}
+                  </span>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>→</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {dayjs(stats.lastCloseTime).format('HH:mm')}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-brand)', opacity: 0.8, fontWeight: 500 }}>
+                  {stats.tradeCount} 笔合并交易记录
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div style={{ padding: '4px 0' }}>
+            <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
+              {dayjs(t).format('MM-DD HH:mm:ss')}
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {dayjs(t).format('YYYY')}
+            </div>
           </div>
-          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            {dayjs(t).format('YYYY')}
-          </div>
-        </div>
-      ),
+        );
+      },
       sorter: (a, b) => new Date(a.openTime) - new Date(b.openTime),
     },
     {
@@ -995,27 +1451,56 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       key: 'quantity',
       width: 90,
       align: 'right',
-      render: (_, r) => (
-        <span className="font-mono font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-          {Math.abs(r.openQuantity || 0)}
-        </span>
-      ),
+      render: (_, r) => {
+        if (r.isMergedGroup && r.mergeStats) {
+          return (
+            <div className="text-right">
+              <span className="font-mono font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                {r.mergeStats.totalQuantity}
+              </span>
+              <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                峰值 {r.mergeStats.maxConcurrentQty}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <span className="font-mono font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+            {Math.abs(r.openQuantity || 0)}
+          </span>
+        );
+      },
     },
     {
       title: '价格',
       key: 'prices',
       width: 160,
       align: 'right',
-      render: (_, r) => (
-        <div className="font-mono" style={{ padding: '4px 0' }}>
-          <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
-            {r.openPrice?.toFixed(2)}
+      render: (_, r) => {
+        if (r.isMergedGroup && r.mergeStats) {
+          const stats = r.mergeStats;
+          return (
+            <div className="font-mono" style={{ padding: '4px 0' }}>
+              <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                {stats.weightedOpenPrice?.toFixed(2)}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                → {stats.weightedClosePrice?.toFixed(2)} <span style={{ color: 'var(--color-brand)', fontSize: 9 }}>加权</span>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="font-mono" style={{ padding: '4px 0' }}>
+            <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
+              {r.openPrice?.toFixed(2)}
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              → {r.closePrice?.toFixed(2)}
+            </div>
           </div>
-          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            → {r.closePrice?.toFixed(2)}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: '盈亏',
@@ -1023,15 +1508,33 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       key: 'pnl',
       width: 140,
       align: 'right',
-      sorter: (a, b) => a.pnl - b.pnl,
-      render: (p) => (
-        <div 
-          className="font-mono font-bold text-base"
-          style={{ color: p >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
-        >
-          {p >= 0 ? '+' : ''}{p?.toFixed(2)}
-        </div>
-      ),
+      sorter: (a, b) => (a.pnl || 0) - (b.pnl || 0),
+      render: (p, r) => {
+        if (r.isMergedGroup && r.mergeStats) {
+          const stats = r.mergeStats;
+          return (
+            <div>
+              <div 
+                className="font-mono font-bold text-base"
+                style={{ color: stats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+              >
+                {stats.totalPnL >= 0 ? '+' : ''}{stats.totalPnL?.toFixed(2)}
+              </div>
+              <div className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                均 {stats.avgPnL >= 0 ? '+' : ''}{stats.avgPnL?.toFixed(0)}/笔
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div 
+            className="font-mono font-bold text-base"
+            style={{ color: (p || 0) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+          >
+            {(p || 0) >= 0 ? '+' : ''}{(p || 0).toFixed(2)}
+          </div>
+        );
+      },
     },
     {
       title: '手续费',
@@ -1087,52 +1590,153 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       key: 'duration',
       width: 100,
       align: 'right',
-      render: (s) => (
-        <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {formatHoldingTime(s)}
-        </span>
-      ),
+      render: (s, r) => {
+        if (r.isMergedGroup && r.mergeStats) {
+          return (
+            <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {formatHoldingTime(r.mergeStats.totalDuration)}
+            </span>
+          );
+        }
+        return (
+          <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {formatHoldingTime(s)}
+          </span>
+        );
+      },
     },
-    // Jigsaw 专属列 - 灰度风格（可点击编辑）
+    // Jigsaw 专属列 - 内联编辑
     ...(hasJigsawData ? [{
       title: '最大浮亏',
       key: 'mae',
-      width: 90,
+      width: 100,
       align: 'right',
       render: (_, r) => {
+        // 合并组不显示 MAE
+        if (r.isMergedGroup) return null;
+        
         const mae = r.mae ?? r.jigsawData?.mae;
         const maeUSD = mae !== undefined && mae !== null ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
-        return (
-          <Tooltip title="点击编辑">
+        const isEditing = editingMaeMfe.tradeId === r.id && editingMaeMfe.field === 'mae';
+        
+        if (isEditing) {
+          return (
+            <InputNumber
+              autoFocus
+              size="small"
+              value={editingValue}
+              onChange={setEditingValue}
+              onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
+              onBlur={() => saveMaeMfeInline(r, 'mae', editingValue)}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+              prefix="$"
+              min={0}
+              precision={0}
+              style={{ width: 80 }}
+              className="mae-mfe-input"
+            />
+          );
+        }
+        
+        // 有数据时正常显示
+        if (maeUSD) {
+          return (
             <span 
-              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
-              style={{ color: maeUSD ? 'var(--text-secondary)' : 'var(--text-tertiary)' }}
-              onClick={(e) => { e.stopPropagation(); handleEditMaeMfe(r); }}
+              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
+              style={{ color: 'var(--text-secondary)' }}
+              onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', Math.round(maeUSD)); }}
             >
-              {maeUSD ? `$${maeUSD.toFixed(0)}` : '—'}
+              ${maeUSD.toFixed(0)}
             </span>
-          </Tooltip>
+          );
+        }
+        
+        // 无数据时显示占位提示
+        return (
+          <span 
+            className="cursor-pointer transition-all inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
+            style={{ color: 'var(--text-quaternary)' }}
+            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', null); }}
+            title="点击录入最大浮亏"
+          >
+            <span style={{ 
+              fontSize: 10, 
+              padding: '1px 4px', 
+              background: 'var(--bg-tertiary)', 
+              borderRadius: 3,
+              border: '1px dashed var(--border-secondary)',
+              color: 'var(--text-tertiary)'
+            }}>
+              +添加
+            </span>
+          </span>
         );
       },
     }] : []),
     ...(hasJigsawData ? [{
       title: '最大浮盈',
       key: 'mfe',
-      width: 90,
+      width: 100,
       align: 'right',
       render: (_, r) => {
+        // 合并组不显示 MFE
+        if (r.isMergedGroup) return null;
+        
         const mfe = r.mfe ?? r.jigsawData?.mfe;
         const mfeUSD = mfe !== undefined && mfe !== null ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
-        return (
-          <Tooltip title="点击编辑">
+        const isEditing = editingMaeMfe.tradeId === r.id && editingMaeMfe.field === 'mfe';
+        
+        if (isEditing) {
+          return (
+            <InputNumber
+              autoFocus
+              size="small"
+              value={editingValue}
+              onChange={setEditingValue}
+              onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
+              onBlur={() => saveMaeMfeInline(r, 'mfe', editingValue)}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+              prefix="$"
+              min={0}
+              precision={0}
+              style={{ width: 80 }}
+              className="mae-mfe-input"
+            />
+          );
+        }
+        
+        // 有数据时正常显示
+        if (mfeUSD) {
+          return (
             <span 
-              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
-              style={{ color: mfeUSD ? 'var(--text-secondary)' : 'var(--text-tertiary)' }}
-              onClick={(e) => { e.stopPropagation(); handleEditMaeMfe(r); }}
+              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
+              style={{ color: 'var(--text-secondary)' }}
+              onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', Math.round(mfeUSD)); }}
             >
-              {mfeUSD ? `$${mfeUSD.toFixed(0)}` : '—'}
+              ${mfeUSD.toFixed(0)}
             </span>
-          </Tooltip>
+          );
+        }
+        
+        // 无数据时显示占位提示
+        return (
+          <span 
+            className="cursor-pointer transition-all inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
+            style={{ color: 'var(--text-quaternary)' }}
+            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', null); }}
+            title="点击录入最大浮盈"
+          >
+            <span style={{ 
+              fontSize: 10, 
+              padding: '1px 4px', 
+              background: 'var(--bg-tertiary)', 
+              borderRadius: 3,
+              border: '1px dashed var(--border-secondary)',
+              color: 'var(--text-tertiary)'
+            }}>
+              +添加
+            </span>
+          </span>
         );
       },
     }] : []),
@@ -1148,6 +1752,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       },
     }] : []),
     // ========== 高级分析指标列 ==========
+    // 需要 MAE 数据的提示组件
     ...(hasJigsawData ? [{
       title: '风险回报',
       key: 'riskReward',
@@ -1161,12 +1766,18 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return rA - rB;
       },
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mae = r.mae ?? r.jigsawData?.mae;
-        if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        if (mae === undefined || mae === null) {
+          return (
+            <Tooltip title="录入 MAE 后自动计算">
+              <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>需MAE</span>
+            </Tooltip>
+          );
+        }
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
         const rMultiple = calcRiskRewardRatio(r.pnl, maeUSD);
         if (rMultiple === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        // 大于1R显示绿色
         const isGood = rMultiple >= 1;
         return (
           <span 
@@ -1191,12 +1802,18 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return prA - prB;
       },
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
-        if (mfe === undefined || mfe === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        if (mfe === undefined || mfe === null) {
+          return (
+            <Tooltip title="录入 MFE 后自动计算">
+              <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>需MFE</span>
+            </Tooltip>
+          );
+        }
         const mfeUSD = ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments);
         const capture = calcProfitCaptureRate(mfeUSD, r.pnl);
         if (capture === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
-        // 大于80%显示绿色，超过100%显示警告
         const isGood = capture >= 80;
         const isAbnormal = capture > 100;
         return (
@@ -1221,8 +1838,15 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       width: 60,
       align: 'right',
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mae = r.mae ?? r.jigsawData?.mae;
-        if (mae === undefined || mae === null) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+        if (mae === undefined || mae === null) {
+          return (
+            <Tooltip title="录入 MAE 后自动计算">
+              <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>需MAE</span>
+            </Tooltip>
+          );
+        }
         const maeUSD = ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments);
         const score = calcDrawdownStressIndex(maeUSD, r.pnl, r.holdingSeconds);
         if (score === null || score === undefined) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
@@ -1238,8 +1862,19 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       key: 'diagnosis',
       width: 100,
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mae = r.mae ?? r.jigsawData?.mae;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
+        
+        // 如果都没有数据，显示提示
+        if ((mae === undefined || mae === null) && (mfe === undefined || mfe === null)) {
+          return (
+            <Tooltip title="录入 MAE/MFE 后自动诊断">
+              <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>需数据</span>
+            </Tooltip>
+          );
+        }
+        
         const maeUSD = mae !== undefined ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
         const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
         
@@ -1258,8 +1893,28 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       key: 'tradeRange',
       width: 120,
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mae = r.mae ?? r.jigsawData?.mae;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
+        
+        // 如果都没有数据，显示提示
+        if ((mae === undefined || mae === null) && (mfe === undefined || mfe === null)) {
+          return (
+            <Tooltip title="录入 MAE/MFE 后显示波动区间">
+              <div style={{ 
+                height: 16, 
+                background: 'var(--bg-tertiary)', 
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>需数据</span>
+              </div>
+            </Tooltip>
+          );
+        }
+        
         const maeUSD = mae !== undefined ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
         const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
         
@@ -1280,8 +1935,19 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return getTradeRating(a, maeA, mfeA).score - getTradeRating(b, maeB, mfeB).score;
       },
       render: (_, r) => {
+        if (r.isMergedGroup) return null;
         const mae = r.mae ?? r.jigsawData?.mae;
         const mfe = r.mfe ?? r.jigsawData?.mfe;
+        
+        // 如果都没有数据，显示提示
+        if ((mae === undefined || mae === null) && (mfe === undefined || mfe === null)) {
+          return (
+            <Tooltip title="录入 MAE/MFE 后自动评级">
+              <span style={{ fontSize: 9, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>—</span>
+            </Tooltip>
+          );
+        }
+        
         const maeUSD = mae !== undefined ? ticksToUSD(mae, r.instrumentCode, r.openQuantity, instruments) : null;
         const mfeUSD = mfe !== undefined ? ticksToUSD(mfe, r.instrumentCode, r.openQuantity, instruments) : null;
         const rating = getTradeRating(r, maeUSD, mfeUSD);
@@ -1385,6 +2051,20 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* 合并显示开关 */}
+          <Tooltip title={mergeEnabled ? '点击关闭合并显示' : '点击开启自动合并加减仓交易'}>
+            <Button 
+              icon={mergeEnabled ? <MergeCellsOutlined /> : <SplitCellsOutlined />}
+              onClick={() => setMergeEnabled(!mergeEnabled)}
+              style={{ 
+                background: mergeEnabled ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                borderColor: mergeEnabled ? 'var(--color-brand)' : 'var(--border-primary)',
+                color: mergeEnabled ? 'var(--color-brand)' : 'var(--text-secondary)',
+              }}
+            >
+              {mergeEnabled ? '合并中' : '未合并'}
+            </Button>
+          </Tooltip>
           <Button 
             icon={<FilterOutlined />}
             onClick={() => setShowFilters(!showFilters)}
@@ -1702,6 +2382,163 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </div>
         )}
 
+      {/* MAE/MFE 数据缺失引导提示 - 放在高级分析下方 */}
+      {(() => {
+        // 计算缺少 MAE/MFE 数据的交易数量（排除合并组）
+        const tradesWithoutMaeMfe = filteredTrades.filter(t => 
+          !t.isMergedGroup && 
+          (t.mae === null || t.mae === undefined || t.mae === 0) && 
+          (t.mfe === null || t.mfe === undefined || t.mfe === 0)
+        );
+        const missingCount = tradesWithoutMaeMfe.length;
+        const totalSingleTrades = filteredTrades.filter(t => !t.isMergedGroup).length;
+        const missingPercent = totalSingleTrades > 0 ? Math.round((missingCount / totalSingleTrades) * 100) : 0;
+        const completedPercent = 100 - missingPercent;
+        
+        // 只有当有缺失数据且 Jigsaw 数据可用时才显示提示
+        if (missingCount === 0 || !hasJigsawData) return null;
+        
+        // 金句库 - 根据完成度选择不同类型的金句
+        const wisdomQuotes = {
+          // 刚开始（完成度 < 30%）- 强调价值和意义
+          beginner: [
+            "逐笔复盘 MAE/MFE，是从散户蜕变为职业交易员的必经之路",
+            "了解每笔交易的最大波动，是建立交易纪律的第一步",
+            "专业交易员不只看结果，更关注过程中的风险暴露",
+          ],
+          // 进行中（完成度 30-70%）- 强调坚持和方法
+          intermediate: [
+            "记录 MAE 帮你认识真实风险，记录 MFE 帮你优化止盈",
+            "数据不会骗人，复盘让你看见自己的交易盲区",
+            "每一个数字背后，都是一次成长的机会",
+          ],
+          // 快完成（完成度 > 70%）- 鼓励和肯定
+          advanced: [
+            "坚持到这里，你已经超越了 90% 的交易者",
+            "最好的交易日记，是用数据写成的",
+            "再坚持一下，完整的数据会给你惊喜",
+          ]
+        };
+        
+        // 根据完成度选择金句类型
+        let quotePool;
+        if (completedPercent < 30) {
+          quotePool = wisdomQuotes.beginner;
+        } else if (completedPercent < 70) {
+          quotePool = wisdomQuotes.intermediate;
+        } else {
+          quotePool = wisdomQuotes.advanced;
+        }
+        
+        // 基于日期生成稳定的随机索引（每天显示同一条）
+        const today = new Date().toDateString();
+        const quoteIndex = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % quotePool.length;
+        const selectedQuote = quotePool[quoteIndex];
+        
+        return (
+          <div style={{
+            marginTop: 12,
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}>
+            {/* 主内容区 */}
+            <div style={{
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {/* 进度指示 */}
+                <div style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: '50%',
+                  background: `conic-gradient(var(--color-brand) ${completedPercent}%, var(--bg-tertiary) 0%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: 'var(--bg-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)'
+                  }}>
+                    {completedPercent}%
+                  </div>
+                </div>
+                
+                <div>
+                  <div style={{ 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: 'var(--text-primary)',
+                    marginBottom: 2
+                  }}>
+                    {missingCount} 笔交易缺少 MAE/MFE 数据
+                  </div>
+                  <div style={{ 
+                    fontSize: 11, 
+                    color: 'var(--text-tertiary)'
+                  }}>
+                    点击表格中 <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>+添加</span> 按钮可直接录入
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tooltip title="在表格的 MAE/MFE 列中，直接点击空白单元格即可录入数据">
+                  <Button
+                    type="text"
+                    size="small"
+                    style={{ 
+                      fontSize: 11, 
+                      color: 'var(--text-tertiary)',
+                      padding: '2px 8px',
+                      height: 'auto'
+                    }}
+                  >
+                    如何录入？
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
+            
+            {/* 金句区 - 底部引导语 */}
+            <div style={{
+              padding: '10px 20px',
+              background: 'var(--bg-tertiary)',
+              borderTop: '1px solid var(--border-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10
+            }}>
+              <span style={{ fontSize: 12, opacity: 0.5 }}>💡</span>
+              <span style={{ 
+                fontSize: 11, 
+                color: 'var(--text-secondary)',
+                fontStyle: 'italic',
+                letterSpacing: '0.2px'
+              }}>
+                "{selectedQuote}"
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 数据表格 */}
       <div 
         ref={tableWrapperRef}
@@ -1709,7 +2546,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         style={{ 
           background: 'var(--bg-secondary)', 
           border: '1px solid var(--border-primary)',
-          cursor: 'grab'
+          cursor: 'grab',
+          marginTop: 12
         }}
       >
         <Table
@@ -1731,8 +2569,474 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           scroll={{ x: hasJigsawData ? 2000 : 1100 }}
           size={rowHeightMap[tableConfig.rowHeight]?.size || 'middle'}
           className={`binance-table row-height-${tableConfig.rowHeight}`}
+          rowClassName={(record) => record.isMergedGroup ? 'merged-group-row' : ''}
         />
       </div>
+      
+      {/* 合并交易详情抽屉 */}
+      <Drawer
+        title={
+          selectedMergeGroup && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div 
+                style={{ 
+                  width: 40, 
+                  height: 40, 
+                  background: 'var(--bg-tertiary)', 
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border-primary)'
+                }}
+              >
+                <BarChartOutlined style={{ fontSize: 18, color: 'var(--text-secondary)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                  持仓分析
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
+                  {selectedMergeGroup.mergeStats?.tradeCount || 0} TRADES COMBINED
+                </div>
+              </div>
+            </div>
+          )
+        }
+        placement="right"
+        width="calc(100vw - 240px)"
+        open={mergeDrawerOpen}
+        onClose={closeMergeDrawer}
+        styles={{
+          header: { 
+            background: 'var(--bg-primary)', 
+            borderBottom: '1px solid var(--border-primary)',
+            padding: '20px 32px'
+          },
+          body: { 
+            background: 'var(--bg-primary)', 
+            padding: 0,
+            overflow: 'auto'
+          }
+        }}
+        destroyOnClose
+      >
+        {selectedMergeGroup && selectedMergeGroup.mergeStats && (() => {
+          const stats = selectedMergeGroup.mergeStats;
+          const trades = stats.trades || [];
+          const firstTrade = trades[0];
+          const overallDirection = firstTrade?.direction === 'LONG' ? 1 : -1;
+          
+          return (
+            <div style={{ padding: 0 }}>
+              {/* 持仓图表 */}
+              <div style={{ padding: '32px' }}>
+                <PositionChart 
+                  trades={trades} 
+                  overallDirection={overallDirection} 
+                  dayjs={dayjs}
+                  tradeGroupId={selectedMergeGroup?.id || 'default'}
+                  onStartReview={handleStartReview}
+                  reviewNotes={reviewNotes}
+                />
+              </div>
+              
+              {/* 交易明细列表 - 极简风格 */}
+              <div style={{ padding: '0 32px 48px' }}>
+                <div style={{ 
+                  fontSize: 12, 
+                  fontWeight: 700, 
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  marginBottom: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  <div style={{ width: 12, height: 1, background: 'var(--border-primary)' }}></div>
+                  交易明细
+                </div>
+                
+                {/* 表头 */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '100px 120px 80px 100px 120px 100px 1fr',
+                  gap: 12,
+                  padding: '0 16px 12px',
+                  borderBottom: '1px solid var(--border-primary)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  <div>操作</div>
+                  <div>执行时间</div>
+                  <div>方向</div>
+                  <div style={{ textAlign: 'right' }}>数量</div>
+                  <div style={{ textAlign: 'right' }}>成交价格</div>
+                  <div style={{ textAlign: 'right' }}>当前持仓</div>
+                  <div style={{ textAlign: 'right' }}>盈亏</div>
+                </div>
+                
+                {/* 数据行 */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {(() => {
+                    const allEvents = [];
+                    trades.forEach((t, tradeIdx) => {
+                      const qty = Math.abs(t.openQuantity || 1);
+                      allEvents.push({ 
+                        time: new Date(t.openTime).getTime(), 
+                        type: 'open', 
+                        price: t.openPrice, 
+                        qty, 
+                        trade: t,
+                        tradeIdx 
+                      });
+                      allEvents.push({ 
+                        time: new Date(t.closeTime).getTime(), 
+                        type: 'close', 
+                        price: t.closePrice, 
+                        qty, 
+                        trade: t,
+                        tradeIdx 
+                      });
+                    });
+                    allEvents.sort((a, b) => a.time - b.time);
+                    
+                    let runningPos = 0;
+                    let runningAvgPrice = 0;
+                    
+                    return allEvents.map((event, eventIdx) => {
+                      const prevPos = runningPos;
+                      const prevAvgPrice = runningAvgPrice;
+                      
+                      let label, labelColor;
+                      const t = event.trade;
+                      const pnl = t.pnl || 0;
+                      const isProfit = pnl >= 0;
+                      
+                      if (event.type === 'open') {
+                        if (prevPos === 0) {
+                          runningAvgPrice = event.price;
+                        } else {
+                          runningAvgPrice = (prevPos * runningAvgPrice + event.qty * event.price) / (prevPos + event.qty);
+                        }
+                        runningPos += event.qty;
+                        label = prevPos === 0 ? '首仓' : '加仓';
+                        const priceDiff = (event.price - prevAvgPrice) * overallDirection;
+                        labelColor = prevPos === 0 ? 'var(--text-primary)' : (priceDiff > 0 ? '#22c55e' : '#ef4444');
+                      } else {
+                        runningPos -= event.qty;
+                        label = runningPos === 0 ? '平仓' : '减仓';
+                        const priceDiff = (event.price - prevAvgPrice) * overallDirection;
+                        labelColor = priceDiff > 0 ? '#22c55e' : '#ef4444';
+                      }
+                      
+                      return (
+                        <div 
+                          key={eventIdx} 
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '100px 120px 80px 100px 120px 100px 1fr',
+                            gap: 12,
+                            padding: '16px',
+                            borderBottom: '1px solid var(--border-primary)',
+                            alignItems: 'center',
+                            fontSize: 12,
+                            transition: 'background 0.2s'
+                          }}
+                          className="minimal-row"
+                        >
+                          {/* 标签 */}
+                          <div>
+                            <span 
+                              onClick={() => handleStartReview(eventIdx, { label, color: labelColor, time: event.time, price: event.price, qty: event.qty, type: event.type })}
+                              style={{
+                                padding: '2px 0',
+                                color: labelColor,
+                                fontWeight: 700,
+                                fontSize: 11,
+                                cursor: 'pointer',
+                                borderBottom: reviewNotes[eventIdx] ? `2px solid ${labelColor}` : 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              {label}
+                            </span>
+                          </div>
+                          
+                          <div style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)', fontSize: 11 }}>
+                            {dayjs(event.time).format('HH:mm:ss')}
+                          </div>
+                          
+                          <div>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: t.direction === 'LONG' ? '#22c55e' : '#ef4444',
+                              opacity: 0.8
+                            }}>
+                              {t.direction === 'LONG' ? 'BUY' : 'SELL'}
+                            </span>
+                          </div>
+                          
+                          <div style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {event.type === 'open' ? '+' : '-'}{event.qty}
+                          </div>
+                          
+                          <div style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
+                            {event.price.toFixed(2)}
+                          </div>
+                          
+                          <div style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-tertiary)', fontSize: 11 }}>
+                            {runningPos.toFixed(1)}
+                          </div>
+                          
+                          <div style={{ 
+                            textAlign: 'right',
+                            fontFamily: 'JetBrains Mono, monospace',
+                            fontWeight: 700,
+                            color: event.type === 'close' ? (isProfit ? '#22c55e' : '#ef4444') : 'transparent'
+                          }}>
+                            {event.type === 'close' ? `${isProfit ? '+' : ''}${pnl.toFixed(2)}` : ''}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+                
+                {/* 汇总行 */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '100px 120px 80px 100px 120px 100px 1fr',
+                  gap: 12,
+                  padding: '20px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)'
+                }}>
+                  <div style={{ color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase' }}>Summary</div>
+                  <div></div>
+                  <div></div>
+                  <div style={{ textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {trades.reduce((sum, t) => sum + Math.abs(t.openQuantity || 1), 0)}
+                  </div>
+                  <div></div>
+                  <div></div>
+                  <div style={{ 
+                    textAlign: 'right',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 14,
+                    color: stats.totalPnl >= 0 ? '#22c55e' : '#ef4444'
+                  }}>
+                    {stats.totalPnl >= 0 ? '+' : ''}{(stats.totalPnl || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              
+              {/* 复盘笔记汇总 - 极简卡片 */}
+              {Object.keys(reviewNotes).length > 0 && (() => {
+                // 重新计算所有事件的 label 和 color，以便在点击时能正确打开复盘弹窗
+                const allEvents = [];
+                trades.forEach((t, tradeIdx) => {
+                  const qty = Math.abs(t.openQuantity || 1);
+                  allEvents.push({ time: new Date(t.openTime).getTime(), type: 'open', price: t.openPrice, qty, trade: t, tradeIdx });
+                  allEvents.push({ time: new Date(t.closeTime).getTime(), type: 'close', price: t.closePrice, qty, trade: t, tradeIdx });
+                });
+                allEvents.sort((a, b) => a.time - b.time);
+                
+                // 计算每个事件的标签信息
+                let runningPos = 0;
+                let runningAvgPrice = 0;
+                const eventLabels = allEvents.map((event, idx) => {
+                  const prevPos = runningPos;
+                  const prevAvgPrice = runningAvgPrice;
+                  let label, color;
+                  
+                  if (event.type === 'open') {
+                    if (prevPos === 0) {
+                      runningAvgPrice = event.price;
+                    } else {
+                      runningAvgPrice = (prevPos * runningAvgPrice + event.qty * event.price) / (prevPos + event.qty);
+                    }
+                    runningPos += event.qty;
+                    label = prevPos === 0 ? '首仓' : '加仓';
+                    const priceDiff = (event.price - prevAvgPrice) * overallDirection;
+                    color = prevPos === 0 ? 'var(--text-primary)' : (priceDiff > 0 ? '#22c55e' : '#ef4444');
+                  } else {
+                    runningPos -= event.qty;
+                    label = runningPos === 0 ? '平仓' : '减仓';
+                    const priceDiff = (event.price - prevAvgPrice) * overallDirection;
+                    color = priceDiff > 0 ? '#22c55e' : '#ef4444';
+                  }
+                  
+                  return { label, color, time: event.time, price: event.price, qty: event.qty, type: event.type };
+                });
+                
+                return (
+                  <div style={{ padding: '0 32px 64px' }}>
+                    <div style={{
+                      borderTop: '1px solid var(--border-primary)',
+                      paddingTop: 32
+                    }}>
+                      <div style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--text-tertiary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        marginBottom: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                      }}>
+                        <div style={{ width: 12, height: 1, background: 'var(--border-primary)' }}></div>
+                        复盘笔记
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                        {Object.entries(reviewNotes).map(([nodeIdx, note]) => {
+                          const hasContent = Object.values(note).some(v => v && v.trim());
+                          if (!hasContent) return null;
+                          
+                          const eventIdx = parseInt(nodeIdx);
+                          const eventInfo = eventLabels[eventIdx] || { label: '复盘', color: 'var(--text-primary)' };
+                          
+                          return (
+                            <div 
+                              key={nodeIdx}
+                              onClick={() => handleStartReview(eventIdx, eventInfo)}
+                              style={{
+                                padding: '20px',
+                                background: 'var(--bg-secondary)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                border: '1px solid var(--border-primary)',
+                                transition: 'all 0.2s'
+                              }}
+                              className="note-card"
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <span style={{ 
+                                  fontSize: 11, 
+                                  fontWeight: 700, 
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  background: `${eventInfo.color}15`,
+                                  color: eventInfo.color
+                                }}>
+                                  {eventInfo.label}
+                                </span>
+                                <EditOutlined style={{ fontSize: 12, color: 'var(--text-tertiary)' }} />
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {Object.entries(note).filter(([k, v]) => v && v.trim()).map(([key, value]) => (
+                                  <div key={key}>
+                                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase', fontWeight: 600 }}>
+                                      {REVIEW_TEMPLATES[eventInfo.label]?.questions?.find(q => q.key === key)?.label || 
+                                       REVIEW_TEMPLATES['首仓']?.questions?.find(q => q.key === key)?.label || 
+                                       REVIEW_TEMPLATES['加仓']?.questions?.find(q => q.key === key)?.label || 
+                                       REVIEW_TEMPLATES['减仓']?.questions?.find(q => q.key === key)?.label || 
+                                       REVIEW_TEMPLATES['平仓']?.questions?.find(q => q.key === key)?.label || key}
+                                    </div>
+                                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                      {value}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        })()}
+      </Drawer>
+      
+      {/* 复盘编辑弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {reviewingEvent && (
+              <span style={{
+                padding: '4px 12px',
+                borderRadius: 6,
+                background: `${reviewingEvent.point?.color || 'var(--color-brand)'}20`,
+                color: reviewingEvent.point?.color || 'var(--color-brand)',
+                fontWeight: 700,
+                fontSize: 12
+              }}>
+                {reviewingEvent.point?.label || '复盘'}
+              </span>
+            )}
+            <span>{REVIEW_TEMPLATES[reviewingEvent?.point?.label]?.title || '交易复盘'}</span>
+          </div>
+        }
+        open={reviewModalVisible}
+        onCancel={handleCancelReview}
+        onOk={handleSaveReview}
+        okText="保存复盘"
+        cancelText="取消"
+        width={520}
+        styles={{
+          header: { background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' },
+          body: { background: 'var(--bg-primary)', padding: 24 },
+          footer: { background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-primary)' },
+        }}
+      >
+        {reviewingEvent && (
+          <>
+            <div style={{ 
+              marginBottom: 16, 
+              padding: 12, 
+              background: 'var(--bg-secondary)', 
+              borderRadius: 8,
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: 'var(--text-tertiary)'
+            }}>
+              {reviewingEvent.point?.time && dayjs(reviewingEvent.point.time).format('YYYY-MM-DD HH:mm:ss')}
+              {reviewingEvent.point?.qty && ` | ${reviewingEvent.point.qty}手`}
+              {reviewingEvent.point?.price && ` @ ${reviewingEvent.point.price.toFixed(2)}`}
+            </div>
+            
+            {(REVIEW_TEMPLATES[reviewingEvent.point?.label]?.questions || []).map((q) => (
+              <div key={q.key} style={{ marginBottom: 16 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 6
+                }}>
+                  {q.label}
+                </label>
+                <Input.TextArea
+                  value={editingReview[q.key] || ''}
+                  onChange={(e) => setEditingReview(prev => ({ ...prev, [q.key]: e.target.value }))}
+                  placeholder={q.placeholder}
+                  rows={2}
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: 6,
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+            ))}
+          </>
+        )}
+      </Modal>
       
       {/* 表格设置抽屉 */}
       <Drawer
@@ -2138,131 +3442,6 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         </Form>
       </Modal>
 
-      {/* MAE/MFE 编辑弹窗 */}
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand-bg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <EditOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
-            </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>编辑 MAE / MFE</span>
-          </div>
-        }
-        open={maeMfeEditVisible}
-        onOk={handleSaveMaeMfe}
-        onCancel={() => setMaeMfeEditVisible(false)}
-        okText="保存"
-        cancelText="取消"
-        width={400}
-        okButtonProps={{
-          style: {
-            background: 'var(--color-brand)',
-            borderColor: 'var(--color-brand)',
-            color: 'var(--bg-primary)',
-            fontWeight: 600,
-            borderRadius: 4
-          }
-        }}
-        cancelButtonProps={{
-          style: {
-            borderColor: 'var(--border-primary)',
-            color: 'var(--text-secondary)',
-            borderRadius: 4
-          }
-        }}
-      >
-        {maeMfeEditingTrade && (
-          <>
-            {/* 交易信息概览 */}
-            <div 
-              className="mb-4 p-3 rounded-lg flex items-center justify-between"
-              style={{ background: 'var(--bg-tertiary)' }}
-            >
-              <div className="flex items-center gap-3">
-                <span 
-                  className="font-mono font-bold px-2 py-1 rounded"
-                  style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-                >
-                  {maeMfeEditingTrade.instrumentCode}
-                </span>
-                <span style={{ color: maeMfeEditingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' }}>
-                  {maeMfeEditingTrade.direction === 'LONG' ? '多' : '空'}
-                </span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-                  {dayjs(maeMfeEditingTrade.openTime).format('MM-DD HH:mm')}
-                </span>
-              </div>
-              <div 
-                className="font-mono font-bold"
-                style={{ color: maeMfeEditingTrade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
-              >
-                {maeMfeEditingTrade.pnl >= 0 ? '+' : ''}{maeMfeEditingTrade.pnl?.toFixed(2)}
-              </div>
-            </div>
-
-            {/* 说明 */}
-            <div 
-              className="mb-4 p-3 rounded-lg text-xs"
-              style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', color: 'var(--text-secondary)' }}
-            >
-              <InfoCircleOutlined style={{ color: 'var(--color-brand)', marginRight: 6 }} />
-              MAE = 最大浮亏（持仓期间最大不利偏移）<br/>
-              MFE = 最大浮盈（持仓期间最大有利偏移）<br/>
-              请输入美元金额，系统将自动转换。
-            </div>
-
-            <Form form={maeMfeForm} layout="vertical">
-              <Form.Item 
-                name="maeUSD" 
-                label={
-                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--color-loss)' }}>●</span>
-                    最大浮亏 (MAE)
-                  </span>
-                }
-              >
-                <InputNumber
-                  className="w-full"
-                  placeholder="输入最大浮亏金额"
-                  prefix="$"
-                  min={0}
-                  step={10}
-                  precision={0}
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-              <Form.Item 
-                name="mfeUSD" 
-                label={
-                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--color-profit)' }}>●</span>
-                    最大浮盈 (MFE)
-                  </span>
-                }
-              >
-                <InputNumber
-                  className="w-full"
-                  placeholder="输入最大浮盈金额"
-                  prefix="$"
-                  min={0}
-                  step={10}
-                  precision={0}
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Form>
-          </>
-        )}
-      </Modal>
-
       <style>{`
         .binance-table .ant-table {
           background: transparent !important;
@@ -2357,6 +3536,691 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         }
         .row-height-large .ant-table-tbody > tr > td * {
           font-size: 14px !important;
+        }
+        
+        /* MAE/MFE 内联编辑输入框 */
+        .mae-mfe-input {
+          background: var(--bg-tertiary) !important;
+          border-color: var(--color-brand) !important;
+        }
+        .mae-mfe-input .ant-input-number-input {
+          color: var(--text-primary) !important;
+          font-family: 'JetBrains Mono', monospace !important;
+          font-size: 12px !important;
+        }
+        .mae-mfe-input .ant-input-number-prefix {
+          color: var(--text-tertiary) !important;
+        }
+        
+        /* 合并组行样式 */
+        .merged-group-row > td {
+          background: rgba(234, 179, 8, 0.03) !important;
+        }
+        .merged-group-row:hover > td {
+          background: rgba(234, 179, 8, 0.08) !important;
+        }
+        
+        /* 展开行样式 */
+        .binance-table .ant-table-expanded-row > td {
+          background: var(--bg-tertiary) !important;
+          padding: 0 !important;
+        }
+
+        /* 专业金融风格持仓曲线图样式 */
+        .professional-chart-container {
+          padding: 24px;
+          background: var(--bg-primary);
+        }
+
+        .pro-stats-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--border-primary);
+        }
+
+        .pro-stat-group {
+          display: flex;
+          gap: 32px;
+        }
+
+        .pro-stat-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .pro-label {
+          font-size: 10px;
+          color: var(--text-tertiary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .pro-value {
+          font-size: 18px;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', monospace;
+          color: var(--text-primary);
+        }
+
+        .pro-value.profit { color: #22c55e; }
+        .pro-value.loss { color: #ef4444; }
+        .pro-value.long { color: #22c55e; }
+        .pro-value.short { color: #ef4444; }
+
+        .pro-controls {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .pro-scale-badge {
+          font-size: 10px;
+          padding: 2px 6px;
+          background: var(--bg-tertiary);
+          border-radius: 4px;
+          color: var(--text-tertiary);
+          font-family: monospace;
+        }
+
+        .pro-reset-btn {
+          padding: 4px 10px;
+          font-size: 10px;
+          background: transparent;
+          border: 1px solid var(--border-primary);
+          border-radius: 4px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .pro-reset-btn:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
+        }
+
+        .pro-svg-wrapper {
+          background: #0d1117; /* 深色背景更显专业 */
+          border: 1px solid var(--border-primary);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .pro-svg {
+          display: block;
+        }
+
+        /* 兼容旧样式 */
+        .minimal-chart-container {
+          padding: 32px;
+          background: var(--bg-primary);
+        }
+
+        .chart-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+
+        /* 现代专业持仓图表样式 */
+        .modern-chart-container {
+          padding: 24px;
+          background: var(--bg-primary);
+          color: var(--text-primary);
+        }
+
+        .modern-chart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 24px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid var(--border-primary);
+        }
+
+        .header-info .direction-tag {
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 1.5px;
+          margin-bottom: 8px;
+        }
+
+        .stats-group {
+          display: flex;
+          gap: 32px;
+        }
+
+        .stat {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .stat .label {
+          font-size: 10px;
+          color: var(--text-tertiary);
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+
+        .stat .value {
+          font-size: 24px;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header-controls {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 12px;
+        }
+
+        .legend {
+          display: flex;
+          gap: 16px;
+        }
+
+        .legend .item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-secondary);
+        }
+
+        .legend .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .legend .line {
+          width: 16px;
+        }
+
+        .reset-btn {
+          padding: 4px 12px;
+          font-size: 10px;
+          font-weight: 700;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
+          color: var(--text-secondary);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+          background: var(--text-primary);
+          color: var(--bg-primary);
+        }
+
+        .modern-svg-wrapper {
+          background: var(--bg-secondary);
+          border-radius: 12px;
+          border: 1px solid var(--border-primary);
+          overflow: hidden;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .modern-svg {
+          display: block;
+        }
+
+        /* 复盘节点悬停效果 */
+        .review-label-btn {
+          transition: transform 0.2s;
+        }
+        .review-label-btn:hover {
+          transform: scale(1.1);
+        }
+
+        @keyframes pulse-soft {
+          0% { opacity: 0.7; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0.7; transform: scale(1); }
+        }
+
+        /* 复盘标签按钮 */
+        .review-label-btn:hover rect {
+          fill: rgba(255,255,255,0.1) !important;
+          stroke: currentColor !important;
+        }
+
+        /* 复盘弹窗覆盖层 */
+        .review-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          backdrop-filter: blur(4px);
+        }
+
+        .review-modal {
+          background: var(--bg-primary);
+          border: 1px solid var(--border-primary);
+          border-radius: 12px;
+          width: 480px;
+          max-width: 90vw;
+          max-height: 80vh;
+          overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .review-modal-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border-primary);
+          background: var(--bg-secondary);
+        }
+
+        .review-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .review-label-badge {
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .review-modal-meta {
+          margin-top: 8px;
+          font-size: 12px;
+          color: var(--text-tertiary);
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .review-modal-body {
+          padding: 20px 24px;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+
+        .review-question {
+          margin-bottom: 16px;
+        }
+
+        .review-question label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          margin-bottom: 6px;
+        }
+
+        .review-question textarea {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid var(--border-primary);
+          border-radius: 6px;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          font-size: 13px;
+          resize: vertical;
+          transition: border-color 0.2s;
+        }
+
+        .review-question textarea:focus {
+          outline: none;
+          border-color: var(--color-brand);
+        }
+
+        .review-question textarea::placeholder {
+          color: var(--text-tertiary);
+        }
+
+        .review-modal-footer {
+          padding: 16px 24px;
+          border-top: 1px solid var(--border-primary);
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          background: var(--bg-secondary);
+        }
+
+        .review-btn-cancel, .review-btn-save {
+          padding: 8px 20px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .review-btn-cancel {
+          background: transparent;
+          border: 1px solid var(--border-primary);
+          color: var(--text-secondary);
+        }
+
+        .review-btn-cancel:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
+        }
+
+        .review-btn-save {
+          background: var(--color-brand);
+          border: none;
+          color: #0a0a0c;
+        }
+
+        .review-btn-save:hover {
+          filter: brightness(1.1);
+        }
+
+        /* 复盘笔记汇总 */
+        .review-summary {
+          margin-top: 20px;
+          padding: 16px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-primary);
+          border-radius: 8px;
+        }
+
+        .review-summary-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+        }
+
+        .review-summary-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .review-summary-item {
+          padding: 12px;
+          background: var(--bg-primary);
+          border: 1px solid var(--border-primary);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .review-summary-item:hover {
+          border-color: var(--color-brand);
+        }
+
+        .review-item-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .review-item-label {
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .review-item-time {
+          font-size: 10px;
+          color: var(--text-tertiary);
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .review-item-content {
+          font-size: 11px;
+        }
+
+        .review-item-note {
+          margin-bottom: 4px;
+          line-height: 1.4;
+        }
+
+        .review-item-note .note-label {
+          color: var(--text-tertiary);
+          margin-right: 4px;
+        }
+
+        .review-item-note .note-value {
+          color: var(--text-secondary);
+        }
+
+        /* 兼容旧样式 */
+        .professional-chart-container {
+          padding: 16px 20px;
+          background: var(--bg-secondary);
+        }
+
+        .chart-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+
+        .direction-badge {
+          font-size: 13px;
+          font-weight: 700;
+          padding: 6px 14px;
+          border-radius: 8px;
+        }
+
+        .chart-legend {
+          display: flex;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-secondary);
+        }
+
+        .legend-item .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .legend-item .line-sample {
+          width: 16px;
+          height: 0;
+          border-top: 2px dashed;
+        }
+
+        .chart-controls {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .scale-label {
+          font-size: 10px;
+          color: var(--text-tertiary);
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .scale-handle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
+          border-radius: 6px;
+          cursor: ns-resize;
+          color: var(--text-secondary);
+          transition: all 0.2s;
+        }
+
+        .scale-handle:hover {
+          background: var(--color-brand);
+          color: var(--bg-primary);
+          border-color: var(--color-brand);
+        }
+
+        .scale-btn {
+          padding: 4px 10px;
+          font-size: 10px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
+          border-radius: 4px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .scale-btn:hover {
+          background: var(--bg-primary);
+          color: var(--text-primary);
+        }
+
+        .chart-scroll-container {
+          border-radius: 8px;
+          background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 100%);
+        }
+
+        .position-chart-svg {
+          display: block;
+          margin-bottom: 16px;
+          border-radius: 8px;
+          background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 100%);
+        }
+
+        /* 底部交易明细 */
+        .trade-summary-row {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          padding: 4px 0;
+        }
+
+        .summary-item {
+          flex: 0 0 auto;
+          min-width: 160px;
+          background: var(--bg-tertiary);
+          border-radius: 8px;
+          padding: 12px;
+          border: 1px solid var(--border-primary);
+          transition: all 0.2s;
+        }
+
+        .summary-item:hover {
+          border-color: var(--color-brand);
+        }
+
+        .summary-item.float-profit {
+          border-left: 3px solid var(--color-profit);
+        }
+
+        .summary-item.float-loss {
+          border-left: 3px solid #f59e0b;
+        }
+
+        .summary-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .summary-num {
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--color-brand);
+          background: rgba(234, 179, 8, 0.1);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .summary-label {
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .float-amount {
+          font-size: 10px;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .close-float-amount {
+          font-size: 10px;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', monospace;
+          margin-left: 4px;
+        }
+
+        .summary-body {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .summary-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .summary-qty {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .summary-price {
+          font-size: 11px;
+          color: var(--text-secondary);
+        }
+
+        .summary-avg {
+          font-size: 10px;
+          color: var(--text-tertiary);
+          padding: 2px 6px;
+          background: var(--bg-primary);
+          border-radius: 4px;
+        }
+
+        .summary-close {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          padding-top: 6px;
+          border-top: 1px dashed var(--border-primary);
+        }
+
+        .close-price {
+          color: var(--text-tertiary);
+        }
+
+        .summary-pnl {
+          font-size: 15px;
+          font-weight: 700;
+          margin-top: 4px;
         }
       `}</style>
     </div>
