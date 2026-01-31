@@ -495,12 +495,26 @@ const PositionChart = ({ trades, overallDirection, dayjs, tradeGroupId, onStartR
   const [scale, setScale] = useState(1);
   const [hoveredNode, setHoveredNode] = useState(null);
   const containerRef = useRef(null);
+  const svgWrapperRef = useRef(null);
 
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
-  };
+  // 使用 useEffect 添加非 passive 的 wheel 事件监听器
+  useEffect(() => {
+    const wrapper = svgWrapperRef.current;
+    if (!wrapper) return;
+    
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
+    };
+    
+    // 添加非 passive 的事件监听器
+    wrapper.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      wrapper.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   // 构建时间线事件
   const events = [];
@@ -650,7 +664,7 @@ const PositionChart = ({ trades, overallDirection, dayjs, tradeGroupId, onStartR
         </div>
       </div>
 
-      <div className="modern-svg-wrapper" onWheel={handleWheel}>
+      <div className="modern-svg-wrapper" ref={svgWrapperRef}>
         <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="modern-svg">
           <defs>
             <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
