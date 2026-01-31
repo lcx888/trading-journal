@@ -264,7 +264,7 @@ function App() {
   const goToPricing = () => {
     setShowUpgradeModal(false);
     startTransition(() => {
-      setCurrentPage('pricing');
+    setCurrentPage('pricing');
     });
   };
 
@@ -282,8 +282,8 @@ function App() {
 
   const handleMenuClick = ({ key }) => {
     startTransition(() => {
-      setCurrentPage(key);
-      setPageKey(k => k + 1);
+    setCurrentPage(key);
+    setPageKey(k => k + 1);
     });
   };
 
@@ -385,10 +385,10 @@ function App() {
       return (
         <Suspense fallback={<PageLoading />}>
           <Auth 
-            onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
+        onAuth={(user) => { setAuthUser(user); setResetToken(null); }} 
             onBack={() => startTransition(() => { setShowAuth(false); setResetToken(null); })}
-            initialMode={authMode}
-            resetToken={resetToken}
+        initialMode={authMode}
+        resetToken={resetToken}
           />
         </Suspense>
       );

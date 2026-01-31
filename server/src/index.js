@@ -762,6 +762,107 @@ app.delete('/trades', authRequired, async (req, res) => {
   return res.json({ success: true });
 });
 
+// 批量更新交易时区
+app.post('/trades/update-timezone', authRequired, async (req, res) => {
+  const { oldTimezone, newTimezone, timezoneType } = req.body || {};
+  
+  if (!oldTimezone || !newTimezone || !timezoneType) {
+    return res.status(400).json({ message: '缺少必要参数' });
+  }
+  
+  try {
+    // 获取所有交易
+    const trades = await prisma.trade.findMany({
+      where: { userId: req.user.id },
+    });
+    
+    // 计算时区偏移（小时）
+    const timezoneOffsets = {
+      'America/New_York': -5,
+      'America/Chicago': -6,
+      'Europe/London': 0,
+      'Europe/Berlin': 1,
+      'Asia/Tokyo': 9,
+      'Asia/Shanghai': 8,
+      'Asia/Hong_Kong': 8,
+      'Asia/Singapore': 8,
+      'Australia/Sydney': 11,
+      'UTC': 0,
+    };
+    
+    const oldOffset = timezoneOffsets[oldTimezone] ?? 0;
+    const newOffset = timezoneOffsets[newTimezone] ?? 0;
+    const diffHours = newOffset - oldOffset;
+    const diffMs = diffHours * 60 * 60 * 1000;
+    
+    // 计算市场时段的辅助函数
+    const getMarketSession = (date) => {
+      if (!date) return '未知';
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '未知';
+      
+      const hour = d.getHours();
+      const minute = d.getMinutes();
+      const timeValue = hour * 60 + minute;
+      
+      // 检测美国夏令时（简化版：4-10月为夏令时）
+      const month = d.getMonth() + 1;
+      const isUSDST = month >= 4 && month <= 10;
+      
+      const ASIA_START = 480;      // 08:00
+      const ASIA_END = 960;        // 16:00
+      const EURO_START = isUSDST ? 900 : 960;
+      const US_OPEN = isUSDST ? 1290 : 1350;
+      const US_OPEN_END = US_OPEN + 60;
+      const OFF_MARKET_START = isUSDST ? 240 : 300;
+      
+      if (timeValue >= ASIA_START && timeValue < ASIA_END) return '亚盘';
+      if (timeValue >= EURO_START && timeValue < US_OPEN) return '欧盘';
+      if (timeValue >= US_OPEN && timeValue < US_OPEN_END) return '美盘开盘';
+      if (timeValue >= US_OPEN_END && timeValue < 1440) return '美盘';
+      if (timeValue >= 0 && timeValue < OFF_MARKET_START) return '美盘';
+      if (timeValue >= OFF_MARKET_START && timeValue < ASIA_START) return '场外';
+      return '场外';
+    };
+    
+    // 批量更新
+    let updated = 0;
+    for (const trade of trades) {
+      const data = typeof trade.data === 'string' ? JSON.parse(trade.data) : trade.data;
+      
+      // 更新时间字段
+      const newOpenTime = trade.openTime ? new Date(new Date(trade.openTime).getTime() + diffMs) : null;
+      const newCloseTime = data?.closeTime ? new Date(new Date(data.closeTime).getTime() + diffMs) : null;
+      
+      // 重新计算市场时段
+      const newMarketSession = getMarketSession(newOpenTime);
+      
+      // 更新 data 中的时区信息和时段
+      const updatedData = {
+        ...data,
+        openTime: newOpenTime,
+        closeTime: newCloseTime,
+        marketSession: newMarketSession,
+        [timezoneType === 'display' ? 'displayTimezone' : 'sourceTimezone']: newTimezone,
+      };
+      
+      await prisma.trade.update({
+        where: { id: trade.id },
+        data: {
+          openTime: newOpenTime,
+          data: JSON.stringify(updatedData),
+        },
+      });
+      updated++;
+    }
+    
+    return res.json({ success: true, updated });
+  } catch (error) {
+    console.error('Update timezone error:', error);
+    return res.status(500).json({ message: '更新失败', error: error.message });
+  }
+});
+
 // ========== Strategies ==========
 app.get('/strategies', authRequired, async (req, res) => {
   const strategies = await prisma.strategy.findMany({

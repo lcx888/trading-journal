@@ -86,16 +86,44 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
     message.success('交易员名称已保存');
   };
 
-  const handleTimezoneChange = (tz) => {
+  const handleTimezoneChange = async (tz) => {
+    const oldTz = userTimezone;
     setUserTimezone(tz);
     StorageService.setUserTimezone(tz);
-    message.success('时区设置已保存');
+    
+    // 批量更新所有交易的时区
+    try {
+      message.loading({ content: '正在更新所有订单时间...', key: 'timezone', duration: 0 });
+      await StorageService.updateTradesTimezone(oldTz, tz, 'display');
+      message.success({ content: '时区设置已保存，所有订单时间已更新', key: 'timezone' });
+      // 刷新页面以显示新时间
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      message.error({ content: '更新订单时间失败，请重试', key: 'timezone' });
+      console.error('Update timezone error:', error);
+    }
   };
 
-  const handleDataSourceTimezoneChange = (tz) => {
+  const handleDataSourceTimezoneChange = async (tz) => {
+    const oldTz = dataSourceTimezone;
     setDataSourceTimezone(tz);
     StorageService.setDataSourceTimezone(tz);
-    message.success('数据源时区已保存');
+    
+    // 批量更新所有交易的时区
+    try {
+      message.loading({ content: '正在更新所有订单时间...', key: 'timezone', duration: 0 });
+      await StorageService.updateTradesTimezone(oldTz, tz, 'source');
+      message.success({ content: '数据源时区已保存，所有订单时间已更新', key: 'timezone' });
+      // 刷新页面以显示新时间
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      message.error({ content: '更新订单时间失败，请重试', key: 'timezone' });
+      console.error('Update timezone error:', error);
+    }
   };
 
   // 品种管理

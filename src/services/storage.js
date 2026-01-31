@@ -108,6 +108,40 @@ export const StorageService = {
     return instruments.find(i => i.code === code);
   },
 
+  async addInstrument(instrument) {
+    const instruments = await this.getInstruments();
+    // 检查是否已存在
+    if (instruments.find(i => i.code === instrument.code)) {
+      throw new Error('品种代码已存在');
+    }
+    instruments.push(instrument);
+    await this.saveInstruments(instruments);
+  },
+
+  async updateInstrument(code, updates) {
+    const instruments = await this.getInstruments();
+    const index = instruments.findIndex(i => i.code === code);
+    if (index === -1) {
+      throw new Error('品种不存在');
+    }
+    instruments[index] = { ...instruments[index], ...updates };
+    await this.saveInstruments(instruments);
+  },
+
+  async deleteInstrument(code) {
+    const instruments = await this.getInstruments();
+    const filtered = instruments.filter(i => i.code !== code);
+    await this.saveInstruments(filtered);
+  },
+
+  // ========== 时区批量更新 ==========
+  async updateTradesTimezone(oldTimezone, newTimezone, timezoneType) {
+    return await apiRequest('/trades/update-timezone', {
+      method: 'POST',
+      body: { oldTimezone, newTimezone, timezoneType },
+    });
+  },
+
   // ========== 导入记录 ==========
   async getImportHistory() {
     return await apiRequest('/imports');

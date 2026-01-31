@@ -977,7 +977,9 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       const kw = filters.keyword.toLowerCase();
       result = result.filter(t => 
         t.instrumentCode?.toLowerCase().includes(kw) ||
-        t.logicAnalysis?.toLowerCase().includes(kw) ||
+        t.entryReason?.toLowerCase().includes(kw) ||
+        t.stopLossReason?.toLowerCase().includes(kw) ||
+        t.takeProfitReason?.toLowerCase().includes(kw) ||
         t.notes?.toLowerCase().includes(kw)
       );
     }
@@ -1080,8 +1082,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     form.setFieldsValue({
       expectedTrend: trade.expectedTrend,
       strategyIds: trade.strategyIds || [],
-      logicAnalysis: trade.logicAnalysis,
-      notes: trade.notes,
+      entryReason: trade.entryReason || '',
+      stopLossReason: trade.stopLossReason || '',
+      takeProfitReason: trade.takeProfitReason || '',
+      notes: trade.notes || '',
     });
     setEditModalVisible(true);
   };
@@ -1574,7 +1578,22 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       },
     },
     {
-      title: '时段',
+      title: (
+        <Tooltip 
+          title={
+            <span>
+              时段根据开仓时间自动判断<br/>
+              如显示不正确，请在<b>设置</b>中调整时区
+            </span>
+          }
+          placement="top"
+        >
+          <span style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            时段
+            <InfoCircleOutlined style={{ fontSize: 10, opacity: 0.5 }} />
+          </span>
+        </Tooltip>
+      ),
       dataIndex: 'marketSession',
       key: 'marketSession',
       width: 100,
@@ -3169,46 +3188,72 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         </div>
       </Drawer>
 
-      {/* 编辑模态框 */}
-      <Modal
+      {/* 交易复盘抽屉 */}
+      <Drawer
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand-bg)', 
+              width: 40, 
+              height: 40, 
+              borderRadius: '50%', 
+              background: 'var(--bg-tertiary)', 
               display: 'flex', 
               alignItems: 'center', 
-              justifyContent: 'center' 
+              justifyContent: 'center',
+              border: '1px solid var(--border-primary)'
             }}>
-              <EditOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
+              <EditOutlined style={{ color: 'var(--text-secondary)', fontSize: 18 }} />
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>交易复盘</span>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                交易复盘
+              </div>
+              {editingTrade && (
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  {editingTrade.instrumentCode} · {dayjs(editingTrade.openTime).format('MM-DD HH:mm')}
+                </div>
+              )}
+            </div>
           </div>
         }
+        placement="right"
+        width={520}
         open={editModalVisible}
-        onOk={handleEditSave}
-        onCancel={() => setEditModalVisible(false)}
-        okText="保存"
-        cancelText="取消"
-        width={680}
-        okButtonProps={{
-          style: {
-            background: 'var(--color-brand)',
-            borderColor: 'var(--color-brand)',
-            color: 'var(--bg-primary)',
-            fontWeight: 600,
-            borderRadius: 4
+        onClose={() => setEditModalVisible(false)}
+        styles={{
+          header: { 
+            background: 'var(--bg-primary)', 
+            borderBottom: '1px solid var(--border-primary)',
+            padding: '20px 24px'
+          },
+          body: { 
+            background: 'var(--bg-primary)', 
+            padding: '24px',
+            overflow: 'auto'
+          },
+          footer: {
+            background: 'var(--bg-primary)',
+            borderTop: '1px solid var(--border-primary)',
+            padding: '16px 24px'
           }
         }}
-        cancelButtonProps={{
-          style: {
-            borderColor: 'var(--border-primary)',
-            color: 'var(--text-secondary)',
-            borderRadius: 4
-          }
-        }}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <Button 
+              onClick={() => setEditModalVisible(false)}
+              style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
+            >
+              取消
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleEditSave}
+              style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }}
+            >
+              保存复盘
+            </Button>
+          </div>
+        }
       >
         {editingTrade && (() => {
           const mae = editingTrade.mae ?? editingTrade.jigsawData?.mae;
@@ -3413,7 +3458,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         <Form form={form} layout="vertical">
           <Form.Item 
             name="strategyIds" 
-            label={<span style={{ color: 'var(--text-secondary)' }}>交易策略</span>}
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>交易策略</span>}
           >
             <Select 
               mode="multiple" 
@@ -3421,26 +3466,65 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               options={strategies.map(s => ({ value: s.id, label: s.name }))} 
             />
           </Form.Item>
+          
+          <div style={{ 
+            fontSize: 12, 
+            fontWeight: 600, 
+            color: 'var(--text-tertiary)', 
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            marginBottom: 16,
+            marginTop: 24,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            <div style={{ width: 12, height: 1, background: 'var(--border-primary)' }}></div>
+            复盘记录
+          </div>
+          
           <Form.Item 
-            name="logicAnalysis" 
-            label={<span style={{ color: 'var(--text-secondary)' }}>技术分析 / 入场逻辑</span>}
+            name="entryReason" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>入场理由</span>}
           >
             <TextArea 
-              rows={3} 
-              placeholder="描述入场时的市场背景、技术信号..." 
+              rows={2} 
+              placeholder="为什么在这个点位入场？看到了什么信号？" 
+              style={{ resize: 'none' }}
+            />
+          </Form.Item>
+          <Form.Item 
+            name="stopLossReason" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>止损理由</span>}
+          >
+            <TextArea 
+              rows={2} 
+              placeholder="止损位设置的依据是什么？" 
+              style={{ resize: 'none' }}
+            />
+          </Form.Item>
+          <Form.Item 
+            name="takeProfitReason" 
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>止盈理由</span>}
+          >
+            <TextArea 
+              rows={2} 
+              placeholder="止盈目标是如何确定的？" 
+              style={{ resize: 'none' }}
             />
           </Form.Item>
           <Form.Item 
             name="notes" 
-            label={<span style={{ color: 'var(--text-secondary)' }}>复盘笔记</span>}
+            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>其他备注</span>}
           >
             <TextArea 
-              rows={3} 
-              placeholder="记录心态、失误、可改进之处..." 
+              rows={2} 
+              placeholder="心态、失误、可改进之处..." 
+              style={{ resize: 'none' }}
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
       <style>{`
         .binance-table .ant-table {
