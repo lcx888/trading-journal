@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Table, Tag, Space, Select, DatePicker, Input, Button, 
   Modal, Form, message, Popconfirm, Tooltip, Dropdown, Progress,
@@ -29,6 +30,8 @@ import {
   ColumnHeightOutlined,
   MergeCellsOutlined,
   SplitCellsOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
@@ -803,6 +806,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [instruments, setInstruments] = useState([]);
   const [strategies, setStrategies] = useState([]);
   const [hasJigsawData, setHasJigsawData] = useState(false);
+  const [traderName, setTraderName] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     instrument: 'ALL',
@@ -822,6 +826,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   // MAE/MFE 内联编辑状态
   const [editingMaeMfe, setEditingMaeMfe] = useState({ tradeId: null, field: null });
   const [editingValue, setEditingValue] = useState(null);
+  const [maeMfeInputMode, setMaeMfeInputMode] = useState('tick'); // 'tick' 或 'usd' - 输入模式
   
   // 合并交易状态
   const [mergeEnabled, setMergeEnabled] = useState(true); // 是否启用合并显示
@@ -837,6 +842,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   // ========== 表格配置状态 ==========
   const [tableConfig, setTableConfig] = useState(loadTableConfig);
   const [showTableSettings, setShowTableSettings] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const tableWrapperRef = useRef(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, scrollLeft: 0 });
@@ -941,6 +947,22 @@ const TradeList = ({ activeRecordId = 'all' }) => {
 
   useEffect(() => { loadData(); }, [activeRecordId]);
   useEffect(() => { applyFilters(); }, [trades, filters, mergeEnabled, instruments]);
+
+  useEffect(() => {
+    const name = StorageService.getTraderName();
+    setTraderName(name);
+  }, []);
+
+  // ESC 键退出全屏
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1123,21 +1145,35 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   };
 
   // 开始编辑 MAE/MFE
-  const startEditMaeMfe = (tradeId, field, currentValue) => {
+  const startEditMaeMfe = (tradeId, field, currentValue, trade) => {
     setEditingMaeMfe({ tradeId, field });
-    setEditingValue(currentValue);
+    // 如果是 tick 模式，显示原始 tick 值；如果是 USD 模式，显示换算后的 USD 值
+    if (maeMfeInputMode === 'tick') {
+      // 直接使用 tick 值
+      const tickVal = trade?.[field] ?? trade?.jigsawData?.[field];
+      setEditingValue(tickVal !== undefined && tickVal !== null ? tickVal : null);
+    } else {
+      // 使用 USD 值（已换算）
+      setEditingValue(currentValue);
+    }
   };
 
   // 保存 MAE/MFE 内联编辑
   const saveMaeMfeInline = async (trade, field, value) => {
     try {
-      const tickValue = getTickValue(trade.instrumentCode, instruments);
-      const quantity = Math.abs(trade.openQuantity || 1);
+      let ticks;
       
-      // 将美元转换为 ticks
-      const ticks = value !== null && value !== undefined && tickValue > 0 && quantity > 0
-        ? Math.round(value / tickValue / quantity)
-        : null;
+      if (maeMfeInputMode === 'tick') {
+        // Tick 模式：直接保存输入的 tick 值
+        ticks = value !== null && value !== undefined ? Math.round(value) : null;
+      } else {
+        // USD 模式：将美元转换为 ticks
+        const tickValue = getTickValue(trade.instrumentCode, instruments);
+        const quantity = Math.abs(trade.openQuantity || 1);
+        ticks = value !== null && value !== undefined && tickValue > 0 && quantity > 0
+          ? Math.round(value / tickValue / quantity)
+          : null;
+      }
       
       await StorageService.updateTrade(trade.id, {
         [field]: ticks,
@@ -1640,9 +1676,30 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     },
     // Jigsaw 专属列 - 内联编辑
     ...(hasJigsawData ? [{
-      title: '最大浮亏',
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>最大浮亏</span>
+          <Tooltip title={`点击切换输入模式：${maeMfeInputMode === 'tick' ? '当前Tick模式' : '当前美元模式'}`}>
+            <span 
+              onClick={(e) => { e.stopPropagation(); setMaeMfeInputMode(m => m === 'tick' ? 'usd' : 'tick'); }}
+              style={{ 
+                cursor: 'pointer', 
+                fontSize: 10, 
+                padding: '1px 4px', 
+                borderRadius: 3,
+                background: maeMfeInputMode === 'tick' ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                color: maeMfeInputMode === 'tick' ? 'var(--color-brand)' : 'var(--text-tertiary)',
+                border: `1px solid ${maeMfeInputMode === 'tick' ? 'var(--color-brand)' : 'var(--border-secondary)'}`,
+                fontWeight: 600
+              }}
+            >
+              {maeMfeInputMode === 'tick' ? 'T' : '$'}
+            </span>
+          </Tooltip>
+        </div>
+      ),
       key: 'mae',
-      width: 100,
+      width: 110,
       align: 'right',
       render: (_, r) => {
         // 合并组不显示 MAE
@@ -1662,7 +1719,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
               onBlur={() => saveMaeMfeInline(r, 'mae', editingValue)}
               onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-              prefix="$"
+              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
               min={0}
               precision={0}
               style={{ width: 80 }}
@@ -1672,15 +1729,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         }
         
         // 有数据时正常显示
-        if (maeUSD) {
+        if (mae !== undefined && mae !== null) {
           return (
-            <span 
-              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
-              style={{ color: 'var(--text-secondary)' }}
-              onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', Math.round(maeUSD)); }}
-            >
-              ${maeUSD.toFixed(0)}
-            </span>
+            <Tooltip title={maeMfeInputMode === 'tick' ? `$${maeUSD?.toFixed(0) || 0}` : `${mae} ticks`}>
+              <span 
+                className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', Math.round(maeUSD || 0), r); }}
+              >
+                {maeMfeInputMode === 'tick' ? `${mae}T` : `$${maeUSD?.toFixed(0) || 0}`}
+              </span>
+            </Tooltip>
           );
         }
         
@@ -1689,7 +1748,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           <span 
             className="cursor-pointer transition-all inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
             style={{ color: 'var(--text-quaternary)' }}
-            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', null); }}
+            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mae', null, r); }}
             title="点击录入最大浮亏"
           >
             <span style={{ 
@@ -1707,9 +1766,30 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       },
     }] : []),
     ...(hasJigsawData ? [{
-      title: '最大浮盈',
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>最大浮盈</span>
+          <Tooltip title={`点击切换输入模式：${maeMfeInputMode === 'tick' ? '当前Tick模式' : '当前美元模式'}`}>
+            <span 
+              onClick={(e) => { e.stopPropagation(); setMaeMfeInputMode(m => m === 'tick' ? 'usd' : 'tick'); }}
+              style={{ 
+                cursor: 'pointer', 
+                fontSize: 10, 
+                padding: '1px 4px', 
+                borderRadius: 3,
+                background: maeMfeInputMode === 'tick' ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                color: maeMfeInputMode === 'tick' ? 'var(--color-brand)' : 'var(--text-tertiary)',
+                border: `1px solid ${maeMfeInputMode === 'tick' ? 'var(--color-brand)' : 'var(--border-secondary)'}`,
+                fontWeight: 600
+              }}
+            >
+              {maeMfeInputMode === 'tick' ? 'T' : '$'}
+            </span>
+          </Tooltip>
+        </div>
+      ),
       key: 'mfe',
-      width: 100,
+      width: 110,
       align: 'right',
       render: (_, r) => {
         // 合并组不显示 MFE
@@ -1729,7 +1809,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
               onBlur={() => saveMaeMfeInline(r, 'mfe', editingValue)}
               onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-              prefix="$"
+              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
               min={0}
               precision={0}
               style={{ width: 80 }}
@@ -1739,15 +1819,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         }
         
         // 有数据时正常显示
-        if (mfeUSD) {
+        if (mfe !== undefined && mfe !== null) {
           return (
-            <span 
-              className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
-              style={{ color: 'var(--text-secondary)' }}
-              onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', Math.round(mfeUSD)); }}
-            >
-              ${mfeUSD.toFixed(0)}
-            </span>
+            <Tooltip title={maeMfeInputMode === 'tick' ? `$${mfeUSD?.toFixed(0) || 0}` : `${mfe} ticks`}>
+              <span 
+                className="font-mono text-sm cursor-pointer hover:text-[var(--color-brand)] transition-colors px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] inline-block min-w-[50px] text-right"
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', Math.round(mfeUSD || 0), r); }}
+              >
+                {maeMfeInputMode === 'tick' ? `${mfe}T` : `$${mfeUSD?.toFixed(0) || 0}`}
+              </span>
+            </Tooltip>
           );
         }
         
@@ -1756,7 +1838,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           <span 
             className="cursor-pointer transition-all inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--bg-tertiary)]"
             style={{ color: 'var(--text-quaternary)' }}
-            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', null); }}
+            onClick={(e) => { e.stopPropagation(); startEditMaeMfe(r.id, 'mfe', null, r); }}
             title="点击录入最大浮盈"
           >
             <span style={{ 
@@ -2073,12 +2155,31 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     },
   ];
 
-  return (
-    <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+  // 页面内容
+  const pageContent = (
+    <div 
+      className={isFullscreen ? '' : 'max-w-[1600px] mx-auto'}
+      style={isFullscreen ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        backgroundColor: '#0f0f10',
+        padding: 24,
+        overflow: 'auto',
+        boxSizing: 'border-box',
+      } : { padding: 24 }}
+    >
+      <div className="space-y-6">
       {/* 页面头部 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--text-primary)' }}>交易明细</h1>
+          <h1 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            交易明细
+            {isFullscreen && <span style={{ fontSize: 12, marginLeft: 8, color: 'var(--text-tertiary)', fontWeight: 400 }}>全屏模式 · ESC 退出</span>}
+          </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
             查看和管理所有交易记录
           </p>
@@ -2125,6 +2226,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           >
             导出
           </Button>
+          <Tooltip title={isFullscreen ? '退出全屏' : '全屏显示'}>
+            <Button 
+              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              style={{ 
+                background: isFullscreen ? 'var(--color-brand-bg)' : 'var(--bg-tertiary)',
+                borderColor: isFullscreen ? 'var(--color-brand)' : 'var(--border-primary)',
+                color: isFullscreen ? 'var(--color-brand)' : 'var(--text-secondary)',
+              }}
+            />
+          </Tooltip>
           <Button 
             icon={<SettingOutlined />} 
             onClick={() => setShowTableSettings(true)}
@@ -2513,22 +2625,53 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   </div>
                 </div>
                 
-                <div>
-                  <div style={{ 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: 'var(--text-primary)',
-                    marginBottom: 2
-                  }}>
-                    {missingCount} 笔交易缺少 MAE/MFE 数据
+                  <div>
+                    {(() => {
+                      // 段位系统定义 - 与首页保持一致
+                      const levels = [
+                        { min: 0, max: 30, name: '交易新手', next: '数据记录者', icon: '🌱', color: '#94a3b8' },
+                        { min: 30, max: 50, name: '数据记录者', next: '复盘学徒', icon: '📊', color: '#60a5fa' },
+                        { min: 50, max: 70, name: '复盘学徒', next: '交易分析师', icon: '📈', color: '#818cf8' },
+                        { min: 70, max: 90, name: '交易分析师', next: '数据大师', icon: '🎯', color: '#a855f7' },
+                        { min: 90, max: 100, name: '数据大师', next: null, icon: '👑', color: '#f59e0b' },
+                      ];
+                      
+                      const currentLevel = levels.find(l => completedPercent >= l.min && (l.next === null || completedPercent < l.max)) || levels[0];
+                      
+                      return (
+                        <>
+                          <div style={{ 
+                            fontSize: 13, 
+                            fontWeight: 600, 
+                            color: currentLevel.color,
+                            marginBottom: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}>
+                            <span>{currentLevel.icon}</span>
+                            <span>{currentLevel.name}</span>
+                          </div>
+                          <div style={{ 
+                            fontSize: 11, 
+                            color: 'var(--text-secondary)',
+                            lineHeight: 1.5
+                          }}>
+                            {currentLevel.next ? (
+                              <>
+                                职业交易员 <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{traderName || '访客'}</span>，你还需补全 <span style={{ fontWeight: 700, color: 'var(--color-brand)' }}>{missingCount}</span> 笔 MAE/MFE 数据，
+                                即可晋升为「<span style={{ fontWeight: 600, color: currentLevel.color }}>{currentLevel.next}</span>」
+                              </>
+                            ) : (
+                              <span style={{ color: 'var(--color-profit)', fontWeight: 600 }}>
+                                🎉 卓越！交易员 {traderName}，你已补全所有数据，正以「{currentLevel.name}」的姿态俯瞰市场
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
-                  <div style={{ 
-                    fontSize: 11, 
-                    color: 'var(--text-tertiary)'
-                  }}>
-                    点击表格中 <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>+添加</span> 按钮可直接录入
-                  </div>
-                </div>
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -4321,8 +4464,16 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           margin-top: 4px;
         }
       `}</style>
+      </div>
     </div>
   );
+
+  // 全屏模式使用 Portal 渲染到 body，确保铺满整个屏幕
+  if (isFullscreen) {
+    return createPortal(pageContent, document.body);
+  }
+
+  return pageContent;
 };
 
 export default TradeList;
