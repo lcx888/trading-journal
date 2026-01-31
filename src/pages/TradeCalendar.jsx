@@ -366,17 +366,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
   // 进入复盘页面
   const enterReview = (date) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'enterReview called',data:{date,tradesByDateKeys:Object.keys(tradesByDate)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const dayTrades = tradesByDate[date]?.trades || [];
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'dayTrades extracted',data:{date,dayTradesLength:dayTrades.length,hasTrades:!!tradesByDate[date]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     const stats = analyzeTradeData(dayTrades);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'stats computed',data:{stats,statsIsNull:stats===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     setReviewStats(stats);
     setSelectedDate(date);
     
@@ -396,9 +387,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     }
     
     setViewMode('review');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:enterReview',message:'viewMode set to review',data:{date,viewModeSetTo:'review'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
   };
   
   // 返回日历
@@ -593,13 +581,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   }
 
   // ==================== 复盘页面视图 ====================
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:render',message:'checking review condition',data:{viewMode,selectedDate,reviewStatsExists:!!reviewStats,conditionMet:viewMode==='review'&&!!selectedDate&&!!reviewStats},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'BCD'})}).catch(()=>{});
-  // #endregion
   if (viewMode === 'review' && selectedDate && reviewStats) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/5202666c-bcd7-467a-93fd-3998da5b7a23',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TradeCalendar.jsx:reviewView',message:'rendering review view',data:{selectedDate,reviewStats},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SUCCESS'})}).catch(()=>{});
-    // #endregion
     const dayData = tradesByDate[selectedDate];
     const isProfit = reviewStats.totalPnL >= 0;
     
