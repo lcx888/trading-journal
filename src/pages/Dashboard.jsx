@@ -335,19 +335,19 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   }, [trades]);
 
   const StatItem = ({ label, value, subValue, trend, prefix = '$' }) => (
-    <div className="flex-1 border-l border-[var(--border-primary)] pl-6 py-2">
-      <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider mb-2">{label}</div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-light tracking-tight text-[var(--text-primary)] font-mono">
+    <div className="flex-1 border-l border-[var(--border-primary)] pl-3 md:pl-6 py-1 md:py-2 first:border-l-0 first:pl-0 md:first:border-l md:first:pl-6">
+      <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 md:mb-2 truncate">{label}</div>
+      <div className="flex items-baseline gap-1 md:gap-2 flex-wrap">
+        <span className="text-lg md:text-2xl font-light tracking-tight text-[var(--text-primary)] font-mono">
           {prefix}{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}
         </span>
         {trend !== undefined && (
-          <span className={`text-[10px] ${trend >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`}>
+          <span className={`text-[9px] md:text-[10px] ${trend >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`}>
             {trend >= 0 ? '↑' : '↓'} {Math.abs(trend).toFixed(1)}%
           </span>
         )}
       </div>
-      {subValue && <div className="text-[10px] text-[var(--text-tertiary)] mt-1">{subValue}</div>}
+      {subValue && <div className="text-[9px] md:text-[10px] text-[var(--text-tertiary)] mt-1 truncate">{subValue}</div>}
     </div>
   );
 
@@ -361,12 +361,12 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
 
   if (loading) {
     return (
-      <div className="max-w-[1600px] mx-auto p-6 space-y-8">
-        <div className="h-8 w-48 bg-[var(--bg-tertiary)] animate-pulse rounded" />
-        <div className="grid grid-cols-4 gap-8">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-[var(--bg-tertiary)] animate-pulse rounded" />)}
+      <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-8">
+        <div className="h-6 md:h-8 w-32 md:w-48 bg-[var(--bg-tertiary)] animate-pulse rounded" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-20 md:h-24 bg-[var(--bg-tertiary)] animate-pulse rounded" />)}
         </div>
-        <div className="h-[400px] bg-[var(--bg-tertiary)] animate-pulse rounded" />
+        <div className="h-[300px] md:h-[400px] bg-[var(--bg-tertiary)] animate-pulse rounded" />
       </div>
     );
   }
@@ -377,7 +377,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
 
   if (trades.length === 0) {
     return (
-      <div className="max-w-[1600px] mx-auto p-6 space-y-4">
+      <div className="max-w-[1600px] mx-auto space-y-4">
         <div className="flex items-center gap-2">
           <QuickFilterTags quickFilter={quickFilter} setQuickFilter={setQuickFilter} />
         </div>
@@ -387,19 +387,19 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+    <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
       
       {/* 🚀 交易指挥中心 (Command Center) */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--color-brand)] opacity-[0.03] blur-[120px] -mr-48 -mt-48 pointer-events-none" />
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg md:rounded-xl p-4 md:p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--color-brand)] opacity-[0.03] blur-[120px] -mr-48 -mt-48 pointer-events-none hidden md:block" />
         
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+        <div className="relative z-10 flex flex-col gap-6 md:gap-12 lg:flex-row lg:items-center justify-between">
           
           {/* 左侧：身份与金句 */}
           <div className="flex-shrink-0">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2 md:mb-3">
               {traderName ? (
-                <h1 className="text-3xl font-light tracking-tight text-[var(--text-primary)]">
+                <h1 className="text-xl md:text-3xl font-light tracking-tight text-[var(--text-primary)]">
                   {traderName}
                 </h1>
               ) : (
@@ -407,7 +407,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
                   className="group flex items-center gap-2 cursor-pointer"
                   onClick={() => onNavigate && onNavigate('settings')}
                 >
-                  <h1 className="text-3xl font-light tracking-tight text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors">
+                  <h1 className="text-xl md:text-3xl font-light tracking-tight text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors">
                     设置您的名称
                   </h1>
                   <span className="text-xs text-[var(--color-brand)] opacity-0 group-hover:opacity-100 transition-opacity">
@@ -415,18 +415,18 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
                   </span>
                 </div>
               )}
-              <div className="px-2 py-0.5 bg-[var(--color-brand-bg)] border border-[var(--color-brand)] rounded text-[9px] font-bold text-[var(--color-brand)]">
+              <div className="px-2 py-0.5 bg-[var(--color-brand-bg)] border border-[var(--color-brand)] rounded text-[8px] md:text-[9px] font-bold text-[var(--color-brand)]">
                 {currentLevel.name}
               </div>
             </div>
-            <div className="text-[11px] text-[var(--text-tertiary)] font-light flex items-center gap-2">
-              <span className="w-1 h-1 rounded-full bg-[var(--color-brand)] animate-pulse" />
-              <span className="italic">"{quote}"</span>
+            <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] font-light flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-[var(--color-brand)] animate-pulse flex-shrink-0" />
+              <span className="italic line-clamp-1">"{quote}"</span>
             </div>
           </div>
 
-          {/* 中间：职业生涯进度 */}
-          <div className="flex-grow max-w-2xl">
+          {/* 中间：职业生涯进度 - 移动端隐藏 */}
+          <div className="hidden md:block flex-grow max-w-2xl">
             <div className="flex items-center justify-between mb-6">
               <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-medium">Career Roadmap</span>
               <span className="text-[10px] text-[var(--color-brand)] font-mono">
@@ -452,43 +452,43 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
           </div>
 
           {/* 右侧：风险状态条 */}
-          <div className="flex-shrink-0 w-72 lg:border-l lg:border-[var(--border-primary)] lg:pl-12">
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] mb-4 font-medium">Risk Management</div>
+          <div className="flex-shrink-0 w-full md:w-72 lg:border-l lg:border-[var(--border-primary)] lg:pl-12">
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] mb-3 md:mb-4 font-medium">Risk Management</div>
             <RiskStatusBar trades={trades} instruments={instruments} onNavigate={onNavigate} />
           </div>
         </div>
       </div>
 
       {/* 1. 顶部控制中枢 */}
-      <div className="flex flex-wrap items-center justify-between gap-6 bg-[var(--bg-secondary)]/50 px-6 py-3 rounded-lg border border-[var(--border-primary)]">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-3 md:gap-6 bg-[var(--bg-secondary)]/50 px-3 md:px-6 py-3 rounded-lg border border-[var(--border-primary)]">
+        <div className="flex flex-wrap items-center gap-3 md:gap-6 w-full sm:w-auto">
           <div className="flex items-center gap-2">
             <FilterOutlined className="text-[var(--text-tertiary)] text-xs" />
             <QuickFilterTags quickFilter={quickFilter} setQuickFilter={setQuickFilter} />
           </div>
-          <div className="h-3 w-px bg-[var(--border-primary)]" />
-          <div className="flex items-center gap-4">
-            <RangePicker size="small" bordered={false} className="text-xs w-44" onChange={setDateRange} />
+          <div className="hidden sm:block h-3 w-px bg-[var(--border-primary)]" />
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+            <RangePicker size="small" bordered={false} className="text-xs w-full sm:w-44" onChange={setDateRange} />
             <Select size="small" bordered={false} value={selectedInstrument} className="min-w-[100px] text-xs" onChange={setSelectedInstrument} options={[{ value: 'ALL', label: '所有品种' }, ...instruments.map(i => ({ value: i.code, label: i.name }))]} />
           </div>
         </div>
-        <button onClick={loadData} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"><ReloadOutlined style={{ fontSize: 14 }} /></button>
+        <button onClick={loadData} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors absolute right-3 top-3 sm:relative sm:right-auto sm:top-auto"><ReloadOutlined style={{ fontSize: 14 }} /></button>
       </div>
 
       {/* 2. 核心指标矩阵 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 grid grid-cols-4 gap-4 bg-[var(--bg-secondary)] p-6 rounded-lg border border-[var(--border-primary)]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
           <StatItem label="总盈亏" value={stats?.totalPnL || 0} trend={stats?.profitFactor} subValue={`胜率 ${(stats?.winRate || 0).toFixed(1)}%`} />
           <StatItem label="平均盈亏" value={stats?.avgTrade || 0} subValue={`交易 ${stats?.totalTrades || 0} 笔`} />
-          <StatItem label="最大浮亏 (MAE)" value={stats?.maxMAE || 0} subValue="单笔风险峰值" />
+          <StatItem label="最大浮亏" value={stats?.maxMAE || 0} subValue="单笔风险峰值" />
           <StatItem label="利润因子" prefix="" value={stats?.profitFactor || 0} subValue={`总盈利 $${(stats?.totalProfit || 0).toLocaleString()}`} />
         </div>
-        <div className="bg-[var(--bg-secondary)] p-6 rounded-lg border border-[var(--border-primary)] flex flex-col justify-between">
+        <div className="bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)] flex flex-col justify-between">
           <div>
-            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-widest mb-4">今日表现</div>
-            <div className={`text-2xl font-mono font-medium ${todayStats.pnl >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`}>{todayStats.pnl >= 0 ? '+' : '-'}${Math.abs(todayStats.pnl).toLocaleString()}</div>
+            <div className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-widest mb-3 md:mb-4">今日表现</div>
+            <div className={`text-xl md:text-2xl font-mono font-medium ${todayStats.pnl >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]'}`}>{todayStats.pnl >= 0 ? '+' : '-'}${Math.abs(todayStats.pnl).toLocaleString()}</div>
           </div>
-          <div className="flex justify-between items-end mt-4">
+          <div className="flex justify-between items-end mt-3 md:mt-4">
             <div className="text-[10px] text-[var(--text-tertiary)]">{todayStats.wins}胜 {todayStats.losses}负</div>
             <div className={`text-[10px] px-2 py-0.5 rounded ${todayStats.pnl >= 0 ? 'bg-[var(--color-profit-bg)] text-[var(--color-profit)]' : 'bg-[var(--color-loss-bg)] text-[var(--color-loss)]'}`}>胜率 {todayStats.winRate.toFixed(0)}%</div>
           </div>
@@ -496,26 +496,26 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
       </div>
 
       {/* 3. 图表与分析区 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-6 rounded-lg border border-[var(--border-primary)]">
-          <div className="flex items-center justify-between mb-6">
-            <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest">权益曲线分析</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 md:mb-6">
+            <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest">权益曲线分析</div>
             <div className="flex gap-1 bg-[var(--bg-tertiary)] p-0.5 rounded">
               {['week', 'month', 'all'].map(p => (
-                <button key={p} onClick={() => setChartPeriod(p)} className={`px-3 py-1 text-[10px] rounded transition-all ${chartPeriod === p ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>{p === 'week' ? '周' : p === 'month' ? '月' : '全部'}</button>
+                <button key={p} onClick={() => setChartPeriod(p)} className={`px-2 md:px-3 py-1 text-[9px] md:text-[10px] rounded transition-all ${chartPeriod === p ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}>{p === 'week' ? '周' : p === 'month' ? '月' : '全部'}</button>
               ))}
             </div>
           </div>
-          <ReactECharts option={getPnLChartOption()} style={{ height: '320px' }} notMerge={true} />
+          <ReactECharts option={getPnLChartOption()} style={{ height: '240px' }} className="md:!h-[320px]" notMerge={true} />
         </div>
-        <div className="space-y-6">
-          <div className="bg-[var(--bg-secondary)] p-6 rounded-lg border border-[var(--border-primary)]">
-            <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-6">时段分布</div>
-            <div className="h-[180px]"><ReactECharts option={getSessionChartOption()} style={{ height: '100%' }} /></div>
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6">
+          <div className="bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
+            <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-4 md:mb-6">时段分布</div>
+            <div className="h-[140px] md:h-[180px]"><ReactECharts option={getSessionChartOption()} style={{ height: '100%' }} /></div>
           </div>
-          <div className="bg-[var(--bg-secondary)] p-6 rounded-lg border border-[var(--border-primary)]">
-            <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-6">品种表现</div>
-            <div className="h-[180px]"><ReactECharts option={getInstrumentChartOption()} style={{ height: '100%' }} /></div>
+          <div className="bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
+            <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-4 md:mb-6">品种表现</div>
+            <div className="h-[140px] md:h-[180px]"><ReactECharts option={getInstrumentChartOption()} style={{ height: '100%' }} /></div>
           </div>
         </div>
       </div>

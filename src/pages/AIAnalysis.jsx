@@ -1503,11 +1503,11 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   );
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6">
-      <div className="flex gap-6 min-h-full">
+    <div className="max-w-[1600px] mx-auto">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-full">
 
       {/* ========== 左侧历史记录面板（重新设计）========== */}
-      <div className="w-72 flex-shrink-0">
+      <div className="w-full lg:w-72 flex-shrink-0 order-2 lg:order-1">
         <div 
           className="rounded-lg sticky top-4" 
           style={{ 
@@ -1700,7 +1700,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
       </div>
 
       {/* ========== 右侧主内容区 ========== */}
-      <div className="flex-1 space-y-6 min-w-0">
+      <div className="flex-1 space-y-4 lg:space-y-6 min-w-0 order-1 lg:order-2">
 
         {/* 查看历史分析 */}
         {viewingHistory && (
@@ -1728,7 +1728,7 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
             </div>
             
             {/* 概览卡片 */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
               <StatCard 
                 icon={Award}
                 label="综合评分"

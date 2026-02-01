@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense, startTransition } from 'react';
-import { ConfigProvider, Layout, Menu, Select, Spin, Button, Dropdown, Tooltip } from 'antd';
+import { ConfigProvider, Layout, Menu, Select, Spin, Button, Dropdown, Tooltip, Drawer } from 'antd';
 import {
   DashboardOutlined,
   FileAddOutlined,
@@ -20,6 +20,8 @@ import {
   CrownOutlined,
   AlertOutlined,
   LoadingOutlined,
+  MenuOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
@@ -148,6 +150,19 @@ function App() {
   const [subscription, setSubscription] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 处理 URL 参数
   useEffect(() => {
@@ -281,6 +296,8 @@ function App() {
     setCurrentPage(key);
     setPageKey(k => k + 1);
     });
+    // 移动端点击菜单后关闭抽屉
+    if (isMobile) setMobileMenuOpen(false);
   };
 
   // 页面加载占位符
@@ -465,7 +482,56 @@ function App() {
       }}
     >
       <Layout style={{ height: '100vh', overflow: 'hidden' }}>
-        {/* 侧边栏 */}
+        {/* 移动端抽屉菜单 */}
+        <Drawer
+          placement="left"
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          width={280}
+          className="mobile-menu-drawer"
+          styles={{
+            header: { display: 'none' },
+            body: { padding: 0, background: '#0d0d10' },
+          }}
+        >
+          {/* Logo */}
+          <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--border-primary)]">
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-7 object-contain" />
+            <button 
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-8 h-8 flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <CloseOutlined />
+            </button>
+          </div>
+          
+          {/* 菜单 */}
+          <div className="py-2">
+            <Menu
+              mode="inline"
+              selectedKeys={selectedKeys}
+              defaultOpenKeys={openKeys}
+              items={menuItems}
+              onClick={handleMenuClick}
+              style={{ 
+                background: 'transparent',
+                border: 'none',
+              }}
+            />
+          </div>
+          
+          {/* 底部区域 */}
+          <div className="absolute bottom-0 left-0 right-0 border-t border-[var(--border-primary)] bg-[var(--bg-primary)]">
+            <SidebarFooter
+              subscription={subscription}
+              collapsed={false}
+              onUpgrade={() => { setMobileMenuOpen(false); goToPricing(); }}
+              onToggleCollapse={() => setMobileMenuOpen(false)}
+            />
+          </div>
+        </Drawer>
+
+        {/* PC 端侧边栏 */}
         <Sider
           collapsible
           collapsed={collapsed}
@@ -473,7 +539,7 @@ function App() {
           width={240}
           collapsedWidth={64}
           trigger={null}
-          className="layout-sider"
+          className="layout-sider hidden md:block"
           style={{ 
             position: 'fixed', 
             left: 0, 
@@ -522,7 +588,7 @@ function App() {
         
         {/* 主内容区 */}
         <Layout style={{ 
-          marginLeft: collapsed ? 64 : 240, 
+          marginLeft: isMobile ? 0 : (collapsed ? 64 : 240), 
           transition: 'margin 0.2s',
           height: '100vh',
           display: 'flex',
@@ -531,34 +597,42 @@ function App() {
         }}>
           {/* 顶部导航 - 固定高度 */}
           <Header 
-            className="layout-header flex items-center justify-between px-6"
+            className="layout-header flex items-center justify-between px-3 md:px-6"
             style={{
               background: '#0d0d10',
               borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-              height: 64,
-              lineHeight: '64px',
+              height: 56,
+              lineHeight: '56px',
               flexShrink: 0,
               zIndex: 50,
             }}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+              {/* 移动端菜单按钮 */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+              >
+                <MenuOutlined style={{ fontSize: 18 }} />
+              </button>
+              
               {/* 页面标题 */}
-              <h1 className="text-base font-semibold text-[var(--text-primary)] m-0 flex items-center gap-2">
+              <h1 className="text-sm md:text-base font-semibold text-[var(--text-primary)] m-0 flex items-center gap-2 truncate">
                 {getPageTitle(currentPage)}
                 {currentPage === 'ai-analysis' && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] rounded">
+                  <span className="px-1.5 md:px-2 py-0.5 text-[9px] md:text-[10px] font-bold bg-[var(--color-brand-bg)] text-[var(--color-brand)] rounded flex-shrink-0">
                     AI
                   </span>
                 )}
               </h1>
               
-              {/* 账本选择器 */}
+              {/* 账本选择器 - 移动端简化 */}
               {showRecordSelector && (
-                <div className="flex items-center ml-4">
+                <div className="hidden sm:flex items-center ml-2 md:ml-4">
                   <Select
                     value={activeRecordId}
                     onChange={setActiveRecordId}
-                    className="min-w-[180px]"
+                    className="min-w-[120px] md:min-w-[180px]"
                     popupClassName="binance-dropdown"
                     suffixIcon={<FolderOpenOutlined className="text-[var(--text-tertiary)]" />}
                     options={[
@@ -588,9 +662,9 @@ function App() {
             </div>
             
             {/* 右侧操作区 - 优化布局 */}
-            <div className="flex items-center gap-1">
-              {/* 日期 - 简洁展示 */}
-              <div className="flex items-center gap-1.5 text-[var(--text-tertiary)] text-xs px-2 py-1">
+            <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
+              {/* 日期 - 简洁展示，移动端隐藏 */}
+              <div className="hidden md:flex items-center gap-1.5 text-[var(--text-tertiary)] text-xs px-2 py-1">
                 <span className="font-mono">{dayjs().format('MM/DD')}</span>
                 <span className="text-[var(--text-disabled)]">·</span>
                 <span className="font-mono">{dayjs().format('ddd')}</span>
@@ -603,23 +677,23 @@ function App() {
                   <Button 
                     type="text" 
                     icon={<BellOutlined style={{ fontSize: 16 }} />} 
-                    className="w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
+                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
                   />
                 </Tooltip>
                 
-                {/* 设置快捷入口 */}
+                {/* 设置快捷入口 - 移动端隐藏 */}
                 <Tooltip title="设置" placement="bottom">
                   <Button 
                     type="text" 
                     icon={<SettingOutlined style={{ fontSize: 16 }} />} 
                     onClick={() => startTransition(() => setCurrentPage('settings'))}
-                    className="w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
+                    className="hidden md:flex w-9 h-9 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg"
                   />
                 </Tooltip>
               </div>
               
               {/* 分隔线 */}
-              <div className="h-5 w-px bg-[var(--border-primary)] mx-2"></div>
+              <div className="h-5 w-px bg-[var(--border-primary)] mx-1 md:mx-2"></div>
               
               {/* 用户头像 - 下拉菜单 */}
               <Dropdown
@@ -679,13 +753,13 @@ function App() {
                 placement="bottomRight"
                 trigger={['click']}
               >
-                <div className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
+                <div className="flex items-center gap-1 md:gap-2 cursor-pointer px-1 md:px-2 py-1 md:py-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors">
                   <img 
                     src={getAvatarUrl(authUser.email)} 
                     alt="avatar" 
-                    className="w-8 h-8 rounded-full ring-2 ring-[var(--border-primary)]" 
+                    className="w-7 h-7 md:w-8 md:h-8 rounded-full ring-2 ring-[var(--border-primary)]" 
                   />
-                  <svg className="w-3 h-3 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 text-[var(--text-tertiary)] hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
@@ -693,9 +767,43 @@ function App() {
             </div>
           </Header>
           
+          {/* 移动端账本选择器 */}
+          {showRecordSelector && isMobile && (
+            <div className="sm:hidden px-3 py-2 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+              <Select
+                value={activeRecordId}
+                onChange={setActiveRecordId}
+                className="w-full"
+                popupClassName="binance-dropdown"
+                suffixIcon={<FolderOpenOutlined className="text-[var(--text-tertiary)]" />}
+                options={[
+                  { 
+                    value: 'all', 
+                    label: (
+                      <div className="flex items-center gap-2">
+                        <AppstoreOutlined className="text-[var(--color-brand)]" />
+                        <span>全部账本</span>
+                        <span className="ml-auto text-[var(--text-tertiary)] text-xs font-mono">{totalTrades}</span>
+                      </div>
+                    )
+                  },
+                  ...records.map(r => ({ 
+                    value: r.id, 
+                    label: (
+                      <div className="flex items-center justify-between w-full">
+                        <span>{r.name}</span>
+                        <span className="text-xs text-[var(--text-tertiary)] font-mono">{r.tradeCount || 0}</span>
+                      </div>
+                    )
+                  }))
+                ]}
+              />
+            </div>
+          )}
+          
           {/* 内容区 - 可滚动 */}
           <Content 
-            className="layout-content p-6"
+            className="layout-content p-3 md:p-6"
             style={{ 
               background: '#0a0a0c', 
               flex: 1,

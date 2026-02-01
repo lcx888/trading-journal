@@ -115,29 +115,29 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
   // 首次使用：引导配置
   if (!isConfigured) {
     return (
-      <div className="max-w-[1600px] mx-auto p-6">
-        <div className="max-w-2xl mx-auto py-6">
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 rounded-2xl bg-[var(--color-brand-bg)] border border-[var(--color-brand)] flex items-center justify-center mx-auto mb-6">
-            <SafetyOutlined className="text-4xl text-[var(--color-brand)]" />
+      <div className="max-w-[1600px] mx-auto">
+        <div className="max-w-2xl mx-auto py-4 md:py-6">
+        <div className="text-center mb-6 md:mb-10">
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[var(--color-brand-bg)] border border-[var(--color-brand)] flex items-center justify-center mx-auto mb-4 md:mb-6">
+            <SafetyOutlined className="text-2xl md:text-4xl text-[var(--color-brand)]" />
           </div>
-          <h1 className="text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-3">风控测试</h1>
-          <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
+          <h1 className="text-xl md:text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-2 md:mb-3">风控测试</h1>
+          <p className="text-xs md:text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed px-4">
             验证您的交易策略是否符合 PropFirm 回撤规则。<br/>
             首次使用，请先配置您的风控参数。
           </p>
         </div>
 
         {/* 配置表单 */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-8">
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 md:p-8">
           <Form
             layout="vertical"
             initialValues={config}
             onFinish={saveConfig}
           >
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
               <Form.Item 
-                label={<span className="text-[var(--text-secondary)] text-sm">初始资金</span>}
+                label={<span className="text-[var(--text-secondary)] text-xs md:text-sm">初始资金</span>}
                 name="initialBalance"
               >
                 <InputNumber 
@@ -152,7 +152,7 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
               </Form.Item>
               
               <Form.Item 
-                label={<span className="text-[var(--text-secondary)] text-sm">最大总回撤</span>}
+                label={<span className="text-[var(--text-secondary)] text-xs md:text-sm">最大总回撤</span>}
                 name="maxDrawdownPercent"
               >
                 <InputNumber 
@@ -165,7 +165,7 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
               </Form.Item>
               
               <Form.Item 
-                label={<span className="text-[var(--text-secondary)] text-sm">日内最大回撤</span>}
+                label={<span className="text-[var(--text-secondary)] text-xs md:text-sm">日内最大回撤</span>}
                 name="dailyDrawdownPercent"
               >
                 <InputNumber 
@@ -178,7 +178,7 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
               </Form.Item>
               
               <Form.Item 
-                label={<span className="text-[var(--text-secondary)] text-sm">追踪回撤</span>}
+                label={<span className="text-[var(--text-secondary)] text-xs md:text-sm">追踪回撤</span>}
                 name="trailingEnabled"
                 valuePropName="checked"
               >
@@ -187,12 +187,12 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
             </div>
 
             {/* PropFirm 预设 */}
-            <div className="mt-6 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
+            <div className="mt-4 md:mt-6 p-3 md:p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
               <div className="flex items-center gap-2 mb-3">
                 <InfoCircleOutlined className="text-[var(--color-brand)]" />
-                <span className="text-xs font-bold text-[var(--text-secondary)]">常见 PropFirm 规则</span>
+                <span className="text-[10px] md:text-xs font-bold text-[var(--text-secondary)]">常见 PropFirm 规则</span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 md:gap-3">
                 {[
                   { name: 'FTMO', maxDD: 10, dailyDD: 5 },
                   { name: 'MFF', maxDD: 12, dailyDD: 5 },
@@ -208,21 +208,21 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
                         dailyDrawdownPercent: preset.dailyDD 
                       });
                     }}
-                    className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--color-brand)] transition-colors text-left"
+                    className="p-2 md:p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--color-brand)] transition-colors text-left"
                   >
-                    <div className="text-xs font-bold text-[var(--text-primary)] mb-1">{preset.name}</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">
-                      总 {preset.maxDD}% / 日 {preset.dailyDD}%
+                    <div className="text-[10px] md:text-xs font-bold text-[var(--text-primary)] mb-0.5 md:mb-1">{preset.name}</div>
+                    <div className="text-[9px] md:text-[10px] text-[var(--text-tertiary)]">
+                      {preset.maxDD}% / {preset.dailyDD}%
                     </div>
                   </button>
                 ))}
               </div>
             </div>
             
-            <Form.Item className="mt-8 mb-0">
+            <Form.Item className="mt-6 md:mt-8 mb-0">
               <button
                 type="submit"
-                className="w-full py-3 rounded-lg bg-[var(--color-brand)] text-[var(--bg-primary)] font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="w-full py-2.5 md:py-3 rounded-lg bg-[var(--color-brand)] text-[var(--bg-primary)] font-bold text-xs md:text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
                 <PlusOutlined />
                 创建风控规则
@@ -237,23 +237,23 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
 
   // 已配置：显示风控测试结果
   return (
-    <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+    <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
       {/* 极简标题栏 */}
-      <div className="flex items-end justify-between border-b border-[var(--border-primary)] pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-[var(--border-primary)] pb-4 md:pb-6">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-2">风控测试</h1>
-          <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)]">
+          <h1 className="text-xl md:text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-1 md:mb-2">风控测试</h1>
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[10px] md:text-xs text-[var(--text-tertiary)]">
             <span>{trades.length} 笔交易</span>
-            <span className="w-1 h-1 rounded-full bg-[var(--border-primary)]" />
-            <span>初始资金 ${(config.initialBalance ?? 100000).toLocaleString()}</span>
-            <span className="w-1 h-1 rounded-full bg-[var(--border-primary)]" />
-            <span>限制 {config.maxDrawdownPercent ?? 10}% / {config.dailyDrawdownPercent ?? 5}%</span>
+            <span className="w-1 h-1 rounded-full bg-[var(--border-primary)] hidden sm:block" />
+            <span>资金 ${(config.initialBalance ?? 100000).toLocaleString()}</span>
+            <span className="w-1 h-1 rounded-full bg-[var(--border-primary)] hidden sm:block" />
+            <span>限制 {config.maxDrawdownPercent ?? 10}%/{config.dailyDrawdownPercent ?? 5}%</span>
           </div>
         </div>
         
         <button
           onClick={() => setShowSetup(true)}
-          className="px-4 py-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-primary)] hover:border-[var(--text-secondary)] transition-all rounded"
+          className="px-3 md:px-4 py-1.5 md:py-2 text-[10px] md:text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-primary)] hover:border-[var(--text-secondary)] transition-all rounded self-start sm:self-auto"
         >
           修改规则
         </button>
@@ -261,15 +261,15 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
 
       {/* MAE 数据缺失警告 - 极简风格 */}
       {tradesWithoutMAE.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-2 border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded">
-          <div className="flex items-center gap-3">
-            <WarningOutlined className="text-[var(--text-tertiary)] text-xs" />
-            <span className="text-[11px] text-[var(--text-secondary)]">
-              {tradesWithoutMAE.length} 笔交易缺少 MAE 数据，统计结果可能存在偏差
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <WarningOutlined className="text-[var(--text-tertiary)] text-xs flex-shrink-0" />
+            <span className="text-[10px] md:text-[11px] text-[var(--text-secondary)] truncate">
+              {tradesWithoutMAE.length} 笔交易缺少 MAE 数据
             </span>
           </div>
           <Tooltip title="MAE 数据来源于 Jigsaw 或 ATAS 导出的交易数据。缺失数据将按 0 计算。">
-            <InfoCircleOutlined className="text-[var(--text-tertiary)] text-xs cursor-help" />
+            <InfoCircleOutlined className="text-[var(--text-tertiary)] text-xs cursor-help flex-shrink-0" />
           </Tooltip>
         </div>
       )}

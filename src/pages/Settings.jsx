@@ -345,24 +345,24 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const isFreePlan = planName === 'free';
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 space-y-8">
+    <div className="max-w-[1600px] mx-auto space-y-6 md:space-y-8">
       {/* 顶部标题 */}
-      <div className="border-b border-[var(--border-primary)] pb-6">
-        <h1 className="text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-1">系统设置</h1>
-        <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-[0.15em]">Configuration & Preferences</p>
+      <div className="border-b border-[var(--border-primary)] pb-4 md:pb-6">
+        <h1 className="text-xl md:text-2xl font-medium tracking-tight text-[var(--text-primary)] mb-1">系统设置</h1>
+        <p className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-[0.15em]">Configuration & Preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* 左侧：主要配置 */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6 md:space-y-8">
           
           {/* 个人信息 + 时区 */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-6">
-            <h3 className="text-xs font-medium text-[var(--text-primary)] uppercase tracking-wider mb-6 flex items-center gap-2">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4 md:p-6">
+            <h3 className="text-[11px] md:text-xs font-medium text-[var(--text-primary)] uppercase tracking-wider mb-4 md:mb-6 flex items-center gap-2">
               <span className="w-1 h-3 bg-[var(--color-brand)] rounded-full" />
               个人信息与偏好
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-widest block mb-2">交易员名称</label>
                 <Input

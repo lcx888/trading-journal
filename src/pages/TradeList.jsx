@@ -834,6 +834,15 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [hasJigsawData, setHasJigsawData] = useState(false);
   const [traderName, setTraderName] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [filters, setFilters] = useState({
     instrument: 'ALL',
     direction: 'ALL',
@@ -930,54 +939,54 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     
     // 延迟绑定以确保 Portal 渲染完成
     const timer = setTimeout(() => {
-      const wrapper = tableWrapperRef.current;
+    const wrapper = tableWrapperRef.current;
       if (!wrapper) return;
       
-      // 查找可滚动的表格容器
-      const findScrollContainer = () => {
-        return wrapper.querySelector('.ant-table-body') || 
-               wrapper.querySelector('.ant-table-content') ||
-               wrapper.querySelector('.ant-table');
-      };
-      
-      const handleMouseDown = (e) => {
-        const scrollContainer = findScrollContainer();
-        if (!scrollContainer) return;
-        // 忽略按钮、链接等交互元素的点击
+    // 查找可滚动的表格容器
+    const findScrollContainer = () => {
+      return wrapper.querySelector('.ant-table-body') || 
+             wrapper.querySelector('.ant-table-content') ||
+             wrapper.querySelector('.ant-table');
+    };
+    
+    const handleMouseDown = (e) => {
+      const scrollContainer = findScrollContainer();
+      if (!scrollContainer) return;
+      // 忽略按钮、链接等交互元素的点击
         if (e.target.closest('button, a, .ant-dropdown-trigger, .ant-btn, .ant-input-number')) return;
-        
-        isDragging.current = true;
-        dragStart.current = { x: e.clientX, scrollLeft: scrollContainer.scrollLeft };
-        wrapper.style.cursor = 'grabbing';
-        wrapper.style.userSelect = 'none';
-        e.preventDefault();
-      };
       
-      const handleMouseMove = (e) => {
-        if (!isDragging.current) return;
-        const scrollContainer = findScrollContainer();
-        if (!scrollContainer) return;
-        const dx = e.clientX - dragStart.current.x;
-        scrollContainer.scrollLeft = dragStart.current.scrollLeft - dx;
-      };
-      
-      const handleMouseUp = () => {
-        if (isDragging.current) {
-          wrapper.style.cursor = '';
-          wrapper.style.userSelect = '';
-          isDragging.current = false;
-        }
-      };
-      
-      wrapper.addEventListener('mousedown', handleMouseDown);
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
+      isDragging.current = true;
+      dragStart.current = { x: e.clientX, scrollLeft: scrollContainer.scrollLeft };
+      wrapper.style.cursor = 'grabbing';
+      wrapper.style.userSelect = 'none';
+      e.preventDefault();
+    };
+    
+    const handleMouseMove = (e) => {
+      if (!isDragging.current) return;
+      const scrollContainer = findScrollContainer();
+      if (!scrollContainer) return;
+      const dx = e.clientX - dragStart.current.x;
+      scrollContainer.scrollLeft = dragStart.current.scrollLeft - dx;
+    };
+    
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        wrapper.style.cursor = '';
+        wrapper.style.userSelect = '';
+        isDragging.current = false;
+      }
+    };
+    
+    wrapper.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
       cleanup = () => {
-        wrapper.removeEventListener('mousedown', handleMouseDown);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+      wrapper.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
     }, 50);
     
     return () => {
@@ -1592,12 +1601,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         return (
           <div style={{ padding: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div>
-              <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
-                {dayjs(t).format('MM-DD HH:mm:ss')}
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                {dayjs(t).format('YYYY')}
-              </div>
+            <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
+              {dayjs(t).format('MM-DD HH:mm:ss')}
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {dayjs(t).format('YYYY')}
+            </div>
             </div>
             {reviewed && (
               <Tooltip title="已完成复盘">
@@ -1852,19 +1861,19 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (isEditing) {
           return (
             <div ref={maeMfeInputRef}>
-              <InputNumber
-                autoFocus
-                size="small"
-                value={editingValue}
-                onChange={setEditingValue}
-                onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
-                onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-                prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
-                min={0}
-                precision={0}
-                style={{ width: 80 }}
-                className="mae-mfe-input"
-              />
+            <InputNumber
+              autoFocus
+              size="small"
+              value={editingValue}
+              onChange={setEditingValue}
+              onPressEnter={() => saveMaeMfeInline(r, 'mae', editingValue)}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
+              min={0}
+              precision={0}
+              style={{ width: 80 }}
+              className="mae-mfe-input"
+            />
             </div>
           );
         }
@@ -1943,19 +1952,19 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         if (isEditing) {
           return (
             <div ref={maeMfeInputRef}>
-              <InputNumber
-                autoFocus
-                size="small"
-                value={editingValue}
-                onChange={setEditingValue}
-                onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
-                onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
-                prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
-                min={0}
-                precision={0}
-                style={{ width: 80 }}
-                className="mae-mfe-input"
-              />
+            <InputNumber
+              autoFocus
+              size="small"
+              value={editingValue}
+              onChange={setEditingValue}
+              onPressEnter={() => saveMaeMfeInline(r, 'mfe', editingValue)}
+              onKeyDown={(e) => e.key === 'Escape' && cancelEditMaeMfe()}
+              prefix={maeMfeInputMode === 'tick' ? 'T' : '$'}
+              min={0}
+              precision={0}
+              style={{ width: 80 }}
+              className="mae-mfe-input"
+            />
             </div>
           );
         }
@@ -2264,16 +2273,16 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     {
       title: '',
       key: 'action',
-      width: 80,
-      fixed: 'right',
+      width: isMobile ? 60 : 80,
+      fixed: isMobile ? false : 'right',
       render: (_, r) => (
-        <Space size={4}>
+        <Space size={2}>
           <Button 
             type="text" 
             size="small" 
             icon={<EditOutlined />} 
             onClick={() => handleEdit(r)}
-            style={{ color: 'var(--text-tertiary)' }}
+            style={{ color: 'var(--text-tertiary)', padding: isMobile ? '2px 4px' : '4px 8px' }}
             className="hover:!text-[var(--color-brand)]"
           />
           <Popconfirm 
@@ -2288,7 +2297,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               type="text" 
               size="small" 
               icon={<DeleteOutlined />}
-              style={{ color: 'var(--text-tertiary)' }}
+              style={{ color: 'var(--text-tertiary)', padding: isMobile ? '2px 4px' : '4px 8px' }}
               className="hover:!text-[var(--color-loss)]"
             />
           </Popconfirm>
@@ -2312,24 +2321,26 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         padding: 24,
         overflow: 'auto',
         boxSizing: 'border-box',
-      } : { padding: 24 }}
+      } : {}}
     >
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
       {/* 页面头部 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-xl md:text-2xl font-medium tracking-tight" style={{ color: 'var(--text-primary)' }}>
             交易明细
             {isFullscreen && <span style={{ fontSize: 12, marginLeft: 8, color: 'var(--text-tertiary)', fontWeight: 400 }}>全屏模式 · ESC 退出</span>}
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs md:text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
             查看和管理所有交易记录
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
           {/* 合并显示开关 */}
           <Tooltip title={mergeEnabled ? '点击关闭合并显示' : '点击开启自动合并加减仓交易'}>
             <Button 
+              size="small"
+              className="md:size-default"
               icon={mergeEnabled ? <MergeCellsOutlined /> : <SplitCellsOutlined />}
               onClick={() => setMergeEnabled(!mergeEnabled)}
               style={{ 
@@ -2338,10 +2349,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 color: mergeEnabled ? 'var(--color-brand)' : 'var(--text-secondary)',
               }}
             >
-              {mergeEnabled ? '合并中' : '未合并'}
+              <span className="hidden sm:inline">{mergeEnabled ? '合并中' : '未合并'}</span>
             </Button>
           </Tooltip>
           <Button 
+            size="small"
+            className="md:size-default"
             icon={<FilterOutlined />}
             onClick={() => setShowFilters(!showFilters)}
             style={{ 
@@ -2350,9 +2363,11 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               color: hasActiveFilters ? 'var(--color-brand)' : 'var(--text-secondary)',
             }}
           >
-            筛选 {hasActiveFilters && `(${filteredTrades.length})`}
+            <span className="hidden sm:inline">筛选</span> {hasActiveFilters && `(${filteredTrades.length})`}
           </Button>
           <Button 
+            size="small"
+            className="md:size-default"
             icon={<ReloadOutlined />} 
             onClick={loadData}
             style={{ 
@@ -2362,14 +2377,18 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             }}
           />
           <Button 
+            size="small"
+            className="md:size-default"
             type="primary" 
             icon={<DownloadOutlined />} 
             onClick={handleExport}
           >
-            导出
+            <span className="hidden sm:inline">导出</span>
           </Button>
           <Tooltip title={isFullscreen ? '退出全屏' : '全屏显示'}>
             <Button 
+              size="small"
+              className="hidden md:inline-flex"
               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
               onClick={() => setIsFullscreen(!isFullscreen)}
               style={{ 
@@ -2380,6 +2399,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             />
           </Tooltip>
           <Button 
+            size="small"
+            className="md:size-default"
             icon={<SettingOutlined />} 
             onClick={() => setShowTableSettings(true)}
             style={{ 
@@ -2388,7 +2409,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               color: 'var(--text-secondary)',
             }}
           >
-            设置
+            <span className="hidden sm:inline">设置</span>
           </Button>
         </div>
       </div>
@@ -2396,17 +2417,17 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       {/* 筛选面板 */}
       {showFilters && (
         <div 
-          className="p-4 rounded-lg"
+          className="p-3 md:p-4 rounded-lg"
           style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)' 
           }}
         >
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 md:gap-3 items-center">
             <Select
               value={filters.instrument}
               onChange={v => setFilters({ ...filters, instrument: v })}
-              style={{ width: 120 }}
+              className="w-full md:w-[120px]"
               placeholder="品种"
               options={[
                 { value: 'ALL', label: '全部品种' },
@@ -2416,7 +2437,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             <Select
               value={filters.direction}
               onChange={v => setFilters({ ...filters, direction: v })}
-              style={{ width: 100 }}
+              className="w-full md:w-[100px]"
               options={[
                 { value: 'ALL', label: '全部方向' },
                 { value: 'LONG', label: '多头' },
@@ -2426,7 +2447,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             <Select
               value={filters.result}
               onChange={v => setFilters({ ...filters, result: v })}
-              style={{ width: 100 }}
+              className="w-full md:w-[100px]"
               options={[
                 { value: 'ALL', label: '全部结果' },
                 { value: 'WIN', label: '盈利' },
@@ -2437,7 +2458,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               <Select
                 value={filters.source}
                 onChange={v => setFilters({ ...filters, source: v })}
-                style={{ width: 110 }}
+                className="w-full md:w-[110px]"
                 options={[
                   { value: 'ALL', label: '全部来源' },
                   { value: 'atas', label: 'ATAS' },
@@ -2449,7 +2470,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               <Select
                 value={filters.rating}
                 onChange={v => setFilters({ ...filters, rating: v })}
-                style={{ width: 100 }}
+                className="w-full md:w-[100px]"
                 options={[
                   { value: 'ALL', label: '全部评级' },
                   { value: 'A', label: 'A 优秀' },
@@ -2463,15 +2484,15 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             <RangePicker
               value={filters.dateRange}
               onChange={v => setFilters({ ...filters, dateRange: v })}
-              placeholder={['开始日期', '结束日期']}
-              style={{ width: 240 }}
+              placeholder={['开始', '结束']}
+              className="col-span-2 md:col-span-1 w-full md:w-[240px]"
             />
             <Input
               placeholder="搜索..."
               value={filters.keyword}
               onChange={e => setFilters({ ...filters, keyword: e.target.value })}
               prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
-              style={{ width: 180 }}
+              className="col-span-2 md:col-span-1 w-full md:w-[180px]"
               allowClear
             />
             {hasActiveFilters && (
@@ -2489,101 +2510,98 @@ const TradeList = ({ activeRecordId = 'all' }) => {
 
       {/* 统计概览 - 极简灰度设计 */}
       <div 
-        className="p-5 rounded-lg"
+        className="p-3 md:p-5 rounded-lg"
         style={{ 
           background: 'var(--bg-secondary)', 
           border: '1px solid var(--border-primary)',
         }}
       >
-        {/* 核心指标 - 单行排列 */}
-        <div 
-          className="flex items-baseline justify-between"
-          style={{ gap: 32 }}
-        >
+        {/* 核心指标 - 响应式布局 */}
+        <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-4 md:gap-8">
           {/* 净盈亏 - 最突出 */}
-          <div>
+          <div className="flex-shrink-0">
             <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>净盈亏</div>
             <div 
-              className="text-3xl font-mono font-bold"
+              className="text-2xl md:text-3xl font-mono font-bold"
               style={{ color: stats.netPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
             >
               {stats.netPnL >= 0 ? '+' : ''}{(stats.netPnL ?? 0).toFixed(2)}
             </div>
           </div>
 
-          {/* 其他指标 - 灰度处理 */}
-          <div className="flex items-baseline gap-8">
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>交易数</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          {/* 其他指标 - 响应式网格 */}
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:flex md:items-baseline gap-3 md:gap-6 lg:gap-8 overflow-x-auto">
+            <div className="min-w-0">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>交易数</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 {stats.total}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div className="min-w-0">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>胜率</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 {stats.total > 0 ? (stats.wins / stats.total * 100).toFixed(0) : 0}%
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>胜/负</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div className="min-w-0">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>胜/负</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 {stats.wins}/{stats.losses}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>盈亏比</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div className="min-w-0">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>盈亏比</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 {(stats.profitFactor ?? 0).toFixed(2)}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均盈</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div className="min-w-0 hidden sm:block">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>均盈</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 ${(stats.avgWin ?? 0).toFixed(0)}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均亏</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div className="min-w-0 hidden sm:block">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>均亏</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 ${(stats.avgLoss ?? 0).toFixed(0)}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>手续费</div>
-              <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="min-w-0 hidden md:block">
+              <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>手续费</div>
+              <div className="text-base md:text-xl font-mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
                 ${(stats.totalFee ?? 0).toFixed(0)}
               </div>
             </div>
             {hasJigsawData && jigsawStats && (
               <>
-                <div>
+                <div className="min-w-0 hidden lg:block">
                   <Tooltip title="单笔最大实际亏损（平仓后的亏损金额）">
-                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>最大亏损</div>
+                    <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--color-loss)' }}>最大亏损</div>
                   </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--color-loss)' }}>
                     ${(jigsawStats.maxLoss ?? 0).toFixed(0)}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0 hidden lg:block">
                   <Tooltip title="单笔最大浮亏（持仓期间承受的最大不利偏移）">
-                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>最大浮亏</div>
+                    <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>最大浮亏</div>
                   </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     ${(jigsawStats.maxMAE ?? 0).toFixed(0)}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0 hidden xl:block">
                   <Tooltip title="平均每笔交易承受的最大浮亏">
-                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均浮亏</div>
+                    <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>均浮亏</div>
                   </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     ${(jigsawStats.avgMAE ?? 0).toFixed(0)}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0 hidden xl:block">
                   <Tooltip title="平均每笔交易达到的最大浮盈">
-                    <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>均浮盈</div>
+                    <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>均浮盈</div>
                   </Tooltip>
                   <div className="text-xl font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     ${(jigsawStats.avgMFE ?? 0).toFixed(0)}
@@ -2598,7 +2616,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         {/* 高级分析指标行 - 仅 Jigsaw 数据时显示 */}
         {hasJigsawData && jigsawStats && (
           <div 
-            className="mt-3 p-4 rounded-lg"
+            className="mt-3 p-3 md:p-4 rounded-lg"
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
           >
               <div className="flex items-center gap-2 mb-3">
@@ -2606,57 +2624,57 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   高级分析
                 </span>
               </div>
-              <div className="flex items-baseline gap-8">
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>风险回报</div>
-                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:items-baseline gap-3 md:gap-6 lg:gap-8 overflow-x-auto">
+                <div className="min-w-0">
+                  <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>风险回报</div>
+                  <div className="text-sm md:text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {(jigsawStats.avgRMultiple ?? 0).toFixed(2)}R
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>捕获率</div>
-                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <div className="min-w-0">
+                  <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>捕获率</div>
+                  <div className="text-sm md:text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {(jigsawStats.avgProfitCapture ?? 0).toFixed(0)}%
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>压力指数</div>
-                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <div className="min-w-0">
+                  <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>压力指数</div>
+                  <div className="text-sm md:text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {(jigsawStats.avgStressScore ?? 0).toFixed(1)}/5
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-profit)' }}>完美</div>
-                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <div className="min-w-0 hidden sm:block">
+                  <div className="text-[9px] md:text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--color-profit)' }}>完美</div>
+                  <div className="text-sm md:text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.perfect}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>扛赢</div>
+                <div className="min-w-0 hidden md:block">
+                  <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--text-tertiary)' }}>扛赢</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.roller}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>方向错</div>
+                <div className="min-w-0 hidden md:block">
+                  <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--color-loss)' }}>方向错</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.badEntry}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>浮盈亏</div>
+                <div className="min-w-0 hidden lg:block">
+                  <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--color-loss)' }}>浮盈亏</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.greed}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: 'var(--color-loss)' }}>扛亏</div>
+                <div className="min-w-0 hidden lg:block">
+                  <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: 'var(--color-loss)' }}>扛亏</div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {jigsawStats.diagnosisCounts.badExit}
                   </div>
                 </div>
-                <div style={{ marginLeft: 'auto', paddingLeft: 24, borderLeft: '1px solid var(--border-primary)' }}>
-                  <div className="text-[10px] tracking-wider mb-1" style={{ color: stats.grossProfit > 0 && (stats.totalFee / stats.grossProfit * 100) > 15 ? 'var(--color-loss)' : 'var(--text-tertiary)' }}>
+                <div className="min-w-0 hidden xl:block md:ml-auto md:pl-6 md:border-l md:border-[var(--border-primary)]">
+                  <div className="text-[10px] tracking-wider mb-1 truncate" style={{ color: stats.grossProfit > 0 && (stats.totalFee / stats.grossProfit * 100) > 15 ? 'var(--color-loss)' : 'var(--text-tertiary)' }}>
                     手续费占比
                   </div>
                   <div className="text-lg font-mono font-semibold" style={{ 
@@ -2895,14 +2913,14 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       <Drawer
         title={
           selectedMergeGroup && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div 
+                className="hidden sm:flex"
                 style={{ 
                   width: 40, 
                   height: 40, 
                   background: 'var(--bg-tertiary)', 
                   borderRadius: '50%',
-                  display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: '1px solid var(--border-primary)'
@@ -2911,25 +2929,25 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 <BarChartOutlined style={{ fontSize: 18, color: 'var(--text-secondary)' }} />
               </div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
                   持仓分析
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
-                  {selectedMergeGroup.mergeStats?.tradeCount || 0} TRADES COMBINED
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
+                  {selectedMergeGroup.mergeStats?.tradeCount || 0} TRADES
                 </div>
               </div>
             </div>
           )
         }
         placement="right"
-        width="calc(100vw - 240px)"
+        width={isMobile ? '100vw' : 'calc(100vw - 240px)'}
         open={mergeDrawerOpen}
         onClose={closeMergeDrawer}
         styles={{
           header: { 
             background: 'var(--bg-primary)', 
             borderBottom: '1px solid var(--border-primary)',
-            padding: '20px 32px'
+            padding: isMobile ? '16px' : '20px 32px'
           },
           body: { 
             background: 'var(--bg-primary)', 
@@ -2944,11 +2962,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           const trades = stats.trades || [];
           const firstTrade = trades[0];
           const overallDirection = firstTrade?.direction === 'LONG' ? 1 : -1;
+          const isMobileView = isMobile;
           
           return (
             <div style={{ padding: 0 }}>
               {/* 持仓图表 */}
-              <div style={{ padding: '32px' }}>
+              <div style={{ padding: isMobileView ? '16px' : '32px' }}>
                 <PositionChart 
                   trades={trades} 
                   overallDirection={overallDirection} 
@@ -2960,14 +2979,14 @@ const TradeList = ({ activeRecordId = 'all' }) => {
               </div>
               
               {/* 交易明细列表 - 极简风格 */}
-              <div style={{ padding: '0 32px 48px' }}>
+              <div style={{ padding: isMobileView ? '0 16px 32px' : '0 32px 48px' }}>
                 <div style={{ 
-                  fontSize: 12, 
+                  fontSize: isMobileView ? 11 : 12, 
                   fontWeight: 700, 
                   color: 'var(--text-tertiary)',
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
-                  marginBottom: 20,
+                  marginBottom: isMobileView ? 12 : 20,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8
@@ -2976,18 +2995,20 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   交易明细
                 </div>
                 
-                {/* 表头 */}
+                {/* 表头 - 移动端使用水平滚动 */}
                 <div style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '100px 120px 80px 100px 120px 100px 1fr',
-                  gap: 12,
-                  padding: '0 16px 12px',
+                  gridTemplateColumns: isMobileView ? '80px 100px 60px 80px 100px' : '100px 120px 80px 100px 120px 100px 1fr',
+                  gap: isMobileView ? 8 : 12,
+                  padding: isMobileView ? '0 12px 10px' : '0 16px 12px',
                   borderBottom: '1px solid var(--border-primary)',
-                  fontSize: 10,
+                  fontSize: isMobileView ? 9 : 10,
                   fontWeight: 600,
                   color: 'var(--text-tertiary)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.5px',
+                  overflowX: isMobileView ? 'auto' : 'visible',
+                  minWidth: isMobileView ? 'max-content' : 'auto'
                 }}>
                   <div>操作</div>
                   <div>执行时间</div>
@@ -3365,7 +3386,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </div>
         }
         placement="right"
-        width={320}
+        width={isMobile ? '100vw' : 320}
         open={showTableSettings}
         onClose={() => setShowTableSettings(false)}
         styles={{
@@ -3490,25 +3511,27 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       {/* 交易复盘抽屉 */}
       <Drawer
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ 
-              width: 40, 
-              height: 40, 
-              borderRadius: '50%', 
-              background: 'var(--bg-tertiary)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              border: '1px solid var(--border-primary)'
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div 
+              className="hidden sm:flex"
+              style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: '50%', 
+                background: 'var(--bg-tertiary)', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                border: '1px solid var(--border-primary)'
+              }}
+            >
               <EditOutlined style={{ color: 'var(--text-secondary)', fontSize: 18 }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
                 交易复盘
               </div>
               {editingTrade && (
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
                   {editingTrade.instrumentCode} · {dayjs(editingTrade.openTime).format('MM-DD HH:mm')}
                 </div>
               )}
@@ -3516,49 +3539,50 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </div>
         }
         placement="right"
-        width={520}
+        width={isMobile ? '100vw' : 520}
         open={editModalVisible}
         onClose={() => setEditModalVisible(false)}
         styles={{
           header: { 
             background: 'var(--bg-primary)', 
             borderBottom: '1px solid var(--border-primary)',
-            padding: '20px 24px'
+            padding: isMobile ? '16px' : '20px 24px'
           },
           body: { 
             background: 'var(--bg-primary)', 
-            padding: '24px',
+            padding: isMobile ? '16px' : '24px',
             overflow: 'auto'
           },
           footer: {
             background: 'var(--bg-primary)',
             borderTop: '1px solid var(--border-primary)',
-            padding: '16px 24px'
+            padding: isMobile ? '12px 16px' : '16px 24px'
           }
         }}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 0 }}>
             <Button 
               icon={<PlusOutlined />}
               onClick={handleOpenSaveStrategy}
               style={{ borderColor: 'var(--color-brand)', color: 'var(--color-brand)' }}
+              block={isMobile}
             >
               保存为策略
             </Button>
             <div style={{ display: 'flex', gap: 12 }}>
-              <Button 
-                onClick={() => setEditModalVisible(false)}
-                style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}
-              >
-                取消
-              </Button>
-              <Button 
-                type="primary" 
-                onClick={handleEditSave}
-                style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }}
-              >
-                保存复盘
-              </Button>
+            <Button 
+              onClick={() => setEditModalVisible(false)}
+              style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)', flex: isMobile ? 1 : 'none' }}
+            >
+              取消
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleEditSave}
+              style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)', flex: isMobile ? 1 : 'none' }}
+            >
+              保存复盘
+            </Button>
             </div>
           </div>
         }

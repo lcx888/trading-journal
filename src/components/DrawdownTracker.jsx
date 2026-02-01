@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Tooltip, Progress, InputNumber, Switch, Modal, Form, Select, message, Button } from 'antd';
 import { 
   WarningOutlined, 
@@ -86,6 +86,16 @@ const CONFIGURED_KEY = 'tradewhy_drawdown_configured';  // 是否已配置过
  * @param {boolean} compact - 紧凑模式
  */
 const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => {
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // 检查用户是否已配置过
   const [isConfigured, setIsConfigured] = useState(() => {
     try {
@@ -456,7 +466,7 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
         }
       },
       legend: {
-        show: true,
+        show: !isMobile,
         top: 0,
         right: 0,
         textStyle: { color: COLORS.textTertiary, fontSize: 10 },
@@ -464,7 +474,10 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
         itemHeight: 3,
         data: ['累计盈亏', '高水位', '浮亏最低点', '回撤深度', '回撤限制'],
       },
-      grid: [
+      grid: isMobile ? [
+        { left: 45, right: 10, top: 10, height: '48%' },
+        { left: 45, right: 10, top: '65%', height: '28%' },
+      ] : [
         { left: 50, right: 20, top: 30, height: '45%' },
         { left: 50, right: 20, top: '62%', height: '30%' },
       ],
@@ -1011,9 +1024,9 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
       {/* 核心指标 - 极简网格 */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: 24, 
-        marginBottom: 40,
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
+        gap: isMobile ? 16 : 24, 
+        marginBottom: isMobile ? 24 : 40,
         opacity: isBreach ? 0.5 : 1,
       }}>
         {[
@@ -1022,11 +1035,11 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
           { label: '回撤底线', value: drawdownData.drawdownFloor, color: COLORS.textSecondary },
           { label: '剩余额度', value: drawdownData.remainingSpace, color: isBreach ? COLORS.loss : COLORS.textPrimary }
         ].map((item, idx) => (
-          <div key={idx} style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 16 }}>
-            <div style={{ fontSize: 11, color: COLORS.textTertiary, marginBottom: 6 }}>
+          <div key={idx} style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: isMobile ? 12 : 16 }}>
+            <div style={{ fontSize: isMobile ? 10 : 11, color: COLORS.textTertiary, marginBottom: isMobile ? 4 : 6 }}>
               {item.label}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 500, color: item.color, fontFamily: 'JetBrains Mono' }}>
+            <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 500, color: item.color, fontFamily: 'JetBrains Mono' }}>
               ${(item.value ?? 0).toLocaleString()}
             </div>
           </div>
@@ -1036,16 +1049,16 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
       {/* 回撤进度条 - 极简线条 */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: 48, 
-        marginBottom: 40,
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', 
+        gap: isMobile ? 20 : 48, 
+        marginBottom: isMobile ? 24 : 40,
         opacity: isBreach ? 0.5 : 1,
       }}>
         {/* 总体回撤 */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: COLORS.textTertiary }}>总体回撤</span>
-            <span style={{ fontSize: 12, color: drawdownData.currentDrawdownPercent >= config.maxDrawdownPercent ? COLORS.loss : COLORS.textSecondary, fontFamily: 'JetBrains Mono' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isMobile ? 8 : 10 }}>
+            <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.textTertiary }}>总体回撤</span>
+            <span style={{ fontSize: isMobile ? 11 : 12, color: drawdownData.currentDrawdownPercent >= config.maxDrawdownPercent ? COLORS.loss : COLORS.textSecondary, fontFamily: 'JetBrains Mono' }}>
               {drawdownData.currentDrawdownPercent.toFixed(2)}% / {config.maxDrawdownPercent}%
             </span>
           </div>
@@ -1065,9 +1078,9 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
 
         {/* 日内回撤 */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: COLORS.textTertiary }}>日内回撤</span>
-            <span style={{ fontSize: 12, color: drawdownData.dailyDrawdown > drawdownData.dailyLimit ? COLORS.loss : COLORS.textSecondary, fontFamily: 'JetBrains Mono' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isMobile ? 8 : 10 }}>
+            <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.textTertiary }}>日内回撤</span>
+            <span style={{ fontSize: isMobile ? 11 : 12, color: drawdownData.dailyDrawdown > drawdownData.dailyLimit ? COLORS.loss : COLORS.textSecondary, fontFamily: 'JetBrains Mono' }}>
               ${(drawdownData.dailyDrawdown ?? 0).toLocaleString()} / ${(drawdownData.dailyLimit ?? 0).toLocaleString()}
             </span>
           </div>
@@ -1087,33 +1100,42 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
       </div>
 
       {/* 权益曲线图表 */}
-      <div style={{ marginTop: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ fontSize: 13, color: COLORS.textPrimary, fontWeight: 500 }}>权益曲线分析</span>
-            <Tooltip title="滚轮缩放波幅 · 按住拖拽平移 · Shift+滚轮横向缩放">
-              <span style={{ 
-                fontSize: 11, 
-                color: COLORS.textTertiary,
-                background: COLORS.bgTertiary,
-                padding: '3px 8px',
-                borderRadius: 4,
-                cursor: 'help'
-              }}>
-                拖拽平移 · 滚轮缩放
-              </span>
-            </Tooltip>
+      <div style={{ marginTop: isMobile ? 20 : 32 }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center', 
+          justifyContent: 'space-between', 
+          marginBottom: isMobile ? 12 : 20,
+          gap: isMobile ? 12 : 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: isMobile ? 12 : 13, color: COLORS.textPrimary, fontWeight: 500 }}>权益曲线分析</span>
+            {!isMobile && (
+              <Tooltip title="滚轮缩放波幅 · 按住拖拽平移 · Shift+滚轮横向缩放">
+                <span style={{ 
+                  fontSize: 11, 
+                  color: COLORS.textTertiary,
+                  background: COLORS.bgTertiary,
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  cursor: 'help'
+                }}>
+                  拖拽平移 · 滚轮缩放
+                </span>
+              </Tooltip>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: isMobile ? 10 : 16, flexWrap: 'wrap' }}>
               {[
                 { label: '累计盈亏', color: COLORS.brand },
                 { label: '高水位', color: COLORS.profit },
-                { label: '浮亏最低点', color: COLORS.loss, dashed: true },
+                { label: isMobile ? '浮亏' : '浮亏最低点', color: COLORS.loss, dashed: true },
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: COLORS.textSecondary }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, fontSize: isMobile ? 10 : 11, color: COLORS.textSecondary }}>
                   <span style={{ 
-                    width: 14, 
+                    width: isMobile ? 10 : 14, 
                     height: 2, 
                     background: item.color,
                     borderStyle: item.dashed ? 'dashed' : 'solid',
@@ -1122,17 +1144,19 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
                 </div>
               ))}
             </div>
-            <Tooltip title="全屏查看">
-              <FullscreenOutlined 
-                style={{ fontSize: 14, color: COLORS.textSecondary, cursor: 'pointer' }} 
-                onClick={() => setIsFullscreen(true)}
-              />
-            </Tooltip>
+            {!isMobile && (
+              <Tooltip title="全屏查看">
+                <FullscreenOutlined 
+                  style={{ fontSize: 14, color: COLORS.textSecondary, cursor: 'pointer' }} 
+                  onClick={() => setIsFullscreen(true)}
+                />
+              </Tooltip>
+            )}
           </div>
         </div>
         <ReactECharts 
           option={getChartOption()} 
-          style={{ height: 520 }}
+          style={{ height: isMobile ? 360 : 520 }}
           opts={{ renderer: 'svg' }}
         />
       </div>
