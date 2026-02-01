@@ -29,6 +29,15 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
   const [editingRecord, setEditingRecord] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [form] = Form.useForm();
+  
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadRecords();
@@ -308,49 +317,52 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '12px 16px',
+        padding: isMobile ? '10px 12px' : '12px 16px',
         background: 'var(--bg-secondary)',
         border: '1px solid var(--border-primary)',
         borderRadius: 6
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ 
-            width: 32, 
-            height: 32, 
-            borderRadius: 4, 
-            background: 'var(--color-brand-bg)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center' 
-          }}>
-            <BookOutlined style={{ color: 'var(--color-brand)' }} />
-          </div>
-          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>账本管理</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+          {!isMobile && (
+            <div style={{ 
+              width: 32, 
+              height: 32, 
+              borderRadius: 4, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <BookOutlined style={{ color: 'var(--color-brand)' }} />
+            </div>
+          )}
+          <span style={{ fontWeight: 600, fontSize: isMobile ? 13 : 14, color: 'var(--text-primary)' }}>账本管理</span>
           <span style={{ 
-            fontSize: 10, 
+            fontSize: isMobile ? 9 : 10, 
             color: 'var(--text-tertiary)', 
             background: 'var(--bg-tertiary)', 
             padding: '2px 8px', 
             borderRadius: 2 
           }}>
-            {totalStats.totalRecords} 个账本
+            {totalStats.totalRecords} 个
           </span>
         </div>
         <Button 
           type="primary" 
           icon={<PlusOutlined />} 
           onClick={handleCreate}
+          size={isMobile ? 'small' : 'middle'}
           style={{ 
             background: 'var(--color-brand)', 
             borderColor: 'var(--color-brand)', 
             color: 'var(--bg-primary)', 
             fontWeight: 600, 
-            fontSize: 12,
+            fontSize: isMobile ? 11 : 12,
             borderRadius: 4,
-            height: 32
+            height: isMobile ? 28 : 32
           }}
         >
-          新建账本
+          {isMobile ? '新建' : '新建账本'}
         </Button>
       </div>
 
@@ -409,6 +421,7 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
             dataSource={records}
             rowKey="id"
             loading={loading}
+            scroll={isMobile ? { x: 700 } : undefined}
             pagination={{
               pageSize: 10,
               hideOnSinglePage: true,
@@ -454,7 +467,8 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
         onCancel={() => setModalVisible(false)}
         okText="确认保存"
         cancelText="取消"
-        width={460}
+        width={isMobile ? '100vw' : 460}
+        style={isMobile ? { top: 20, maxWidth: '100vw' } : undefined}
         destroyOnClose
         okButtonProps={{
           style: {

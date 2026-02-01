@@ -216,6 +216,15 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   const [savedReviews, setSavedReviews] = useState({});
   const [instruments, setInstruments] = useState([]); // 品种配置
   
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // 视图模式: 'calendar' | 'review'
   const [viewMode, setViewMode] = useState('calendar');
   const [reviewStats, setReviewStats] = useState(null);
@@ -594,162 +603,208 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const isProfit = reviewStats.totalPnL >= 0;
     
     return (
-      <div className="max-w-[1600px] mx-auto p-6" style={{ 
+      <div className="max-w-[1600px] mx-auto" style={{ 
         display: 'flex', 
         flexDirection: 'column', 
-        gap: 24,
+        gap: isMobile ? 16 : 24,
         animation: 'fadeIn 0.4s ease-out',
-        width: '100%'
+        width: '100%',
+        padding: isMobile ? 0 : 24
       }}>
         {/* 顶部导航 - 包含保存按钮 */}
         <div style={{ 
           display: 'flex', 
-          alignItems: 'center', 
+          alignItems: isMobile ? 'flex-start' : 'center', 
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? 12 : 0,
+          padding: isMobile ? '12px' : '12px 16px',
           borderBottom: '1px solid var(--border-primary)',
           background: 'var(--bg-secondary)',
-          borderRadius: 12,
+          borderRadius: isMobile ? 0 : 12,
           position: 'sticky',
           top: 0,
           zIndex: 100
         }}>
-          <Button 
-            icon={<LeftOutlined />} 
-            onClick={backToCalendar}
-            style={{ 
-              background: 'rgba(255,255,255,0.03)', 
-              border: '1px solid var(--border-primary)', 
-              color: 'var(--text-secondary)',
-              borderRadius: 8,
-              fontSize: 12
-            }}
-          >
-            返回日历
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto' }}>
+            <Button 
+              icon={<LeftOutlined />} 
+              onClick={backToCalendar}
+              size={isMobile ? 'small' : 'middle'}
+              style={{ 
+                background: 'rgba(255,255,255,0.03)', 
+                border: '1px solid var(--border-primary)', 
+                color: 'var(--text-secondary)',
+                borderRadius: 8,
+                fontSize: isMobile ? 11 : 12
+              }}
+            >
+              {isMobile ? '返回' : '返回日历'}
+            </Button>
+            {isMobile && (
+              <Button 
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={isSaving}
+                onClick={handleSaveReview}
+                size="small"
+                style={{ 
+                  borderRadius: 8,
+                  background: 'var(--color-brand)',
+                  borderColor: 'var(--color-brand)',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 11,
+                }}
+              >
+                保存
+              </Button>
+            )}
+          </div>
           <div style={{ 
             display: 'flex', 
             flexDirection: 'column', 
-            alignItems: 'center',
+            alignItems: isMobile ? 'flex-start' : 'center',
             gap: 2
           }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
+            <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.5px' }}>
               {dayjs(selectedDate).format('YYYY年M月D日')}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Daily Trade Performance Review
-            </div>
+            {!isMobile && (
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Daily Trade Performance Review
+              </div>
+            )}
           </div>
-          <Button 
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={isSaving}
-            onClick={handleSaveReview}
-            style={{ 
-              borderRadius: 8,
-              height: 36,
-              padding: '0 20px',
-              background: 'var(--color-brand)',
-              borderColor: 'var(--color-brand)',
-              color: '#000',
-              fontWeight: 700,
-              fontSize: 13,
-              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)'
-            }}
-          >
-            保存复盘
-          </Button>
+          {!isMobile && (
+            <Button 
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={isSaving}
+              onClick={handleSaveReview}
+              style={{ 
+                borderRadius: 8,
+                height: 36,
+                padding: '0 20px',
+                background: 'var(--color-brand)',
+                borderColor: 'var(--color-brand)',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: 13,
+                boxShadow: '0 4px 12px rgba(212, 175, 55, 0.2)'
+              }}
+            >
+              保存复盘
+            </Button>
+          )}
         </div>
 
         {/* 三栏布局：统计摘要 + 交易列表 + 复盘表单 */}
         <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '280px 380px 1fr', 
-          gap: 24, 
+          display: isMobile ? 'flex' : 'grid', 
+          flexDirection: 'column',
+          gridTemplateColumns: isMobile ? '1fr' : '280px 380px 1fr', 
+          gap: isMobile ? 16 : 24, 
           alignItems: 'start',
-          height: 'calc(100vh - 180px)',
-          overflow: 'hidden'
+          height: isMobile ? 'auto' : 'calc(100vh - 180px)',
+          overflow: isMobile ? 'visible' : 'hidden',
+          padding: isMobile ? '0 12px 24px' : 0
         }}>
           
           {/* 第一栏：核心指标卡片 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '100%', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: isMobile ? 12 : 20, maxHeight: isMobile ? 'auto' : '100%', overflowY: isMobile ? 'visible' : 'auto', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             {/* 盈亏大卡片 */}
             <div style={{ 
               background: isProfit 
                 ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)' 
                 : 'linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(244, 63, 94, 0.02) 100%)',
               border: `1px solid ${isProfit ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
-              borderRadius: 16,
-              padding: 24,
+              borderRadius: isMobile ? 12 : 16,
+              padding: isMobile ? 16 : 24,
               position: 'relative',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              flex: isMobile ? '1 1 calc(50% - 6px)' : 'none',
+              minWidth: isMobile ? 'calc(50% - 6px)' : 'auto'
             }}>
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600 }}>当日净盈亏</div>
+              <div style={{ fontSize: isMobile ? 10 : 12, color: 'var(--text-tertiary)', marginBottom: isMobile ? 4 : 8, fontWeight: 600 }}>当日净盈亏</div>
               <div style={{ 
-                fontSize: 32, 
+                fontSize: isMobile ? 20 : 32, 
                 fontWeight: 800, 
                 fontFamily: 'var(--font-mono)',
                 color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)',
                 letterSpacing: '-1px'
               }}>
-                {isProfit ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {isProfit ? '+' : '-'}${Math.abs(reviewStats.totalPnL).toLocaleString(undefined, { minimumFractionDigits: isMobile ? 0 : 2 })}
               </div>
               
-              <div style={{ 
-                marginTop: 24, 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: 16,
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                paddingTop: 16
-              }}>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>交易总数</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{reviewStats.totalTrades}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>当日胜率</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-brand)' }}>
-                    {reviewStats.winRate.toFixed(0)}%
+              {!isMobile && (
+                <div style={{ 
+                  marginTop: 24, 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: 16,
+                  borderTop: '1px solid rgba(255,255,255,0.05)',
+                  paddingTop: 16
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>交易总数</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{reviewStats.totalTrades}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>当日胜率</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-brand)' }}>
+                      {reviewStats.winRate.toFixed(0)}%
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* 交易分布卡片 */}
+            {/* 交易分布卡片 - 移动端简化为数字显示 */}
             <div style={{ 
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
-              borderRadius: 16, 
-              padding: 20,
-              flex: 1 // 撑满剩余空间
+              borderRadius: isMobile ? 12 : 16, 
+              padding: isMobile ? 16 : 20,
+              flex: isMobile ? '1 1 calc(50% - 6px)' : 1,
+              minWidth: isMobile ? 'calc(50% - 6px)' : 'auto'
             }}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>交易结果分布</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>盈利交易</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
-                </div>
-                <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ 
-                    width: `${(reviewStats.winCount / reviewStats.totalTrades) * 100}%`, 
-                    height: '100%', 
-                    background: 'var(--color-profit)' 
-                  }} />
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>亏损交易</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
-                </div>
-                <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ 
-                    width: `${(reviewStats.lossCount / reviewStats.totalTrades) * 100}%`, 
-                    height: '100%', 
-                    background: 'var(--color-loss)' 
-                  }} />
-                </div>
+              <div style={{ fontSize: isMobile ? 10 : 12, fontWeight: 700, marginBottom: isMobile ? 8 : 16, color: 'var(--text-secondary)' }}>
+                {isMobile ? '胜/负' : '交易结果分布'}
               </div>
+              {isMobile ? (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>/</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>盈利交易</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-profit)' }}>{reviewStats.winCount}</span>
+                  </div>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${(reviewStats.winCount / reviewStats.totalTrades) * 100}%`, 
+                      height: '100%', 
+                      background: 'var(--color-profit)' 
+                    }} />
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>亏损交易</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
+                  </div>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${(reviewStats.lossCount / reviewStats.totalTrades) * 100}%`, 
+                      height: '100%', 
+                      background: 'var(--color-loss)' 
+                    }} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -757,10 +812,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
-            borderRadius: 16,
+            borderRadius: isMobile ? 12 : 16,
             display: 'flex',
             flexDirection: 'column',
-            maxHeight: '100%',
+            maxHeight: isMobile ? '300px' : '100%',
             overflow: 'hidden'
           }}>
             <div style={{ 
@@ -881,12 +936,12 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
-            borderRadius: 16,
+            borderRadius: isMobile ? 12 : 16,
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            maxHeight: '100%',
-            overflowY: 'auto'
+            boxShadow: isMobile ? 'none' : '0 8px 32px rgba(0,0,0,0.2)',
+            maxHeight: isMobile ? 'auto' : '100%',
+            overflowY: isMobile ? 'visible' : 'auto'
           }}>
             <div style={{ 
               padding: '16px 24px', 
@@ -946,7 +1001,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               </div>
 
               {/* 市场与决策 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>市场环境</div>
                   <Input.TextArea
@@ -982,7 +1037,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               </div>
 
               {/* 决策分析 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-profit)', opacity: 0.8 }}>最佳决策 (Keep)</div>
                   <Input.TextArea
@@ -1045,21 +1100,22 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
 
   // ==================== 日历视图 ====================
   return (
-    <div className="max-w-[1600px] mx-auto p-6" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="max-w-[1600px] mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 24, padding: isMobile ? 0 : 24 }}>
       {/* 顶部：月份导航 + 核心数据 */}
       <div style={{ 
         display: 'flex', 
-        alignItems: 'center', 
+        alignItems: isMobile ? 'stretch' : 'center', 
         justifyContent: 'space-between',
+        flexDirection: isMobile ? 'column' : 'row',
         flexWrap: 'wrap',
-        gap: 20,
+        gap: isMobile ? 12 : 20,
         background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 8, 
-        padding: '12px 20px' 
+        border: isMobile ? 'none' : '1px solid var(--border-primary)', 
+        borderRadius: isMobile ? 0 : 8, 
+        padding: isMobile ? '12px' : '12px 20px' 
       }}>
         {/* 左侧：月份导航 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
           <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: 6, padding: 2 }}>
             <Button 
               icon={<LeftOutlined />} 
@@ -1067,7 +1123,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               size="small"
               style={{ border: 'none', background: 'transparent', color: 'var(--text-tertiary)' }} 
             />
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', minWidth: 80, textAlign: 'center', lineHeight: '24px' }}>
+            <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 600, color: 'var(--text-primary)', minWidth: isMobile ? 70 : 80, textAlign: 'center', lineHeight: '24px' }}>
               {currentMonth.format('YYYY.MM')}
             </div>
             <Button 
@@ -1092,16 +1148,40 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           >
             TODAY
           </Button>
+          
+          {/* 移动端：待复盘提醒 */}
+          {isMobile && pendingReviewDays > 0 && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 6,
+              padding: '4px 10px',
+              background: 'rgba(212, 175, 55, 0.08)',
+              border: '1px solid rgba(212, 175, 55, 0.2)',
+              borderRadius: 6
+            }}>
+              <div style={{ 
+                width: 5, 
+                height: 5, 
+                borderRadius: '50%', 
+                background: 'var(--color-brand)',
+                animation: 'pulse 2s infinite'
+              }} />
+              <span style={{ fontSize: 10, color: 'var(--color-brand)', fontWeight: 700 }}>
+                {pendingReviewDays} 待复盘
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 右侧：核心数据 + 趋势 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 16 : 32, justifyContent: isMobile ? 'space-between' : 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           {/* 月度盈亏 */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>月度盈亏</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
+          <div style={{ textAlign: isMobile ? 'left' : 'right', flex: isMobile ? '1 1 auto' : 'none' }}>
+            <div style={{ fontSize: isMobile ? 9 : 10, color: 'var(--text-tertiary)', marginBottom: isMobile ? 2 : 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>月度盈亏</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: isMobile ? 'flex-start' : 'flex-end', gap: 4 }}>
               <span style={{ 
-                fontSize: 22, 
+                fontSize: isMobile ? 18 : 22, 
                 fontWeight: 800, 
                 fontFamily: 'var(--font-mono)',
                 color: monthStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)',
@@ -1109,33 +1189,32 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               }}>
                 {monthStats.totalPnL >= 0 ? '+' : '-'}${Math.abs(monthStats.totalPnL).toLocaleString()}
               </span>
-              <TrendIndicator current={monthStats.totalPnL} previous={prevMonthStats.totalPnL} />
+              {!isMobile && <TrendIndicator current={monthStats.totalPnL} previous={prevMonthStats.totalPnL} />}
             </div>
           </div>
           
-          <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.06)' }} />
+          {!isMobile && <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.06)' }} />}
           
           {/* 胜率 */}
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>胜率</div>
+            <div style={{ fontSize: isMobile ? 9 : 10, color: 'var(--text-tertiary)', marginBottom: isMobile ? 2 : 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>胜率</div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                 {monthStats.winRate}%
               </span>
-              <TrendIndicator current={Number(monthStats.winRate)} previous={Number(prevMonthStats.winRate)} />
             </div>
           </div>
           
           {/* 交易日 */}
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>活跃天数</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-              {monthStats.tradingDays}<span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 2 }}>天</span>
+            <div style={{ fontSize: isMobile ? 9 : 10, color: 'var(--text-tertiary)', marginBottom: isMobile ? 2 : 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>活跃</div>
+            <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              {monthStats.tradingDays}<span style={{ fontSize: isMobile ? 9 : 10, color: 'var(--text-tertiary)', marginLeft: 2 }}>天</span>
             </div>
           </div>
 
-          {/* 待复盘提醒 */}
-          {pendingReviewDays > 0 && (
+          {/* 待复盘提醒 - 桌面端 */}
+          {!isMobile && pendingReviewDays > 0 && (
             <div style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -1162,7 +1241,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       </div>
 
       {/* 主区域：日历 + 周统计侧边栏 */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 16, alignItems: 'stretch', padding: isMobile ? '0 12px' : 0 }}>
         {/* 日历 */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {monthStats.totalTrades === 0 ? (
@@ -1216,6 +1295,8 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           )}
         </div>
 
+        {/* 周统计侧边栏 - 移动端隐藏或折叠 */}
+        {!isMobile && (
         <div style={{ 
           width: 220, 
           flexShrink: 0,
@@ -1378,6 +1459,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <style>{`
@@ -1423,6 +1505,22 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
         .minimal-calendar .ant-picker-cell-today .ant-picker-cell-inner {
           border: 1px solid rgba(212, 175, 55, 0.3) !important;
           background: rgba(212, 175, 55, 0.03) !important;
+        }
+        
+        /* 移动端日历优化 */
+        @media (max-width: 768px) {
+          .minimal-calendar .ant-picker-cell-inner {
+            min-height: 56px !important;
+            margin: 2px !important;
+            border-radius: 6px !important;
+          }
+          .minimal-calendar .ant-picker-calendar-date-content {
+            height: 36px !important;
+          }
+          .minimal-calendar .ant-picker-content th {
+            font-size: 10px !important;
+            padding: 8px 0 !important;
+          }
         }
         
         .minimal-calendar .ant-picker-calendar-date-value {

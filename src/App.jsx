@@ -370,7 +370,7 @@ function App() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-primary)]">
-        <img src="/logo.svg" alt="Logo" className="w-48 h-14 object-contain mb-6" />
+        <img src="/logo.svg" alt="Logo" className="w-32 h-10 md:w-48 md:h-14 object-contain mb-6" />
         <Spin size="large" />
         <div className="mt-4 text-[var(--text-secondary)] text-sm">正在加载...</div>
       </div>

@@ -47,6 +47,15 @@ const TradingStrategies = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [form] = Form.useForm();
+  
+  // 移动端检测
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadStrategies();
@@ -306,49 +315,52 @@ const TradingStrategies = () => {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '12px 16px',
+        padding: isMobile ? '10px 12px' : '12px 16px',
         background: 'var(--bg-secondary)',
         border: '1px solid var(--border-primary)',
         borderRadius: 6
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ 
-            width: 32, 
-            height: 32, 
-            borderRadius: 4, 
-            background: 'var(--color-brand-bg)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center' 
-          }}>
-            <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
-          </div>
-          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>策略库</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+          {!isMobile && (
+            <div style={{ 
+              width: 32, 
+              height: 32, 
+              borderRadius: 4, 
+              background: 'var(--color-brand-bg)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
+            </div>
+          )}
+          <span style={{ fontWeight: 600, fontSize: isMobile ? 13 : 14, color: 'var(--text-primary)' }}>策略库</span>
           <span style={{ 
-            fontSize: 10, 
+            fontSize: isMobile ? 9 : 10, 
             color: 'var(--text-tertiary)', 
             background: 'var(--bg-tertiary)', 
             padding: '2px 8px', 
             borderRadius: 2 
           }}>
-            {totalStrategies} 个策略
+            {totalStrategies} 个
           </span>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={handleCreate}
+          size={isMobile ? 'small' : 'middle'}
           style={{ 
             background: 'var(--color-brand)', 
             borderColor: 'var(--color-brand)', 
             color: 'var(--bg-primary)', 
             fontWeight: 600, 
-            fontSize: 12,
+            fontSize: isMobile ? 11 : 12,
             borderRadius: 4,
-            height: 32
+            height: isMobile ? 28 : 32
           }}
         >
-          新建策略
+          {isMobile ? '新建' : '新建策略'}
         </Button>
       </div>
 
@@ -404,7 +416,11 @@ const TradingStrategies = () => {
       </div>
 
       {/* 策略分类展示 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 12 }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(8, 1fr)', 
+        gap: isMobile ? 8 : 12 
+      }}>
         {STRATEGY_CATEGORIES.map(cat => (
           <div 
             key={cat.value} 
@@ -412,14 +428,14 @@ const TradingStrategies = () => {
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
               borderRadius: 6, 
-              padding: 12, 
+              padding: isMobile ? 8 : 12, 
               textAlign: 'center',
               transition: 'all 0.2s',
               cursor: 'default'
             }}
           >
-            <div style={{ color: 'var(--color-brand)', fontSize: 18, marginBottom: 4 }}>{cat.icon}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat.label}</div>
+            <div style={{ color: 'var(--color-brand)', fontSize: isMobile ? 14 : 18, marginBottom: isMobile ? 2 : 4 }}>{cat.icon}</div>
+            <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat.label}</div>
           </div>
         ))}
       </div>
@@ -448,7 +464,8 @@ const TradingStrategies = () => {
         onCancel={() => setModalVisible(false)}
         onOk={handleSave}
         confirmLoading={loading}
-        width={480}
+        width={isMobile ? '100vw' : 480}
+        style={isMobile ? { top: 0, paddingBottom: 0, maxWidth: '100vw' } : undefined}
         destroyOnClose
         okText="保存"
         cancelText="取消"
@@ -469,9 +486,9 @@ const TradingStrategies = () => {
           }
         }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
-          <Row gutter={16}>
-            <Col span={16}>
+        <Form form={form} layout="vertical" style={{ marginTop: isMobile ? 16 : 24 }}>
+          <Row gutter={isMobile ? 8 : 16}>
+            <Col span={isMobile ? 24 : 16}>
               <Form.Item
                 name="name"
                 label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略名称</span>}
@@ -489,7 +506,7 @@ const TradingStrategies = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={isMobile ? 24 : 8}>
               <Form.Item
                 name="category"
                 label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略类型</span>}
@@ -511,14 +528,15 @@ const TradingStrategies = () => {
           >
             <div style={{ 
               display: 'flex', 
-              alignItems: 'center', 
-              gap: 16, 
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: isMobile ? 'flex-start' : 'center', 
+              gap: isMobile ? 8 : 16, 
               background: 'var(--bg-tertiary)', 
-              padding: 12, 
+              padding: isMobile ? 10 : 12, 
               borderRadius: 6 
             }}>
               <ColorPicker presets={[{ label: '调色板', colors: PRESET_COLORS }]} />
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>选择独特颜色，以便在交易记录中识别该策略。</div>
+              <div style={{ fontSize: isMobile ? 10 : 11, color: 'var(--text-secondary)' }}>选择独特颜色，以便在交易记录中识别该策略。</div>
             </div>
           </Form.Item>
 
