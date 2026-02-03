@@ -118,10 +118,10 @@ const mapTrade = (row) => {
 };
 
 const refreshRecordStats = async (userId, recordId) => {
-  // 获取交易数据（包含品种代码和数量）
+  // 获取交易数据（包含品种代码和data字段）
   const trades = await prisma.trade.findMany({
     where: { userId, recordId },
-    select: { pnl: true, instrumentCode: true, openQuantity: true },
+    select: { pnl: true, instrumentCode: true, data: true },
   });
   
   // 获取用户的品种配置（用于计算手续费）
@@ -136,7 +136,14 @@ const refreshRecordStats = async (userId, recordId) => {
   const calcNetPnL = (trade) => {
     const pnl = trade.pnl || 0;
     const feeRate = feeRateMap[trade.instrumentCode] || 0;
-    const quantity = Math.abs(trade.openQuantity || 1);
+    // 从 data JSON 中解析 openQuantity
+    let quantity = 1;
+    try {
+      const data = typeof trade.data === 'string' ? JSON.parse(trade.data) : trade.data;
+      quantity = Math.abs(data?.openQuantity || data?.quantity || 1);
+    } catch (e) {
+      // 解析失败，使用默认值 1
+    }
     const fee = feeRate * quantity * 2; // 双边手续费
     return pnl - fee;
   };
