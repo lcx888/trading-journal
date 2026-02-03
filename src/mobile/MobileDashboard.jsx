@@ -1,157 +1,118 @@
-/**
- * MobileDashboard.jsx - 极简主义数据面板
- * 聚焦核心数据，去除多余装饰
- */
-import { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { StorageService } from '../services/storage';
+import { Spin } from 'antd';
+import { LogoutOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import './mobile.css';
 
-// 基础工具函数
-const calculateTradeFee = (trade, instruments) => {
-  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
-  const instrument = instruments?.find(i => 
-    i.code === tradeCode || i.code?.toUpperCase() === tradeCode?.toUpperCase()
-  );
-  const feeRate = instrument?.feeRate || 0;
-  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-  return feeRate * quantity * 2;
-};
+const MobileDashboard = ({ onLogout }) => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalPnL: 0,
+    winRate: 0,
+    tradeCount: 0,
+    recentTrades: []
+  });
 
-const getNetPnL = (trade, instruments) => {
-  return (trade.pnl || 0) - calculateTradeFee(trade, instruments);
-};
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // 获取所有交易
+      const trades = await StorageService.getAllTrades();
+      
+      // 计算基础统计
+      const totalPnL = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const winningTrades = trades.filter(t => t.pnl > 0).length;
+      const winRate = trades.length > 0 ? Math.round((winningTrades / trades.length) * 100) : 0;
+      
+      // 获取最近20笔交易，按时间倒序
+      const sortedTrades = [...trades].sort((a, b) => new Date(b.openTime) - new Date(a.openTime));
+      const recentTrades = sortedTrades.slice(0, 20);
 
-// 迷你统计卡片
-const MiniStat = ({ label, value, type = 'neutral' }) => (
-  <div className="m-mini-stat">
-    <div className="m-mini-label">{label}</div>
-    <div className={`m-mini-value ${type === 'profit' ? 'text-profit' : type === 'loss' ? 'text-loss' : ''}`}>
-      {value}
-    </div>
-  </div>
-);
-
-export default function MobileDashboard({ trades, instruments, currentRecord, onRefresh }) {
-  const [refreshing, setRefreshing] = useState(false);
-
-  // 计算今日数据
-  const todayStats = useMemo(() => {
-    const today = dayjs().startOf('day');
-    const todayTrades = trades?.filter(t => dayjs(t.openTime).isAfter(today)) || [];
-    
-    const pnl = todayTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
-    const wins = todayTrades.filter(t => getNetPnL(t, instruments) > 0).length;
-    const losses = todayTrades.filter(t => getNetPnL(t, instruments) < 0).length;
-    
-    return {
-      pnl,
-      trades: todayTrades.length,
-      wins,
-      losses,
-      winRate: todayTrades.length > 0 ? (wins / todayTrades.length) * 100 : 0
-    };
-  }, [trades, instruments]);
-
-  // 计算总数据
-  const totalStats = useMemo(() => {
-    if (!trades || trades.length === 0) return { pnl: 0, winRate: 0, profitFactor: 0 };
-    
-    const withPnL = trades.map(t => ({ ...t, netPnL: getNetPnL(t, instruments) }));
-    const pnl = withPnL.reduce((sum, t) => sum + t.netPnL, 0);
-    const wins = withPnL.filter(t => t.netPnL > 0);
-    const losses = withPnL.filter(t => t.netPnL < 0);
-    const totalProfit = wins.reduce((sum, t) => sum + t.netPnL, 0);
-    const totalLoss = Math.abs(losses.reduce((sum, t) => sum + t.netPnL, 0));
-    
-    return {
-      pnl,
-      winRate: (wins.length / withPnL.length) * 100,
-      profitFactor: totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? 99.9 : 0
-    };
-  }, [trades, instruments]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await onRefresh?.();
-    setTimeout(() => setRefreshing(false), 500);
+      setStats({
+        totalPnL,
+        winRate,
+        tradeCount: trades.length,
+        recentTrades
+      });
+    } catch (error) {
+      console.error('Mobile load error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mobile-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
-    <div className="m-page">
+    <div className="mobile-container">
       {/* 头部 */}
-      <header className="m-header">
-        <img src="/logo.svg" alt="Logo" className="m-logo" />
-        <div className="m-header-actions">
-          <button className="m-icon-btn" onClick={handleRefresh}>
-            <span className={refreshing ? 'm-loading-spinner' : ''} style={{width:16, height:16, border: refreshing ? undefined : 'none'}}>
-              {!refreshing && '🔄'}
-            </span>
-          </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>MetWorth AI</h1>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <ReloadOutlined onClick={loadData} style={{ fontSize: 18 }} />
+          <LogoutOutlined onClick={onLogout} style={{ fontSize: 18 }} />
         </div>
-      </header>
+      </div>
 
-      {/* Hero Section: 今日盈亏 */}
-      <section className="m-hero-section">
-        <div className="m-hero-label">今日盈亏</div>
-        <div className={`m-hero-value ${todayStats.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-          {todayStats.pnl >= 0 ? '+' : '-'}${Math.abs(todayStats.pnl).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      {/* 核心卡片 */}
+      <div className="mobile-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white' }}>
+        <div className="mobile-stat-label" style={{ color: '#94a3b8' }}>总盈亏 (Net PnL)</div>
+        <div className="mobile-stat-value" style={{ color: stats.totalPnL >= 0 ? '#4ade80' : '#f87171' }}>
+          {stats.totalPnL >= 0 ? '+' : ''}{stats.totalPnL.toLocaleString()}
         </div>
-        <div className="m-hero-stats">
-          <span className="text-profit">{todayStats.wins}W</span>
-          <span className="text-ter">/</span>
-          <span className="text-loss">{todayStats.losses}L</span>
-          <span className="text-ter">•</span>
-          <span>{todayStats.trades} Trades</span>
+        <div style={{ display: 'flex', marginTop: 12, gap: 24 }}>
+          <div>
+            <div className="mobile-stat-label" style={{ color: '#94a3b8' }}>胜率</div>
+            <div style={{ fontWeight: 600 }}>{stats.winRate}%</div>
+          </div>
+          <div>
+            <div className="mobile-stat-label" style={{ color: '#94a3b8' }}>总交易数</div>
+            <div style={{ fontWeight: 600 }}>{stats.tradeCount}</div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* 核心指标网格 */}
-      <section className="m-stat-grid">
-        <MiniStat 
-          label="总盈亏" 
-          value={`${totalStats.pnl >= 0 ? '+' : '-'}$${Math.abs(totalStats.pnl).toFixed(0)}`}
-          type={totalStats.pnl >= 0 ? 'profit' : 'loss'}
-        />
-        <MiniStat 
-          label="总胜率" 
-          value={`${totalStats.winRate.toFixed(1)}%`}
-          type={totalStats.winRate >= 50 ? 'profit' : 'loss'}
-        />
-        <MiniStat 
-          label="利润因子" 
-          value={totalStats.profitFactor.toFixed(2)}
-          type={totalStats.profitFactor >= 1.5 ? 'profit' : 'neutral'}
-        />
-        <MiniStat 
-          label="当前账本" 
-          value={currentRecord?.name || '默认'}
-        />
-      </section>
-
-      {/* 简单的趋势图 (CSS Bar) */}
-      <div className="m-card">
-        <div className="m-hero-label" style={{marginBottom: 12}}>最近7天趋势</div>
-        <div style={{display: 'flex', alignItems: 'flex-end', height: 60, gap: 4}}>
-          {Array.from({length: 7}).map((_, i) => {
-            const day = dayjs().subtract(6 - i, 'day');
-            const dayTrades = trades?.filter(t => dayjs(t.openTime).isSame(day, 'day')) || [];
-            const pnl = dayTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
-            const height = Math.min(Math.abs(pnl) / 500 * 40 + 4, 60); // 简单缩放
-            
-            return (
-              <div key={i} style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4}}>
-                <div style={{
-                  width: '100%', 
-                  height: `${height}px`, 
-                  background: pnl >= 0 ? 'var(--m-profit)' : 'var(--m-loss)',
-                  opacity: pnl === 0 ? 0.1 : 0.8,
-                  borderRadius: 2
-                }} />
-                <div style={{fontSize: 9, color: 'var(--m-text-tertiary)'}}>{day.format('DD')}</div>
+      {/* 最近交易列表 */}
+      <h3 style={{ fontSize: 14, color: '#666', marginBottom: 10, marginTop: 20 }}>最近交易 (Last 20)</h3>
+      <div className="mobile-card" style={{ padding: '0 16px' }}>
+        {stats.recentTrades.map(trade => (
+          <div key={trade.id} className="mobile-trade-item">
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{trade.instrumentCode}</div>
+              <div style={{ fontSize: 12, color: '#999' }}>
+                {dayjs(trade.openTime).format('MM-DD HH:mm')}
+                <span style={{ marginLeft: 8, color: trade.direction === 'LONG' ? '#ef4444' : '#10b981' }}>
+                  {trade.direction === 'LONG' ? '多' : '空'}
+                </span>
               </div>
-            );
-          })}
-        </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, fontFamily: 'monospace', color: trade.pnl >= 0 ? '#10b981' : '#ef4444' }}>
+                {trade.pnl >= 0 ? '+' : ''}{trade.pnl}
+              </div>
+              <div style={{ fontSize: 12, color: '#999' }}>
+                {trade.openQuantity}手
+              </div>
+            </div>
+          </div>
+        ))}
+        {stats.recentTrades.length === 0 && (
+          <div style={{ padding: '20px 0', textAlign: 'center', color: '#999' }}>暂无数据</div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default MobileDashboard;

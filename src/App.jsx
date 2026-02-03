@@ -48,6 +48,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const Home = lazy(() => import('./pages/Home'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Pricing = lazy(() => import('./pages/Pricing'));
+const MobileApp = lazy(() => import('./mobile/MobileApp'));
 
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
@@ -158,6 +159,7 @@ function App() {
   const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [forceFullVersion, setForceFullVersion] = useState(localStorage.getItem('force_full_version') === 'true');
 
   // 监听窗口大小变化
   useEffect(() => {
@@ -372,6 +374,15 @@ function App() {
     }
     return [];
   }, [currentPage]);
+
+  // 移动端极简模式
+  if (isMobile && !forceFullVersion) {
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black"><Spin size="large" /></div>}>
+        <MobileApp />
+      </Suspense>
+    );
+  }
 
   if (authLoading) {
     return (

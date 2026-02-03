@@ -353,18 +353,25 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     const monthStart = currentMonth.startOf('month');
     const monthEnd = currentMonth.endOf('month');
     
+    // 首先筛选出当月的所有交易（与 monthStats 使用相同的逻辑）
+    const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
+    
     const weeks = [];
     let weekStart = monthStart.startOf('isoWeek');
     
     while (weekStart.isBefore(monthEnd) || weekStart.isSame(monthEnd, 'day')) {
       const weekEnd = weekStart.endOf('isoWeek');
+      const weekStartStr = weekStart.format('YYYY-MM-DD');
+      const weekEndStr = weekEnd.format('YYYY-MM-DD');
       
-      // 筛选这一周的交易
-      const weekTrades = trades.filter(t => {
-        const tradeDate = dayjs(getTradingDate(t.openTime));
-        return tradeDate.isAfter(weekStart.subtract(1, 'day')) && 
-               tradeDate.isBefore(weekEnd.add(1, 'day')) &&
-               getTradingMonth(t.openTime) === monthKey;
+      // 计算当月内的显示日期范围
+      const displayStart = weekStart.isBefore(monthStart) ? monthStart : weekStart;
+      const displayEnd = weekEnd.isAfter(monthEnd) ? monthEnd : weekEnd;
+      
+      // 从当月交易中筛选属于本周的交易
+      const weekTrades = monthTrades.filter(t => {
+        const tradingDate = getTradingDate(t.openTime);
+        return tradingDate >= weekStartStr && tradingDate <= weekEndStr;
       });
       
       // 使用净盈亏（扣除手续费）
@@ -372,15 +379,15 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       const winCount = weekTrades.filter(t => getNetPnL(t, instruments) > 0).length;
       const tradingDays = new Set(weekTrades.map(t => getTradingDate(t.openTime))).size;
       
-      // 只添加有交易或属于当月的周
+      // 只添加属于当月的周
       const weekStartInMonth = weekStart.month() === currentMonth.month();
       const weekEndInMonth = weekEnd.month() === currentMonth.month();
       
       if (weekStartInMonth || weekEndInMonth) {
         weeks.push({
           weekNumber: weekStart.isoWeek(),
-          start: weekStart.format('M/D'),
-          end: weekEnd.format('M/D'),
+          start: displayStart.format('M/D'),
+          end: displayEnd.format('M/D'),
           totalTrades: weekTrades.length,
           totalPnL,
           winRate: weekTrades.length > 0 ? (winCount / weekTrades.length * 100).toFixed(0) : 0,

@@ -118,14 +118,34 @@ const mapTrade = (row) => {
 };
 
 const refreshRecordStats = async (userId, recordId) => {
+  // 获取交易数据（包含品种代码和数量）
   const trades = await prisma.trade.findMany({
     where: { userId, recordId },
-    select: { pnl: true },
+    select: { pnl: true, instrumentCode: true, openQuantity: true },
   });
+  
+  // 获取用户的品种配置（用于计算手续费）
+  const instruments = await prisma.instrument.findMany({
+    where: { userId },
+    select: { code: true, feeRate: true },
+  });
+  const feeRateMap = {};
+  instruments.forEach(i => { feeRateMap[i.code] = i.feeRate || 0; });
+  
+  // 计算净盈亏（扣除手续费）
+  const calcNetPnL = (trade) => {
+    const pnl = trade.pnl || 0;
+    const feeRate = feeRateMap[trade.instrumentCode] || 0;
+    const quantity = Math.abs(trade.openQuantity || 1);
+    const fee = feeRate * quantity * 2; // 双边手续费
+    return pnl - fee;
+  };
+  
   const tradeCount = trades.length;
-  const totalPnL = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const winCount = trades.filter(t => (t.pnl || 0) > 0).length;
+  const totalPnL = trades.reduce((sum, t) => sum + calcNetPnL(t), 0);
+  const winCount = trades.filter(t => calcNetPnL(t) > 0).length;
   const winRate = tradeCount > 0 ? Number((winCount / tradeCount * 100).toFixed(1)) : 0;
+  
   await prisma.record.update({
     where: { id: recordId },
     data: { tradeCount, totalPnL: Number(totalPnL.toFixed(2)), winRate },

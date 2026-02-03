@@ -27,6 +27,19 @@ import RiskStatusBar from '../components/RiskStatusBar';
 
 const { RangePicker } = DatePicker;
 
+// 交易日分界时间（凌晨6点前的交易算作前一天）
+const TRADING_DAY_CUTOFF_HOUR = 6;
+
+// 获取交易日日期（与日历保持一致）
+const getTradingDate = (openTime) => {
+  const tradeTime = dayjs(openTime);
+  const hour = tradeTime.hour();
+  if (hour < TRADING_DAY_CUTOFF_HOUR) {
+    return tradeTime.subtract(1, 'day').format('YYYY-MM-DD');
+  }
+  return tradeTime.format('YYYY-MM-DD');
+};
+
 // 配色系统（使用 CSS 变量对应值）
 const COLORS = {
   profit: '#10b981',
@@ -182,25 +195,30 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
       }
       
       if (dateRange && dateRange[0] && dateRange[1]) {
-        const start = dateRange[0].startOf('day').toDate();
-        const end = dateRange[1].endOf('day').toDate();
+        const startDate = dateRange[0].format('YYYY-MM-DD');
+        const endDate = dateRange[1].format('YYYY-MM-DD');
         filteredTrades = filteredTrades.filter(t => {
-          const tradeDate = new Date(t.openTime);
-          return tradeDate >= start && tradeDate <= end;
+          const tradingDate = getTradingDate(t.openTime);
+          return tradingDate >= startDate && tradingDate <= endDate;
         });
       }
       
       if (quickFilter) {
-        const today = dayjs().startOf('day');
+        const todayDate = dayjs().format('YYYY-MM-DD');
+        const weekStart = dayjs().startOf('week').format('YYYY-MM-DD');
+        const monthStart = dayjs().startOf('month').format('YYYY-MM-DD');
         switch (quickFilter) {
           case 'today':
-            filteredTrades = filteredTrades.filter(t => dayjs(t.openTime).isAfter(today));
+            // 使用交易日逻辑：今日的交易
+            filteredTrades = filteredTrades.filter(t => getTradingDate(t.openTime) === todayDate);
             break;
           case 'week':
-            filteredTrades = filteredTrades.filter(t => dayjs(t.openTime).isAfter(dayjs().startOf('week')));
+            // 使用交易日逻辑：本周的交易
+            filteredTrades = filteredTrades.filter(t => getTradingDate(t.openTime) >= weekStart);
             break;
           case 'month':
-            filteredTrades = filteredTrades.filter(t => dayjs(t.openTime).isAfter(dayjs().startOf('month')));
+            // 使用交易日逻辑：本月的交易
+            filteredTrades = filteredTrades.filter(t => getTradingDate(t.openTime) >= monthStart);
             break;
         }
       }
@@ -374,9 +392,10 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   );
 
   const todayStats = useMemo(() => {
-    const today = dayjs().startOf('day');
+    const todayDate = dayjs().format('YYYY-MM-DD');
     // 使用全部交易数据计算今日表现（不受筛选条件影响）
-    const todayTrades = allTrades.filter(t => dayjs(t.openTime).isAfter(today));
+    // 使用交易日逻辑：今日交易日的交易
+    const todayTrades = allTrades.filter(t => getTradingDate(t.openTime) === todayDate);
     // 使用净盈亏（扣除手续费）
     const pnl = todayTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
     const wins = todayTrades.filter(t => getNetPnL(t, instruments) > 0).length;

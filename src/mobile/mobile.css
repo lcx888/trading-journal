@@ -1,157 +1,93 @@
-/**
- * mobile.css - 极简主义移动端样式 (Web 端风格对齐)
- * Design System: Dark Mode, High Contrast, Minimalist
- */
-
-/* ========== Design Tokens (Matches Web) ========== */
+/* 移动端极简样式 - Dark Mode */
 :root {
-  /* Colors */
-  --m-bg: #050505;           /* 页面背景 */
-  --m-bg-card: #0a0a0c;      /* 卡片背景 */
-  --m-bg-elevated: #16161a;  /* 浮层/选中背景 */
-  --m-bg-input: #0d0d10;     /* 输入框背景 */
-  
-  --m-border: rgba(255, 255, 255, 0.05);
-  --m-border-hover: rgba(255, 255, 255, 0.1);
-  
+  --m-bg: #0a0a0c;
+  --m-card: #141418;
   --m-text: #ffffff;
-  --m-text-secondary: #9ca3af;
-  --m-text-tertiary: #6b7280;
-  
-  --m-brand: #F0B90B;
-  --m-brand-dim: rgba(240, 185, 11, 0.1);
-  
-  --m-profit: #0ECB81;
-  --m-profit-dim: rgba(14, 203, 129, 0.1);
-  
-  --m-loss: #F6465D;
-  --m-loss-dim: rgba(246, 70, 93, 0.1);
-  
-  /* Typography */
-  --m-font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --m-font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
-  
-  /* Spacing & Layout */
-  --m-radius: 8px;
-  --m-radius-lg: 12px;
-  --m-safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* ========== Reset & Base ========== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
+  --m-text-sec: #9ca3af;
+  --m-text-ter: #6b7280;
+  --m-border: rgba(255, 255, 255, 0.08);
+  --m-brand: #eab308;
+  --m-brand-dim: rgba(234, 179, 8, 0.1);
+  --m-profit: #10b981;
+  --m-loss: #ef4444;
+  --m-loss-dim: rgba(239, 68, 68, 0.1);
 }
 
 body {
-  font-family: var(--m-font-sans);
-  background: var(--m-bg);
+  margin: 0;
+  background-color: var(--m-bg);
   color: var(--m-text);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none; /* 防止下拉刷新与系统冲突 */
+  -webkit-tap-highlight-color: transparent;
 }
 
-button, input {
-  font-family: inherit;
-}
-
-/* ========== Layout Shell ========== */
 .m-app {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
 }
 
 .m-content {
   flex: 1;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(60px + var(--m-safe-bottom));
+  padding-bottom: 80px; /* Space for bottom nav */
 }
 
 .m-page {
   padding: 16px;
-  min-height: 100%;
+  animation: fadeIn 0.2s ease;
 }
 
-/* ========== Typography Utilities ========== */
-.text-mono { font-family: var(--m-font-mono); }
-.text-brand { color: var(--m-brand); }
-.text-profit { color: var(--m-profit); }
-.text-loss { color: var(--m-loss); }
-.text-sec { color: var(--m-text-secondary); }
-.text-ter { color: var(--m-text-tertiary); }
-
-/* ========== Components: Header ========== */
 .m-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0 20px;
+  margin-bottom: 16px;
 }
 
-.m-logo {
-  height: 20px;
-  width: auto;
-}
-
-.m-header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.m-icon-btn {
-  background: none;
-  border: none;
-  color: var(--m-text-secondary);
-  font-size: 18px;
-  padding: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ========== Components: Cards ========== */
 .m-card {
-  background: var(--m-bg-card);
-  border: 1px solid var(--m-border);
-  border-radius: var(--m-radius);
+  background: var(--m-card);
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
+  border: 1px solid var(--m-border);
 }
 
-/* ========== Components: Bottom Nav ========== */
+.m-hero-label {
+  font-size: 12px;
+  color: var(--m-text-ter);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+/* 底部导航 */
 .m-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(10, 10, 12, 0.9);
+  height: 60px;
+  background: rgba(20, 20, 24, 0.95);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--m-border);
   display: flex;
-  padding-bottom: var(--m-safe-bottom);
+  justify-content: space-around;
+  align-items: center;
   z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .m-nav-item {
-  flex: 1;
+  background: none;
+  border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 10px 0;
-  background: none;
-  border: none;
   gap: 4px;
-  color: var(--m-text-tertiary);
+  color: var(--m-text-ter);
+  font-size: 10px;
+  padding: 8px 16px;
   transition: all 0.2s;
 }
 
@@ -161,223 +97,180 @@ button, input {
 
 .m-nav-icon {
   font-size: 20px;
-  line-height: 1;
 }
 
-.m-nav-label {
-  font-size: 10px;
-  font-weight: 500;
-}
-
-/* ========== Page: Dashboard ========== */
-.m-hero-section {
-  margin-bottom: 24px;
-}
-
-.m-hero-label {
-  font-size: 12px;
-  color: var(--m-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
-.m-hero-value {
-  font-size: 32px;
-  font-weight: 600;
-  font-family: var(--m-font-mono);
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-
-.m-hero-stats {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-  font-family: var(--m-font-mono);
-}
-
-.m-stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.m-mini-stat {
-  background: var(--m-bg-card);
-  border: 1px solid var(--m-border);
-  border-radius: var(--m-radius);
-  padding: 12px 16px;
-}
-
-.m-mini-label {
-  font-size: 11px;
-  color: var(--m-text-tertiary);
-  margin-bottom: 4px;
-}
-
-.m-mini-value {
-  font-size: 16px;
-  font-weight: 600;
-  font-family: var(--m-font-mono);
-}
-
-/* ========== Page: Trade List ========== */
-.m-filter-scroll {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.m-filter-scroll::-webkit-scrollbar { display: none; }
-
-.m-pill {
-  flex-shrink: 0;
-  padding: 6px 16px;
-  border-radius: 100px;
-  font-size: 12px;
-  background: var(--m-bg-card);
-  border: 1px solid var(--m-border);
-  color: var(--m-text-secondary);
-  transition: all 0.2s;
-}
-
-.m-pill.active {
-  background: var(--m-brand);
-  border-color: var(--m-brand);
-  color: #000;
-  font-weight: 600;
-}
-
+/* 交易列表 */
 .m-date-header {
-  font-size: 11px;
-  color: var(--m-text-tertiary);
-  margin: 16px 0 8px;
   display: flex;
   justify-content: space-between;
-  padding: 0 4px;
+  padding: 12px 4px;
+  font-size: 12px;
+  color: var(--m-text-ter);
+  background: var(--m-bg);
+  position: sticky;
+  top: 0;
 }
 
 .m-trade-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--m-border);
 }
 
 .m-trade-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .m-trade-symbol {
-  font-size: 15px;
-  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-weight: 600;
+  font-size: 15px;
 }
 
 .m-trade-tag {
   font-size: 10px;
-  padding: 1px 4px;
+  padding: 2px 4px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.m-trade-tag.long { background: var(--m-profit-dim); color: var(--m-profit); }
-.m-trade-tag.short { background: var(--m-loss-dim); color: var(--m-loss); }
+.m-trade-tag.long { background: rgba(16, 185, 129, 0.15); color: var(--m-profit); }
+.m-trade-tag.short { background: rgba(239, 68, 68, 0.15); color: var(--m-loss); }
 
 .m-trade-time {
   font-size: 12px;
-  color: var(--m-text-tertiary);
+  color: var(--m-text-ter);
 }
 
 .m-trade-pnl {
-  font-family: var(--m-font-mono);
-  font-size: 15px;
-  font-weight: 500;
-  text-align: right;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-/* ========== Page: Login ========== */
+.text-profit { color: var(--m-profit); }
+.text-loss { color: var(--m-loss); }
+.text-ter { color: var(--m-text-ter); }
+.text-brand { color: var(--m-brand); }
+
+/* 过滤器 */
+.m-filter-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.m-filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.m-pill {
+  background: var(--m-card);
+  border: 1px solid var(--m-border);
+  color: var(--m-text-sec);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.m-pill.active {
+  background: var(--m-brand);
+  color: #000;
+  border-color: var(--m-brand);
+  font-weight: 600;
+}
+
+/* 登录页 */
 .m-login-container {
+  padding: 32px;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: 32px 24px;
+  align-items: center;
+  justify-content: center;
   background: var(--m-bg);
 }
 
 .m-login-hero {
-  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  text-align: center;
+  margin-bottom: 48px;
 }
 
 .m-input-field {
   width: 100%;
-  background: var(--m-bg-input);
+  background: var(--m-card);
   border: 1px solid var(--m-border);
-  padding: 14px 16px;
-  border-radius: var(--m-radius);
+  padding: 12px 16px;
+  border-radius: 8px;
   color: var(--m-text);
-  font-size: 15px;
   margin-bottom: 12px;
-  transition: border-color 0.2s;
+  font-size: 16px;
 }
 
 .m-input-field:focus {
-  outline: none;
   border-color: var(--m-brand);
+  outline: none;
 }
 
 .m-btn-primary {
   width: 100%;
   background: var(--m-brand);
   color: #000;
-  border: none;
-  padding: 14px;
-  border-radius: var(--m-radius);
-  font-size: 15px;
   font-weight: 600;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
   margin-top: 12px;
 }
 
 .m-btn-text {
   background: none;
   border: none;
-  color: var(--m-text-secondary);
+  color: var(--m-text-sec);
   font-size: 13px;
-  margin-top: 24px;
+  margin-top: 16px;
+  width: 100%;
 }
 
-/* ========== Loading & Empty ========== */
 .m-loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--m-border);
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--m-card);
   border-top-color: var(--m-brand);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .m-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 0;
-  color: var(--m-text-tertiary);
+  padding: 48px 0;
+  color: var(--m-text-ter);
+  font-size: 24px;
 }
