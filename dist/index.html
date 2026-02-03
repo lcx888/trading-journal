@@ -140,7 +140,7 @@
       }
     </script>
     
-    <!-- 🚀 性能监控脚本（记录各阶段加载耗时）-->
+    <!-- 🚀 性能监控脚本（ES5 兼容）-->
     <script>
       (function() {
         var perf = window.__perfMetrics = {
@@ -152,38 +152,36 @@
           report: function() {
             var nav = performance.timing || {};
             var metrics = {
-              // 页面加载各阶段
-              'DNS解析': nav.domainLookupEnd - nav.domainLookupStart,
-              'TCP连接': nav.connectEnd - nav.connectStart,
-              'SSL握手': nav.secureConnectionStart ? (nav.connectEnd - nav.secureConnectionStart) : 0,
-              '首字节(TTFB)': nav.responseStart - nav.requestStart,
-              'HTML下载': nav.responseEnd - nav.responseStart,
-              'DOM解析': nav.domInteractive - nav.responseEnd,
-              'DOM完成': nav.domContentLoadedEventEnd - nav.navigationStart,
-              '页面完全加载': nav.loadEventEnd - nav.navigationStart,
-              // 自定义标记
-              ...this.marks
+              'DNS': nav.domainLookupEnd - nav.domainLookupStart,
+              'TCP': nav.connectEnd - nav.connectStart,
+              'TTFB': nav.responseStart - nav.requestStart,
+              'DOM': nav.domContentLoadedEventEnd - nav.navigationStart,
+              'Load': nav.loadEventEnd - nav.navigationStart
             };
+            for (var k in this.marks) {
+              if (this.marks.hasOwnProperty(k)) {
+                metrics[k] = this.marks[k];
+              }
+            }
             return metrics;
           },
           show: function() {
             var m = this.report();
-            var html = '<div style="position:fixed;top:0;left:0;right:0;background:#1a1a1a;color:#0f0;font:11px monospace;padding:8px;z-index:999999;max-height:50vh;overflow:auto;">';
-            html += '<div style="color:#ff0;font-weight:bold;margin-bottom:4px;">⏱️ 性能指标 (ms) - 点击关闭</div>';
+            var html = '<div style="position:fixed;top:0;left:0;right:0;background:#1a1a1a;color:#0f0;font:11px monospace;padding:8px;z-index:999999;">';
+            html += '<div style="color:#ff0;font-weight:bold;">性能(ms) - 点击关闭</div>';
             for (var k in m) {
-              var v = m[k];
-              var color = v > 3000 ? '#f66' : v > 1000 ? '#fa0' : '#0f0';
-              html += '<div><span style="color:#888;width:120px;display:inline-block;">' + k + ':</span><span style="color:' + color + '">' + (v || 0) + 'ms</span></div>';
+              if (m.hasOwnProperty(k)) {
+                html += '<div>' + k + ': ' + (m[k] || 0) + '</div>';
+              }
             }
             html += '</div>';
             var div = document.createElement('div');
             div.innerHTML = html;
-            div.onclick = function() { div.remove(); };
+            div.onclick = function() { div.parentNode.removeChild(div); };
             document.body.appendChild(div);
           }
         };
-        // 记录脚本开始执行时间
-        perf.mark('脚本开始');
+        perf.mark('Start');
       })();
     </script>
     
