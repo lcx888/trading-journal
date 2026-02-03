@@ -16,37 +16,39 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash:8].js',
         assetFileNames: 'assets/[name]-[hash:8].[ext]',
         
-manualChunks: {
+manualChunks: (id) => {
+          // 移动端代码单独打包（体积极小）
+          if (id.includes('/mobile/')) {
+            return 'mobile';
+          }
           // React 核心（必须首屏加载）
-          'vendor-react': [
-            'react', 
-            'react-dom', 
-            'react-router-dom',
-            'scheduler'
-          ],
-          // Ant Design 全家桶（合并避免循环依赖）
-          'vendor-antd': [
-            'antd',
-            '@ant-design/icons',
-            '@ant-design/cssinjs'
-          ],
+          if (id.includes('node_modules/react/') || 
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/')) {
+            return 'vendor-react';
+          }
+          // Ant Design 全家桶（仅桌面端需要）
+          if (id.includes('node_modules/antd/') ||
+              id.includes('node_modules/@ant-design/')) {
+            return 'vendor-antd';
+          }
           // ECharts（仅图表页面需要）
-          'vendor-echarts': [
-            'echarts',
-            'echarts-for-react',
-            'zrender'
-          ],
+          if (id.includes('node_modules/echarts/') ||
+              id.includes('node_modules/echarts-for-react/') ||
+              id.includes('node_modules/zrender/')) {
+            return 'vendor-echarts';
+          }
           // XLSX（仅导入页面需要）
-          'vendor-xlsx': [
-            'xlsx'
-          ],
+          if (id.includes('node_modules/xlsx/')) {
+            return 'vendor-xlsx';
+          }
           // 工具库
-          'vendor-utils': [
-            'dayjs',
-            'react-markdown',
-            'lucide-react',
-            '@react-spring/web'
-          ],
+          if (id.includes('node_modules/dayjs/') ||
+              id.includes('node_modules/react-markdown/') ||
+              id.includes('node_modules/lucide-react/') ||
+              id.includes('node_modules/@react-spring/')) {
+            return 'vendor-utils';
+          }
         },
       },
     },

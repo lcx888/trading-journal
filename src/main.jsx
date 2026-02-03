@@ -1,11 +1,71 @@
 // 🚀 性能标记：JS 模块开始加载
 if (window.__perfMetrics) window.__perfMetrics.mark('JS模块开始');
 
-import { StrictMode } from 'react'
+import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './errorMonitor.js' // 全局错误监控 - 需要最先加载
-import App from './App.jsx'
+
+// ============================================
+// 设备检测与分流
+// ============================================
+
+// 检测是否为移动设备
+const isMobileDevice = () => {
+  // 如果用户强制使用完整版，则返回 false
+  if (localStorage.getItem('force_full_version') === 'true') {
+    return false;
+  }
+  
+  // UA 检测
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i;
+  
+  // 屏幕宽度检测（作为备选）
+  const isSmallScreen = window.innerWidth <= 768;
+  
+  // 触摸设备检测
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  // 综合判断：UA 匹配 或 (小屏幕 + 触摸设备)
+  return mobileRegex.test(ua) || (isSmallScreen && isTouchDevice);
+};
+
+// 根据设备类型懒加载不同的 App
+const App = lazy(() => {
+  if (isMobileDevice()) {
+    console.log('[TradeWhy] 📱 Mobile version loaded');
+    return import('./mobile/MobileApp.jsx');
+  } else {
+    console.log('[TradeWhy] 🖥️ Desktop version loaded');
+    return import('./App.jsx');
+  }
+});
+
+// 简单的加载指示器
+const LoadingFallback = () => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    background: '#050505',
+    color: '#F0B90B',
+    fontFamily: 'system-ui, sans-serif'
+  }}>
+    <img src="/logo.svg" alt="Logo" style={{ width: 120, height: 40, marginBottom: 24, objectFit: 'contain' }} />
+    <div style={{
+      width: 32,
+      height: 32,
+      border: '3px solid rgba(240, 185, 11, 0.2)',
+      borderTopColor: '#F0B90B',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite'
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 // 🚀 性能标记：所有 import 完成
 if (window.__perfMetrics) window.__perfMetrics.mark('Import完成');
@@ -65,7 +125,9 @@ try {
   if (rootElement) {
     createRoot(rootElement).render(
       <StrictMode>
-        <App />
+        <Suspense fallback={<LoadingFallback />}>
+          <App />
+        </Suspense>
       </StrictMode>,
     );
     
