@@ -146,11 +146,37 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
   const handleSaveInstrument = async () => {
     try {
       const values = await form.validateFields();
+      
+      // 确保数值字段是数字类型
+      const instrumentData = {
+        code: String(values.code || '').trim().toUpperCase(),
+        name: String(values.name || '').trim(),
+        tickValue: Number(values.tickValue) || 0,
+        feeRate: Number(values.feeRate) || 0,
+        atasPattern: values.atasPattern ? String(values.atasPattern).trim() : '',
+      };
+      
+      // 验证品种代码格式
+      if (!instrumentData.code || !/^[A-Z0-9]+$/.test(instrumentData.code)) {
+        message.error('品种代码只能包含大写字母和数字');
+        return;
+      }
+      
+      // 验证正则表达式格式（如果提供了）
+      if (instrumentData.atasPattern) {
+        try {
+          new RegExp(instrumentData.atasPattern, 'i');
+        } catch (regexError) {
+          message.error('ATAS匹配模式正则表达式格式无效');
+          return;
+        }
+      }
+      
       if (editingInstrument) {
-        await StorageService.updateInstrument(editingInstrument.code, values);
+        await StorageService.updateInstrument(editingInstrument.code, instrumentData);
         message.success('品种已更新');
       } else {
-        await StorageService.addInstrument(values);
+        await StorageService.addInstrument(instrumentData);
         message.success('品种已添加');
       }
       setEditModalVisible(false);
@@ -158,7 +184,8 @@ const Settings = ({ onLogout, subscription, onUpgrade }) => {
       setEditingInstrument(null);
       loadData();
     } catch (e) {
-      message.error('保存失败');
+      console.error('保存品种失败:', e);
+      message.error(e.message || '保存失败，请检查输入');
     }
   };
 

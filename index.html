@@ -91,15 +91,32 @@
     }
     </script>
     
-    <!-- Preconnect to external resources -->
+    <!-- Fonts: 使用国内 CDN 镜像，避免 Google Fonts 加载失败 -->
+    <!-- 主要字体：使用系统字体栈作为后备，确保页面不会因字体加载失败而白屏 -->
+    <style>
+      /* 定义字体，使用 font-display: swap 确保文字先用系统字体显示 */
+      @font-face {
+        font-family: 'DM Sans';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: local('DM Sans'), local('DMSans-Regular'), local('system-ui');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: local('JetBrains Mono'), local('JetBrainsMono-Regular'), local('monospace');
+      }
+    </style>
+    <!-- 异步加载 Google Fonts，失败不影响页面显示 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
-    <!-- DNS Prefetch -->
-    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-    
-    <!-- Fonts: DM Sans + JetBrains Mono -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
   </head>
   <body>
     <!-- Noscript fallback -->

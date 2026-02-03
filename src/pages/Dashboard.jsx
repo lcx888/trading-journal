@@ -73,6 +73,23 @@ const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
   return ticks * tickValue * Math.abs(quantity || 1);
 };
 
+// 计算单笔交易手续费（双边：开仓+平仓）
+const calculateTradeFee = (trade, instruments) => {
+  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
+  const instrument = instruments?.find(i => 
+    i.code === tradeCode || 
+    i.code?.toUpperCase() === tradeCode?.toUpperCase()
+  );
+  const feeRate = instrument?.feeRate || 0;
+  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+  return feeRate * quantity * 2;
+};
+
+// 计算单笔交易净盈亏（扣除手续费）
+const getNetPnL = (trade, instruments) => {
+  return (trade.pnl || 0) - calculateTradeFee(trade, instruments);
+};
+
 const QuickFilterTags = ({ quickFilter, setQuickFilter }) => {
   const filters = [
     { key: 'today', label: '今日' },
@@ -102,6 +119,7 @@ const QuickFilterTags = ({ quickFilter, setQuickFilter }) => {
 const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
+  const [allTrades, setAllTrades] = useState([]); // 全部交易数据（用于今日表现）
   const [stats, setStats] = useState(null);
   const [selectedInstrument, setSelectedInstrument] = useState('ALL');
   const [dateRange, setDateRange] = useState(null);
@@ -146,13 +164,14 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   const loadData = async () => {
     setLoading(true);
     try {
-      const [allTrades, instrumentList] = await Promise.all([
+      const [fetchedTrades, instrumentList] = await Promise.all([
         StorageService.getAllTrades(),
         StorageService.getInstruments(),
       ]);
 
       setInstruments(instrumentList);
-      let filteredTrades = allTrades;
+      setAllTrades(fetchedTrades); // 保存全部交易数据
+      let filteredTrades = fetchedTrades;
       
       if (activeRecordId !== 'all') {
         filteredTrades = filteredTrades.filter(t => t.recordId === activeRecordId);
@@ -188,21 +207,22 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
 
       setTrades(filteredTrades);
       
+      // 使用净盈亏（扣除手续费）计算统计
       const s = {
         totalTrades: filteredTrades.length,
-        totalPnL: filteredTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
-        winRate: filteredTrades.length > 0 ? (filteredTrades.filter(t => t.pnl > 0).length / filteredTrades.length) * 100 : 0,
-        avgTrade: filteredTrades.length > 0 ? filteredTrades.reduce((sum, t) => sum + (t.pnl || 0), 0) / filteredTrades.length : 0,
-        profitFactor: filteredTrades.filter(t => t.pnl < 0).length > 0 ? 
-          Math.abs(filteredTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0) / filteredTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0)) : 
-          filteredTrades.filter(t => t.pnl > 0).length > 0 ? Infinity : 0,
+        totalPnL: filteredTrades.reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
+        winRate: filteredTrades.length > 0 ? (filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).length / filteredTrades.length) * 100 : 0,
+        avgTrade: filteredTrades.length > 0 ? filteredTrades.reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0) / filteredTrades.length : 0,
+        profitFactor: filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).length > 0 ? 
+          Math.abs(filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0) / filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0)) : 
+          filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).length > 0 ? Infinity : 0,
         maxMAE: filteredTrades.length > 0 ? Math.max(...filteredTrades.map(t => {
           const mae = t.mae ?? t.jigsawData?.mae;
           if (mae === undefined || mae === null) return 0;
           return Math.abs(ticksToUSD(mae, t.instrumentCode, t.openQuantity, instrumentList));
         })) : 0,
-        totalProfit: filteredTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0),
-        totalLoss: filteredTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0),
+        totalProfit: filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
+        totalLoss: filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
       };
       setStats(s);
     } catch (error) {
@@ -244,14 +264,15 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
     return parts.join(' + ');
   };
 
-  // 权益曲线图表
+  // 权益曲线图表（使用净盈亏）
   const getPnLChartOption = () => {
     if (!trades || trades.length === 0) return {};
     const sortedTrades = [...trades].sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
     let cumPnL = 0;
     const data = sortedTrades.map((t) => {
-      cumPnL += (t.pnl || 0);
-      return { value: Number(cumPnL.toFixed(2)), date: dayjs(t.openTime).format('MM-DD HH:mm'), pnl: t.pnl };
+      const netPnL = getNetPnL(t, instruments);
+      cumPnL += netPnL;
+      return { value: Number(cumPnL.toFixed(2)), date: dayjs(t.openTime).format('MM-DD HH:mm'), pnl: netPnL };
     });
 
     const lineColor = cumPnL >= 0 ? COLORS.profit : COLORS.loss;
@@ -312,7 +333,8 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   const getInstrumentChartOption = () => {
     if (!trades || trades.length === 0) return {};
     const byInstrument = {};
-    trades.forEach(t => { byInstrument[t.instrumentCode] = (byInstrument[t.instrumentCode] || 0) + (t.pnl || 0); });
+    // 使用净盈亏（扣除手续费）
+    trades.forEach(t => { byInstrument[t.instrumentCode] = (byInstrument[t.instrumentCode] || 0) + getNetPnL(t, instruments); });
     const codes = Object.keys(byInstrument).slice(0, 5);
     return {
       tooltip: { trigger: 'axis', backgroundColor: COLORS.bgSecondary, borderColor: COLORS.border },
@@ -323,16 +345,16 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
     };
   };
 
-  // 计算最近7日趋势数据（预留用于趋势图）
+  // 计算最近7日趋势数据（使用净盈亏）
   const _trendData = useMemo(() => {
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
       const day = dayjs().subtract(i, 'day');
       const dayTrades = trades.filter(t => dayjs(t.openTime).isSame(day, 'day'));
-      last7Days.push(dayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0));
+      last7Days.push(dayTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0));
     }
     return last7Days;
-  }, [trades]);
+  }, [trades, instruments]);
 
   const StatItem = ({ label, value, subValue, trend, prefix = '$' }) => (
     <div className="flex-1 border-l border-[var(--border-primary)] pl-3 md:pl-6 py-1 md:py-2 first:border-l-0 first:pl-0 md:first:border-l md:first:pl-6">
@@ -353,11 +375,13 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
 
   const todayStats = useMemo(() => {
     const today = dayjs().startOf('day');
-    const todayTrades = trades.filter(t => dayjs(t.openTime).isAfter(today));
-    const pnl = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-    const wins = todayTrades.filter(t => t.pnl > 0).length;
+    // 使用全部交易数据计算今日表现（不受筛选条件影响）
+    const todayTrades = allTrades.filter(t => dayjs(t.openTime).isAfter(today));
+    // 使用净盈亏（扣除手续费）
+    const pnl = todayTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
+    const wins = todayTrades.filter(t => getNetPnL(t, instruments) > 0).length;
     return { pnl, wins, losses: todayTrades.length - wins, winRate: todayTrades.length > 0 ? (wins / todayTrades.length) * 100 : 0 };
-  }, [trades]);
+  }, [allTrades, instruments]);
 
   if (loading) {
     return (

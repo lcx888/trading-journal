@@ -7,7 +7,7 @@ const USER_SETTINGS_KEY = 'tradewhy_user_settings';
 // 默认用户设置
 const DEFAULT_USER_SETTINGS = {
   timezone: 'Asia/Shanghai', // 用户所在时区（用于显示）
-  dataSourceTimezone: 'Asia/Shanghai', // 数据源时区（交易软件使用的时区）
+  dataSourceTimezone: 'Europe/London', // 数据源时区（UTC+0，与 ATAS 导出的 UTC 时间一致）
   traderName: '', // 交易员名称
 };
 

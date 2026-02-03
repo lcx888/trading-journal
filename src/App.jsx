@@ -25,7 +25,13 @@ import {
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import 'dayjs/locale/zh-cn';
+
+// 加载 dayjs 插件，确保正确处理时区
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // 懒加载页面组件 - 优化首屏加载速度
 const Dashboard = lazy(() => import('./pages/Dashboard'));

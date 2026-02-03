@@ -53,35 +53,58 @@ const getTimezoneOffset = (timezone, date) => {
 
 /**
  * 将日期从源时区转换到目标时区
+ * 
+ * XLSX 把时间解析为 UTC，但实际上这个时间是 fromTimezone 的本地时间
+ * 需要修正为真正的 UTC 时间，然后 JavaScript Date 会自动根据系统时区显示
  */
 const convertTimezone = (date, fromTimezone, toTimezone) => {
-  if (!date || fromTimezone === toTimezone) return date;
+  if (!date) return date;
   
+  // 获取数据源时区的偏移量（分钟）
   const fromOffset = getTimezoneOffset(fromTimezone, date);
-  const toOffset = getTimezoneOffset(toTimezone, date);
-  const diffMinutes = toOffset - fromOffset;
   
-  if (diffMinutes === 0) return date;
+  // 修正为真正的 UTC 时间
+  const realUTCTime = date.getTime() - fromOffset * 60 * 1000;
   
-  return new Date(date.getTime() + diffMinutes * 60 * 1000);
+  return new Date(realUTCTime);
 };
 
-// 品种代码映射 - Jigsaw 格式
+// 品种代码映射 - Jigsaw 格式（支持多种后缀格式）
+// 重要：更长的前缀必须放在更短的前缀之前（如 MES 在 ES 之前），否则会被短前缀错误匹配
 const INSTRUMENT_PATTERNS = {
-  'GC': /^GC[A-Z]\d+$/i,      // 黄金期货 GCG26
-  'ES': /^ES[A-Z]\d+$/i,      // 标普期货 ESH26
-  'NQ': /^NQ[A-Z]\d+$/i,      // 纳指期货 NQH26
-  'RTY': /^RTY[A-Z]\d+$/i,    // 罗素期货
-  'CL': /^CL[A-Z]\d+$/i,      // 原油期货
-  'SI': /^SI[A-Z]\d+$/i,      // 白银期货
-  'YM': /^YM[A-Z]\d+$/i,      // 道指期货
-  'ZB': /^ZB[A-Z]\d+$/i,      // 国债期货
-  'ZN': /^ZN[A-Z]\d+$/i,      // 10年期国债
-  '6E': /^6E[A-Z]\d+$/i,      // 欧元期货
-  'M2K': /^M2K[A-Z]\d+$/i,    // 微型罗素
-  'MES': /^MES[A-Z]\d+$/i,    // 微型标普
-  'MNQ': /^MNQ[A-Z]\d+$/i,    // 微型纳指
-  'MGC': /^MGC[A-Z]\d+$/i,    // 微型黄金
+  // 微型合约（放在标准合约之前以优先匹配）
+  'MES': /^MES[A-Z]?\d*$/i,    // 微型标普
+  'MNQ': /^MNQ[A-Z]?\d*$/i,    // 微型纳指
+  'M2K': /^M2K[A-Z]?\d*$/i,    // 微型罗素
+  'MYM': /^MYM[A-Z]?\d*$/i,    // 微型道指
+  'MGC': /^MGC[A-Z]?\d*$/i,    // 微型黄金
+  'MCL': /^MCL[A-Z]?\d*$/i,    // 微型原油
+  // 标准合约
+  'GC': /^GC[A-Z]?\d*$/i,      // 黄金期货 GCG26, GC, GCH2026
+  'ES': /^ES[A-Z]?\d*$/i,      // 标普期货 ESH26, ES, ESH2026
+  'NQ': /^NQ[A-Z]?\d*$/i,      // 纳指期货 NQH26, NQ, NQH2026
+  'RTY': /^RTY[A-Z]?\d*$/i,    // 罗素期货
+  'CL': /^CL[A-Z]?\d*$/i,      // 原油期货
+  'SI': /^SI[A-Z]?\d*$/i,      // 白银期货
+  'YM': /^YM[A-Z]?\d*$/i,      // 道指期货
+  'HG': /^HG[A-Z]?\d*$/i,      // 铜期货
+  'NG': /^NG[A-Z]?\d*$/i,      // 天然气
+  // 国债期货
+  'ZB': /^ZB[A-Z]?\d*$/i,      // 国债期货
+  'ZN': /^ZN[A-Z]?\d*$/i,      // 10年期国债
+  // 外汇期货
+  '6E': /^6E[A-Z]?\d*$/i,      // 欧元期货
+  '6J': /^6J[A-Z]?\d*$/i,      // 日元期货
+  '6A': /^6A[A-Z]?\d*$/i,      // 澳元期货
+  '6B': /^6B[A-Z]?\d*$/i,      // 英镑期货
+  '6C': /^6C[A-Z]?\d*$/i,      // 加元期货
+  // 农产品期货
+  'ZC': /^ZC[A-Z]?\d*$/i,      // 玉米
+  'ZS': /^ZS[A-Z]?\d*$/i,      // 大豆
+  'ZW': /^ZW[A-Z]?\d*$/i,      // 小麦
+  // 加密货币期货
+  'BTC': /^BTC(USD|USDT)?$/i,  // 比特币期货
+  'ETH': /^ETH(USD|USDT)?$/i,  // 以太坊期货
 };
 
 // 从 Jigsaw 品种字符串推导代码
@@ -89,11 +112,20 @@ const deriveInstrumentCode = (jigsawSymbol) => {
   if (!jigsawSymbol) return null;
   const upper = String(jigsawSymbol).toUpperCase().trim();
   
-  // 移除月份和年份后缀 (如 NQH26 -> NQ)
-  const match = upper.match(/^([A-Z0-9]+?)[A-Z]\d+$/);
-  if (match) return match[1];
+  // 尝试移除月份和年份后缀
+  // 支持格式: NQH26, NQH2026, NQ-H26, NQ.H26 等
+  const cleaned = upper.replace(/[-._]/g, '');
   
-  return upper;
+  // 匹配模式: 品种代码 + 可选的月份字母 + 可选的年份数字
+  // 如: NQH26 -> NQ, ESH2026 -> ES, GC -> GC
+  const match = cleaned.match(/^([A-Z0-9]{1,4}?)([A-Z]\d{2,4})?$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // 如果没有匹配到，尝试直接提取前几个字符
+  const baseMatch = cleaned.match(/^([A-Z0-9]{1,4})/);
+  return baseMatch ? baseMatch[1] : upper;
 };
 
 const buildDefaultInstrument = (code) => ({
@@ -106,21 +138,24 @@ const buildDefaultInstrument = (code) => ({
 });
 
 // 解析品种代码
+// 注意：先使用内置的精确模式匹配（已按长度排序），再用用户自定义模式
 const parseInstrumentCode = (jigsawSymbol, instruments = []) => {
   if (!jigsawSymbol) return 'OTHER';
   
-  // 先尝试匹配已配置的品种
+  // 1. 首先尝试用户配置的精确匹配（确保从字符串开头匹配）
   for (const inst of instruments) {
     if (!inst?.atasPattern) continue;
     try {
-      const regex = new RegExp(inst.atasPattern, 'i');
+      // 确保从字符串开头匹配，避免 ES 匹配到 MES
+      const pattern = inst.atasPattern.startsWith('^') ? inst.atasPattern : `^${inst.atasPattern}`;
+      const regex = new RegExp(pattern, 'i');
       if (regex.test(jigsawSymbol)) return inst.code;
     } catch (e) {
       // ignore invalid regex
     }
   }
 
-  // 使用内置模式匹配
+  // 2. 使用内置模式匹配（微型合约优先）
   for (const [code, pattern] of Object.entries(INSTRUMENT_PATTERNS)) {
     if (pattern.test(jigsawSymbol)) {
       return code;

@@ -71,7 +71,7 @@ const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
   return ticks * tickValue * Math.abs(quantity || 1);
 };
 
-// 根据品种配置计算手续费
+// 根据品种配置计算手续费（双边：开仓+平仓）
 const calculateTradeFee = (trade, instruments) => {
   // 兼容多种品种代码字段名
   const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
@@ -79,9 +79,10 @@ const calculateTradeFee = (trade, instruments) => {
     i.code === tradeCode || 
     i.code?.toUpperCase() === tradeCode?.toUpperCase()
   );
-  const feeRate = instrument?.feeRate || 0; // 每手手续费
+  const feeRate = instrument?.feeRate || 0; // 单边手续费（每手）
   const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-  return feeRate * quantity;
+  // 一笔完整交易包含开仓和平仓，所以手续费 = 单边费率 × 手数 × 2
+  return feeRate * quantity * 2;
 };
 
 // ========== 高级分析指标计算函数 ==========

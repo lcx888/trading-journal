@@ -31,6 +31,19 @@ const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
   return Math.abs(ticks) * tickValue * Math.abs(quantity || 1);
 };
 
+// 计算单笔交易的手续费（双边：开仓+平仓）
+const calculateTradeFee = (trade, instruments) => {
+  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
+  const instrument = instruments?.find(i => 
+    i.code === tradeCode || 
+    i.code?.toUpperCase() === tradeCode?.toUpperCase()
+  );
+  const feeRate = instrument?.feeRate || 0; // 单边手续费（每手）
+  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+  // 一笔完整交易包含开仓和平仓，所以手续费 = 单边费率 × 手数 × 2
+  return feeRate * quantity * 2;
+};
+
 // 颜色系统 - 与 index.css 中的 CSS 变量保持一致
 const COLORS = {
   // 背景色（极深层次）
@@ -84,8 +97,9 @@ const CONFIGURED_KEY = 'tradewhy_drawdown_configured';  // 是否已配置过
  * @param {Array} trades - 交易数据
  * @param {Array} instruments - 品种配置（用于 MAE 转换）
  * @param {boolean} compact - 紧凑模式
+ * @param {Object} externalConfig - 外部传入的配置（可选，用于同步父组件的配置变更）
  */
-const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => {
+const DrawdownTracker = ({ trades = [], instruments = [], compact = false, externalConfig = null }) => {
   // 移动端检测
   const [isMobile, setIsMobile] = useState(false);
   
@@ -106,6 +120,10 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
   });
 
   const [config, setConfig] = useState(() => {
+    // 优先使用外部传入的配置
+    if (externalConfig) {
+      return { ...DEFAULT_CONFIG, ...externalConfig };
+    }
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       return stored ? { ...DEFAULT_CONFIG, ...JSON.parse(stored) } : DEFAULT_CONFIG;
@@ -113,6 +131,14 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
       return DEFAULT_CONFIG;
     }
   });
+  
+  // 当外部配置变化时，同步更新内部状态
+  useEffect(() => {
+    if (externalConfig) {
+      setConfig({ ...DEFAULT_CONFIG, ...externalConfig });
+      setIsConfigured(true);
+    }
+  }, [externalConfig]);
   
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -163,6 +189,8 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
     // 计算权益曲线和追踪回撤（含浮亏）
     sortedTrades.forEach((trade) => {
       const pnl = trade.pnl || 0;
+      const fee = calculateTradeFee(trade, instruments); // 计算手续费
+      const netPnl = pnl - fee; // 净盈亏 = 毛盈亏 - 手续费
       const prevCumulative = cumulative;
       
       // 获取该笔交易的 MAE（最大浮亏）
@@ -192,8 +220,8 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
         maxDrawdownSeen = drawdownDuringTrade;
       }
       
-      // 更新累计权益（平仓后）
-      cumulative += pnl;
+      // 更新累计权益（平仓后，扣除手续费）
+      cumulative += netPnl;
       
       // 平仓后再次检查高水位
       if (config.trailingEnabled && cumulative > highWaterMark) {
@@ -242,7 +270,11 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
     const today = dayjs().startOf('day');
     const todayTrades = sortedTrades.filter(t => dayjs(t.openTime).isAfter(today));
     
-    let todayEquity = currentEquity - todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    // 计算今日之前的权益（扣除手续费后的净值）
+    let todayEquity = currentEquity - todayTrades.reduce((sum, t) => {
+      const fee = calculateTradeFee(t, instruments);
+      return sum + ((t.pnl || 0) - fee);
+    }, 0);
     let todayHWM = todayEquity;
     let todayMaxDrawdown = 0;
     
@@ -266,8 +298,9 @@ const DrawdownTracker = ({ trades = [], instruments = [], compact = false }) => 
       const dd = todayHWM - lowestDuringTrade;
       if (dd > todayMaxDrawdown) todayMaxDrawdown = dd;
       
-      // 更新今日权益
-      todayEquity += trade.pnl || 0;
+      // 更新今日权益（扣除手续费）
+      const fee = calculateTradeFee(trade, instruments);
+      todayEquity += (trade.pnl || 0) - fee;
       
       // 平仓后再次检查高水位
       if (todayEquity > todayHWM) todayHWM = todayEquity;

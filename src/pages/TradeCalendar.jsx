@@ -45,14 +45,29 @@ const getTradingMonth = (openTime) => {
   return getTradingDate(openTime).substring(0, 7);
 };
 
-const analyzeTradeData = (dayTrades) => {
+// 计算单笔交易手续费（用于统计计算）
+const calcTradeFee = (trade, instruments) => {
+  const instrument = instruments?.find(i => i.code === trade.instrumentCode);
+  const feeRate = instrument?.feeRate || 0;
+  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+  return feeRate * quantity * 2; // 双边手续费
+};
+
+// 计算单笔交易净盈亏（扣除手续费）
+const getNetPnL = (trade, instruments) => {
+  return (trade.pnl || 0) - calcTradeFee(trade, instruments);
+};
+
+const analyzeTradeData = (dayTrades, instruments = []) => {
   const trades = dayTrades || [];
-  const totalPnL = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-  const winTrades = trades.filter(t => t.pnl > 0);
-  const lossTrades = trades.filter(t => t.pnl < 0);
+  // 计算净盈亏（扣除手续费）
+  const totalPnL = trades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
+  // 判断盈亏时使用净盈亏
+  const winTrades = trades.filter(t => getNetPnL(t, instruments) > 0);
+  const lossTrades = trades.filter(t => getNetPnL(t, instruments) < 0);
   const winRate = trades.length > 0 ? (winTrades.length / trades.length * 100) : 0;
-  const maxWinTrade = winTrades.length > 0 ? winTrades.reduce((max, t) => t.pnl > max.pnl ? t : max) : null;
-  const maxLossTrade = lossTrades.length > 0 ? lossTrades.reduce((min, t) => t.pnl < min.pnl ? t : min) : null;
+  const maxWinTrade = winTrades.length > 0 ? winTrades.reduce((max, t) => getNetPnL(t, instruments) > getNetPnL(max, instruments) ? t : max) : null;
+  const maxLossTrade = lossTrades.length > 0 ? lossTrades.reduce((min, t) => getNetPnL(t, instruments) < getNetPnL(min, instruments) ? t : min) : null;
 
   return {
     totalTrades: trades.length,
@@ -98,8 +113,8 @@ const _generateReviewQuestions = (stats) => {
 };
 
 // 悬停预览卡片 - 极简版
-const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview }) => {
-  const stats = analyzeTradeData(data.trades);
+const HoverPreviewCard = ({ data, date, savedReview, onViewDetail, onQuickReview, instruments }) => {
+  const stats = analyzeTradeData(data.trades, instruments);
   if (!stats) return null;
   
   return (
@@ -240,12 +255,13 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
   });
   const [isSaving, setIsSaving] = useState(false);
   
-  // 根据品种配置计算单笔交易手续费
+  // 根据品种配置计算单笔交易手续费（双边：开仓+平仓）
   const calculateTradeFee = (trade) => {
     const instrument = instruments.find(i => i.code === trade.instrumentCode);
-    const feeRate = instrument?.feeRate || 0; // 每手手续费
+    const feeRate = instrument?.feeRate || 0; // 单边手续费（每手）
     const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-    return feeRate * quantity;
+    // 一笔完整交易包含开仓和平仓，所以手续费 = 单边费率 × 手数 × 2
+    return feeRate * quantity * 2;
   };
 
   useEffect(() => {
@@ -281,19 +297,22 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       const date = getTradingDate(t.openTime);
       if (!grouped[date]) grouped[date] = { trades: [], totalPnL: 0, winCount: 0, lossCount: 0 };
       grouped[date].trades.push(t);
-      grouped[date].totalPnL += t.pnl || 0;
-      if (t.pnl > 0) grouped[date].winCount++;
-      else if (t.pnl < 0) grouped[date].lossCount++;
+      // 使用净盈亏（扣除手续费）
+      const netPnL = getNetPnL(t, instruments);
+      grouped[date].totalPnL += netPnL;
+      if (netPnL > 0) grouped[date].winCount++;
+      else if (netPnL < 0) grouped[date].lossCount++;
     });
     return grouped;
-  }, [trades]);
+  }, [trades, instruments]);
 
   // 当月统计
   const monthStats = useMemo(() => {
     const monthKey = currentMonth.format('YYYY-MM');
     const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
-    const totalPnL = monthTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-    const winCount = monthTrades.filter(t => t.pnl > 0).length;
+    // 使用净盈亏（扣除手续费）
+    const totalPnL = monthTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
+    const winCount = monthTrades.filter(t => getNetPnL(t, instruments) > 0).length;
     const tradingDays = new Set(monthTrades.map(t => getTradingDate(t.openTime))).size;
     
     return {
@@ -302,22 +321,23 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       winRate: monthTrades.length > 0 ? (winCount / monthTrades.length * 100).toFixed(0) : 0,
       tradingDays,
     };
-  }, [trades, currentMonth]);
+  }, [trades, currentMonth, instruments]);
 
   // 上月统计（用于趋势对比）
   const prevMonthStats = useMemo(() => {
     const prevMonth = currentMonth.subtract(1, 'month');
     const monthKey = prevMonth.format('YYYY-MM');
     const monthTrades = trades.filter(t => getTradingMonth(t.openTime) === monthKey);
-    const totalPnL = monthTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-    const winCount = monthTrades.filter(t => t.pnl > 0).length;
+    // 使用净盈亏（扣除手续费）
+    const totalPnL = monthTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
+    const winCount = monthTrades.filter(t => getNetPnL(t, instruments) > 0).length;
     
     return {
       totalTrades: monthTrades.length,
       totalPnL,
       winRate: monthTrades.length > 0 ? (winCount / monthTrades.length * 100).toFixed(0) : 0,
     };
-  }, [trades, currentMonth]);
+  }, [trades, currentMonth, instruments]);
 
   // 待复盘天数
   const pendingReviewDays = useMemo(() => {
@@ -327,7 +347,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       .length;
   }, [tradesByDate, savedReviews, currentMonth]);
 
-  // 周度统计（当前月的每一周）
+  // 周度统计（当前月的每一周）- 使用净盈亏
   const weeklyStats = useMemo(() => {
     const monthKey = currentMonth.format('YYYY-MM');
     const monthStart = currentMonth.startOf('month');
@@ -347,8 +367,9 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                getTradingMonth(t.openTime) === monthKey;
       });
       
-      const totalPnL = weekTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-      const winCount = weekTrades.filter(t => t.pnl > 0).length;
+      // 使用净盈亏（扣除手续费）
+      const totalPnL = weekTrades.reduce((sum, t) => sum + getNetPnL(t, instruments), 0);
+      const winCount = weekTrades.filter(t => getNetPnL(t, instruments) > 0).length;
       const tradingDays = new Set(weekTrades.map(t => getTradingDate(t.openTime))).size;
       
       // 只添加有交易或属于当月的周
@@ -372,12 +393,12 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     }
     
     return weeks;
-  }, [trades, currentMonth]);
+  }, [trades, currentMonth, instruments]);
 
   // 进入复盘页面
   const enterReview = (date) => {
     const dayTrades = tradesByDate[date]?.trades || [];
-    const stats = analyzeTradeData(dayTrades);
+    const stats = analyzeTradeData(dayTrades, instruments);
     setReviewStats(stats);
     setSelectedDate(date);
     
@@ -466,7 +487,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
     }
     
     const isReviewed = !!savedReviews[key];
-    const stats = data ? analyzeTradeData(data.trades) : null;
+    const stats = data ? analyzeTradeData(data.trades, instruments) : null;
     const isProfit = stats?.totalPnL > 0;
 
     return (
@@ -479,6 +500,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               savedReview={savedReviews[key]}
               onViewDetail={() => enterReview(key)}
               onQuickReview={() => enterReview(key)}
+              instruments={instruments}
             />
           )
         }

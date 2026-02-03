@@ -633,14 +633,31 @@ app.get('/instruments', authRequired, async (req, res) => {
 });
 
 app.put('/instruments', authRequired, async (req, res) => {
-  const instruments = Array.isArray(req.body?.instruments) ? req.body.instruments : [];
-  await prisma.instrument.deleteMany({ where: { userId: req.user.id } });
-  if (instruments.length > 0) {
-    await prisma.instrument.createMany({
-      data: instruments.map(inst => ({ ...inst, userId: req.user.id })),
-    });
+  try {
+    const instruments = Array.isArray(req.body?.instruments) ? req.body.instruments : [];
+    
+    // 清理和验证品种数据
+    const cleanedInstruments = instruments.map(inst => ({
+      code: String(inst.code || '').trim().toUpperCase(),
+      name: String(inst.name || '').trim(),
+      tickValue: Number(inst.tickValue) || 0,
+      feeRate: Number(inst.feeRate) || 0,
+      initialCapital: Number(inst.initialCapital) || 0,
+      atasPattern: inst.atasPattern ? String(inst.atasPattern).trim() : null,
+      userId: req.user.id,
+    })).filter(inst => inst.code); // 过滤掉没有代码的品种
+    
+    await prisma.instrument.deleteMany({ where: { userId: req.user.id } });
+    if (cleanedInstruments.length > 0) {
+      await prisma.instrument.createMany({
+        data: cleanedInstruments,
+      });
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('保存品种失败:', error);
+    return res.status(500).json({ message: '保存品种失败', error: error.message });
   }
-  return res.json({ success: true });
 });
 
 // ========== Records ==========

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, shrink-to-fit=no" />
     
     <!-- Primary Meta Tags -->
     <title>TradeWhy.AI - 智能交易日志 | AI驱动的期货交易分析平台</title>
@@ -91,20 +91,37 @@
     }
     </script>
     
-    <!-- Preconnect to external resources -->
+    <!-- Fonts: 使用国内 CDN 镜像，避免 Google Fonts 加载失败 -->
+    <!-- 主要字体：使用系统字体栈作为后备，确保页面不会因字体加载失败而白屏 -->
+    <style>
+      /* 定义字体，使用 font-display: swap 确保文字先用系统字体显示 */
+      @font-face {
+        font-family: 'DM Sans';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: local('DM Sans'), local('DMSans-Regular'), local('system-ui');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: local('JetBrains Mono'), local('JetBrainsMono-Regular'), local('monospace');
+      }
+    </style>
+    <!-- 异步加载 Google Fonts，失败不影响页面显示 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
-    <!-- DNS Prefetch -->
-    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-    
-    <!-- Fonts: DM Sans + JetBrains Mono -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-1e188c7f.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
+    <script type="module" crossorigin src="/assets/index-b88b6955.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-fa9da516.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-d96e2aa4.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-antd-f078a58d.js">
-    <link rel="stylesheet" href="/assets/index-ab811281.css">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-antd-01347ada.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-4aeb5550.js">
+    <link rel="stylesheet" href="/assets/index-1a8eedff.css">
   </head>
   <body>
     <!-- Noscript fallback -->

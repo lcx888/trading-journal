@@ -56,42 +56,101 @@ const getTimezoneOffset = (timezone, date) => {
 };
 
 /**
- * 将日期从源时区转换到目标时区
+ * 将日期从源时区转换为 UTC 时间
+ * 
+ * 重要说明：
+ * - XLSX 库使用 cellDates: true 时，把 Excel 日期数值解析为 UTC 时间戳
+ * - 但 Excel 中的时间实际上代表的是 fromTimezone（数据源时区）的本地时间
+ * - 我们需要修正：把"被误解为 UTC"的时间，转换为真正的 UTC 时间
+ * 
+ * 例如：Excel 中 20:01:29，dataSourceTimezone = UTC+0 (伦敦)
+ * - XLSX 解析后 getUTCHours() = 20
+ * - fromOffset = 0
+ * - 真正的 UTC = 20:01:29 - 0 = 20:01:29 ✓
+ * 
+ * 例如：Excel 中 12:00:00，dataSourceTimezone = UTC-6 (芝加哥)
+ * - XLSX 解析后 getUTCHours() = 12
+ * - fromOffset = -360 (分钟)
+ * - 真正的 UTC = 12:00 - (-6小时) = 18:00 ✓
  */
 const convertTimezone = (date, fromTimezone, toTimezone) => {
-  if (!date || fromTimezone === toTimezone) return date;
+  if (!date) return date;
   
-  // 获取偏移量
+  // 获取数据源时区的偏移量（分钟）
+  // 例如：UTC+8 返回 480，UTC-6 返回 -360
   const fromOffset = getTimezoneOffset(fromTimezone, date);
-  const toOffset = getTimezoneOffset(toTimezone, date);
   
-  // 计算偏移差（分钟）
-  const diffMinutes = toOffset - fromOffset;
+  // XLSX 把 Excel 时间当作 UTC 解析，但实际上这是 fromTimezone 的本地时间
+  // 要得到真正的 UTC 时间，需要减去 fromTimezone 的偏移量
+  // 公式：真正的UTC = 被误解的UTC - fromOffset
+  // 
+  // 举例：Excel 显示 20:01:29，fromTimezone = UTC+0
+  // - XLSX 解析为 UTC 20:01:29（getUTCHours=20）
+  // - fromOffset = 0
+  // - 真正的 UTC = 20:01:29 - 0 = 20:01:29 ✓
+  //
+  // 举例：Excel 显示 12:00:00，fromTimezone = UTC-6
+  // - XLSX 解析为 UTC 12:00:00（getUTCHours=12）
+  // - fromOffset = -360 分钟 = -6 小时
+  // - 真正的 UTC = 12:00 - (-6小时) = 18:00 ✓
+  const realUTCTime = date.getTime() - fromOffset * 60 * 1000;
   
-  if (diffMinutes === 0) return date;
-  
-  // 创建新的日期对象，调整时间
-  const newDate = new Date(date.getTime() + diffMinutes * 60 * 1000);
-  return newDate;
+  return new Date(realUTCTime);
 };
 
-// 品种代码映射
+// 品种代码映射 - 支持更多品种和格式
+// 注：正则需要支持各种交易所后缀，如 @CME, @CME_Ind, @NYMEX, @COMEX, @NYMEX_Com 等
+// 重要：更长的前缀必须放在更短的前缀之前（如 MES 在 ES 之前），否则会被短前缀错误匹配
 const INSTRUMENT_PATTERNS = {
-  'GC': /GC[A-Z]\d+@NYMEX/i,
-  'ES': /ES[A-Z]\d+@CME/i,
-  'NQ': /NQ[A-Z]\d+@CME/i,
-  'RTY': /RTY[A-Z]\d+@CME|M2K[A-Z]\d+@CME/i,
+  // 微型合约（放在标准合约之前以优先匹配）
+  'MES': /MES[A-Z]?\d*@?CME/i,                     // 微型标普
+  'MNQ': /MNQ[A-Z]?\d*@?CME/i,                     // 微型纳指
+  'M2K': /M2K[A-Z]?\d*@?CME/i,                     // 微型罗素
+  'MYM': /MYM[A-Z]?\d*@?CME/i,                     // 微型道指
+  'MGC': /MGC[A-Z]?\d*@?(NYMEX|COMEX)/i,          // 微型黄金
+  'MCL': /MCL[A-Z]?\d*@?(NYMEX|COMEX)/i,          // 微型原油
+  // 标准合约
+  'ES': /ES[A-Z]?\d*@?CME/i,                       // 标普期货
+  'NQ': /NQ[A-Z]?\d*@?CME/i,                       // 纳指期货
+  'RTY': /RTY[A-Z]?\d*@?CME/i,                     // 罗素期货
+  'YM': /YM[A-Z]?\d*@?CME/i,                       // 道指期货
+  'GC': /GC[A-Z]?\d*@?(NYMEX|COMEX)/i,            // 黄金期货
+  'CL': /CL[A-Z]?\d*@?(NYMEX|COMEX)/i,            // 原油期货
+  'SI': /SI[A-Z]?\d*@?(NYMEX|COMEX)/i,            // 白银期货
+  'HG': /HG[A-Z]?\d*@?(NYMEX|COMEX)/i,            // 铜期货
+  'NG': /NG[A-Z]?\d*@?(NYMEX|COMEX)/i,            // 天然气
+  // 国债期货
+  'ZB': /ZB[A-Z]?\d*@?(CME|CBOT)/i,               // 国债期货
+  'ZN': /ZN[A-Z]?\d*@?(CME|CBOT)/i,               // 10年期国债
+  // 外汇期货
+  '6E': /6E[A-Z]?\d*@?CME/i,                       // 欧元期货
+  '6J': /6J[A-Z]?\d*@?CME/i,                       // 日元期货
+  '6A': /6A[A-Z]?\d*@?CME/i,                       // 澳元期货
+  '6B': /6B[A-Z]?\d*@?CME/i,                       // 英镑期货
+  '6C': /6C[A-Z]?\d*@?CME/i,                       // 加元期货
+  // 加密货币期货
+  'BTC': /BTC(USD|USDT)?@/i,                       // 比特币期货
+  'ETH': /ETH(USD|USDT)?@/i,                       // 以太坊期货
 };
 
 // 从 ATAS 品种字符串推导代码
 const deriveInstrumentCode = (atasSymbol) => {
   if (!atasSymbol) return null;
-  const base = String(atasSymbol).split('@')[0] || '';
+  const symbolStr = String(atasSymbol).trim();
+  
+  // 先尝试提取 @ 前面的部分
+  const base = symbolStr.split('@')[0] || symbolStr;
   if (!base) return null;
+  
   const upper = base.toUpperCase();
-  const withoutSuffix = upper.replace(/[A-Z]\d+$/i, '');
-  const match = (withoutSuffix || upper).match(/^[A-Z0-9]+/);
-  return match ? match[0] : null;
+  
+  // 尝试移除月份后缀（如 NQH26 -> NQ, ESH2026 -> ES）
+  // 支持 XXYZ99 或 XXY9999 格式
+  const withoutSuffix = upper.replace(/[A-Z]\d{2,4}$/i, '');
+  
+  // 提取基础品种代码
+  const match = (withoutSuffix || upper).match(/^([A-Z0-9]{1,4})/);
+  return match ? match[1] : null;
 };
 
 const buildDefaultInstrument = (code) => ({
@@ -103,35 +162,47 @@ const buildDefaultInstrument = (code) => ({
   atasPattern: `${code}.*@`,
 });
 
-// 解析品种代码（优先已配置品种匹配）
+// 解析品种代码
+// 注意：先使用内置的精确模式匹配（已按长度排序），再用用户自定义模式
+// 这样可以确保 MES 不会被 ES 的 pattern 错误匹配
 const parseInstrumentCode = (atasSymbol, instruments = []) => {
+  // 1. 首先尝试用户配置的精确匹配（必须从字符串开头匹配）
   for (const inst of instruments) {
     if (!inst?.atasPattern) continue;
     try {
-      const regex = new RegExp(inst.atasPattern, 'i');
+      // 确保从字符串开头匹配，避免 ES 匹配到 MES
+      const pattern = inst.atasPattern.startsWith('^') ? inst.atasPattern : `^${inst.atasPattern}`;
+      const regex = new RegExp(pattern, 'i');
       if (regex.test(atasSymbol)) return inst.code;
     } catch (e) {
       // ignore invalid regex and continue
     }
   }
 
+  // 2. 使用内置的精确模式（微型合约优先）
   for (const [code, pattern] of Object.entries(INSTRUMENT_PATTERNS)) {
     if (pattern.test(atasSymbol)) {
       return code;
     }
   }
 
+  // 3. 尝试推导品种代码
   return deriveInstrumentCode(atasSymbol) || 'OTHER';
 };
 
-// 解析Excel日期（ATAS导出的时间视为本地时间，直接使用不做转换）
+// 解析Excel日期
+// 重要：Excel 日期数值不包含时区信息，我们把它解析为"原始时间"
+// 然后由 convertTimezone 函数根据 dataSourceTimezone 设置进行正确的时区转换
 const parseExcelDate = (excelDate) => {
   if (!excelDate) return null;
   
   let date = null;
   
   if (excelDate instanceof Date) {
-    // 已经是 Date 对象，直接使用
+    // XLSX 库使用 cellDates: true 时返回 Date 对象
+    // 这个 Date 对象是 XLSX 把 Excel 数值当作 UTC 时间戳解析的结果
+    // 我们需要"还原"出 Excel 中显示的原始时间值
+    // 方法：取 UTC 时间部分，作为"原始时间"
     date = excelDate;
   } else if (typeof excelDate === 'string') {
     // 字符串格式，直接解析
@@ -139,30 +210,9 @@ const parseExcelDate = (excelDate) => {
     if (isNaN(date.getTime())) return null;
   } else if (typeof excelDate === 'number') {
     // Excel日期是从1900年1月1日开始的天数（小数部分是时间）
-    // 将Excel日期转换为日期时间各部分，然后创建本地时间
-    const totalDays = excelDate - 25569; // 相对于1970-01-01的天数
-    const wholeDays = Math.floor(totalDays);
-    const timeFraction = totalDays - wholeDays; // 时间部分（0-1之间的小数）
-    
-    // 计算基准日期（1970-01-01）加上天数
-    const baseDate = new Date(1970, 0, 1); // 本地时间1970-01-01
-    baseDate.setDate(baseDate.getDate() + wholeDays);
-    
-    // 计算时间部分
-    const totalSeconds = Math.round(timeFraction * 86400);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    // 创建本地时间的Date对象
-    date = new Date(
-      baseDate.getFullYear(),
-      baseDate.getMonth(),
-      baseDate.getDate(),
-      hours,
-      minutes,
-      seconds
-    );
+    // 直接转换为 UTC 时间戳
+    const msFromEpoch = (excelDate - 25569) * 24 * 60 * 60 * 1000;
+    date = new Date(msFromEpoch);
   } else {
     return null;
   }

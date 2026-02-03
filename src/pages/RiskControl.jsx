@@ -280,6 +280,7 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
           trades={trades} 
           instruments={instruments}
           hideSettings={true}
+          externalConfig={config}
         />
       </div>
 
