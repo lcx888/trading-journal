@@ -38,7 +38,7 @@ const Navbar = ({ onStart, onDocs }) => {
     <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-3' : 'bg-transparent py-6'}`}>
       <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 object-contain" />
+          <img src="/logo.svg" alt="TradeWhy.AI" className="h-5 sm:h-6 md:h-7 max-w-[120px] sm:max-w-none object-contain" />
         </div>
         
         <div className="hidden md:flex items-center gap-10">
