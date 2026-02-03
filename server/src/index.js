@@ -981,6 +981,69 @@ app.post('/strategies/refresh-usage', authRequired, async (req, res) => {
   return res.json(updated);
 });
 
+// 获取策略关联的交易列表
+app.get('/strategies/:id/trades', authRequired, async (req, res) => {
+  const strategyId = req.params.id;
+  const trades = await prisma.trade.findMany({
+    where: { userId: req.user.id },
+    select: { id: true, pnl: true, openTime: true, instrumentCode: true, data: true },
+    orderBy: { openTime: 'desc' },
+  });
+  
+  // 筛选使用该策略的交易
+  const filteredTrades = trades.filter(t => {
+    try {
+      const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
+      const strategyIds = data?.strategyIds || [];
+      return Array.isArray(strategyIds) && strategyIds.includes(strategyId);
+    } catch (e) {
+      return false;
+    }
+  }).map(t => {
+    const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
+    return {
+      id: t.id,
+      pnl: t.pnl,
+      openTime: t.openTime,
+      instrumentCode: t.instrumentCode,
+      direction: data?.direction,
+      openQuantity: data?.openQuantity || data?.quantity || 1,
+      reflection: data?.reflection || '', // 单笔交易反思
+    };
+  });
+  
+  return res.json(filteredTrades);
+});
+
+// 更新交易反思
+app.patch('/trades/:id/reflection', authRequired, async (req, res) => {
+  const { reflection } = req.body || {};
+  const trade = await prisma.trade.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  
+  if (!trade) {
+    return res.status(404).json({ message: '交易不存在' });
+  }
+  
+  // 更新 data JSON 中的 reflection 字段
+  let data = {};
+  try {
+    data = typeof trade.data === 'string' ? JSON.parse(trade.data) : trade.data;
+  } catch (e) {
+    data = {};
+  }
+  
+  data.reflection = reflection || '';
+  
+  const updated = await prisma.trade.update({
+    where: { id: req.params.id },
+    data: { data: JSON.stringify(data) },
+  });
+  
+  return res.json({ success: true, reflection: data.reflection });
+});
+
 // ========== Imports ==========
 app.get('/imports', authRequired, async (req, res) => {
   const history = await prisma.importRecord.findMany({

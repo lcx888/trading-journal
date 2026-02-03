@@ -208,6 +208,19 @@ export const StorageService = {
   async refreshStrategyUsageCounts() {
     return await apiRequest('/strategies/refresh-usage', { method: 'POST' });
   },
+  
+  // 获取策略关联的交易列表
+  async getStrategyTrades(strategyId) {
+    return await apiRequest(`/strategies/${strategyId}/trades`);
+  },
+  
+  // 更新交易反思
+  async updateTradeReflection(tradeId, reflection) {
+    return await apiRequest(`/trades/${tradeId}/reflection`, { 
+      method: 'PATCH', 
+      body: { reflection } 
+    });
+  },
 
   async addStrategyToTrade(tradeId, strategyId) {
     const trades = await this.getAllTrades();
