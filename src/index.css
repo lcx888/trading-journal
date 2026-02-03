@@ -1349,7 +1349,6 @@ html {
   /* 图片和视频自适应 */
   img, video, iframe, embed, object {
     max-width: 100% !important;
-    height: auto !important;
   }
   
   /* 表格容器水平滚动 */
