@@ -1,8 +1,14 @@
+// 🚀 性能标记：JS 模块开始加载
+if (window.__perfMetrics) window.__perfMetrics.mark('JS模块开始');
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './errorMonitor.js' // 全局错误监控 - 需要最先加载
 import App from './App.jsx'
+
+// 🚀 性能标记：所有 import 完成
+if (window.__perfMetrics) window.__perfMetrics.mark('Import完成');
 
 // ============================================
 // 移动端兼容性修复
@@ -53,6 +59,8 @@ window.addEventListener('orientationchange', () => setTimeout(adjustViewport, 10
 
 // 3. 渲染应用（包装在 try-catch 中）
 try {
+  if (window.__perfMetrics) window.__perfMetrics.mark('React渲染开始');
+  
   const rootElement = document.getElementById('root');
   if (rootElement) {
     createRoot(rootElement).render(
@@ -60,11 +68,23 @@ try {
         <App />
       </StrictMode>,
     );
+    
+    // 🚀 性能标记：首次渲染完成（使用 requestIdleCallback 或 setTimeout）
+    var markRenderComplete = function() {
+      if (window.__perfMetrics) window.__perfMetrics.mark('React渲染完成');
+    };
+    if (window.requestIdleCallback) {
+      requestIdleCallback(markRenderComplete);
+    } else {
+      setTimeout(markRenderComplete, 0);
+    }
   } else {
     console.error('Root element not found');
   }
 } catch (e) {
   console.error('App render failed:', e);
+  if (window.__mobileDebug) window.__mobileDebug.log('ERROR', 'Render: ' + (e.message || e));
+  
   // 显示错误信息给用户
   var root = document.getElementById('root');
   if (root) {

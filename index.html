@@ -91,6 +91,12 @@
     }
     </script>
     
+    <!-- 🚀 预加载关键资源 -->
+    <link rel="preload" href="/logo.svg" as="image" type="image/svg+xml" />
+    
+    <!-- 🚀 DNS 预解析（加速第三方资源） -->
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+    
     <!-- Fonts: 使用国内 CDN 镜像，避免 Google Fonts 加载失败 -->
     <!-- 主要字体：使用系统字体栈作为后备，确保页面不会因字体加载失败而白屏 -->
     <style>
@@ -119,13 +125,67 @@
     </noscript>
   </head>
   <body>
+    <!-- 🔧 Eruda 移动端调试控制台（仅在 URL 含 ?debug 时加载）-->
+    <script>
+      if (/debug/.test(location.search)) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda@3.0.1/eruda.min.js';
+        s.onload = function() { eruda.init(); };
+        document.head.appendChild(s);
+      }
+    </script>
+    
+    <!-- 🚀 性能监控脚本（记录各阶段加载耗时）-->
+    <script>
+      (function() {
+        var perf = window.__perfMetrics = {
+          pageStart: Date.now(),
+          marks: {},
+          mark: function(name) {
+            this.marks[name] = Date.now() - this.pageStart;
+          },
+          report: function() {
+            var nav = performance.timing || {};
+            var metrics = {
+              // 页面加载各阶段
+              'DNS解析': nav.domainLookupEnd - nav.domainLookupStart,
+              'TCP连接': nav.connectEnd - nav.connectStart,
+              'SSL握手': nav.secureConnectionStart ? (nav.connectEnd - nav.secureConnectionStart) : 0,
+              '首字节(TTFB)': nav.responseStart - nav.requestStart,
+              'HTML下载': nav.responseEnd - nav.responseStart,
+              'DOM解析': nav.domInteractive - nav.responseEnd,
+              'DOM完成': nav.domContentLoadedEventEnd - nav.navigationStart,
+              '页面完全加载': nav.loadEventEnd - nav.navigationStart,
+              // 自定义标记
+              ...this.marks
+            };
+            return metrics;
+          },
+          show: function() {
+            var m = this.report();
+            var html = '<div style="position:fixed;top:0;left:0;right:0;background:#1a1a1a;color:#0f0;font:11px monospace;padding:8px;z-index:999999;max-height:50vh;overflow:auto;">';
+            html += '<div style="color:#ff0;font-weight:bold;margin-bottom:4px;">⏱️ 性能指标 (ms) - 点击关闭</div>';
+            for (var k in m) {
+              var v = m[k];
+              var color = v > 3000 ? '#f66' : v > 1000 ? '#fa0' : '#0f0';
+              html += '<div><span style="color:#888;width:120px;display:inline-block;">' + k + ':</span><span style="color:' + color + '">' + (v || 0) + 'ms</span></div>';
+            }
+            html += '</div>';
+            var div = document.createElement('div');
+            div.innerHTML = html;
+            div.onclick = function() { div.remove(); };
+            document.body.appendChild(div);
+          }
+        };
+        // 记录脚本开始执行时间
+        perf.mark('脚本开始');
+      })();
+    </script>
+    
     <!-- 🔧 移动端早期错误捕获（在任何 JS 执行前） -->
     <script>
       (function() {
-        // 检测是否为移动端
         var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
-        // 创建调试面板（仅在出错时显示）
         var debugPanel = null;
         var debugLogs = [];
         
@@ -140,10 +200,10 @@
         
         function logDebug(type, msg) {
           var time = new Date().toLocaleTimeString();
-          debugLogs.push('[' + time + '] ' + type + ': ' + msg);
+          var elapsed = Date.now() - (window.__perfMetrics ? window.__perfMetrics.pageStart : Date.now());
+          debugLogs.push('[' + elapsed + 'ms] ' + type + ': ' + msg);
           if (debugLogs.length > 50) debugLogs.shift();
           
-          // 如果是错误，显示调试面板
           if (type === 'ERROR' || type === 'REJECT') {
             var panel = createDebugPanel();
             panel.style.display = 'block';
@@ -153,24 +213,23 @@
           }
         }
         
-        // 全局错误捕获
         window.onerror = function(msg, url, line, col, err) {
           logDebug('ERROR', msg + ' at ' + (url || '').split('/').pop() + ':' + line);
           return false;
         };
         
-        // Promise 错误捕获
         window.onunhandledrejection = function(e) {
           var reason = e.reason;
           logDebug('REJECT', (reason && reason.message) || String(reason));
         };
         
-        // 记录启动信息
-        logDebug('INFO', 'Mobile: ' + isMobile + ', UA: ' + navigator.userAgent.substring(0, 60));
-        logDebug('INFO', 'Screen: ' + screen.width + 'x' + screen.height + ', Viewport: ' + window.innerWidth + 'x' + window.innerHeight);
+        logDebug('INFO', 'Mobile: ' + isMobile + ', Screen: ' + screen.width + 'x' + screen.height);
         
-        // 暴露到全局方便调试
-        window.__mobileDebug = { logs: debugLogs, show: function() { createDebugPanel().style.display = 'block'; } };
+        window.__mobileDebug = { 
+          logs: debugLogs, 
+          show: function() { createDebugPanel().style.display = 'block'; },
+          log: logDebug
+        };
       })();
     </script>
     
