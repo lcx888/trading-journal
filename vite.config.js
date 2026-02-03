@@ -16,86 +16,37 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash:8].js',
         assetFileNames: 'assets/[name]-[hash:8].[ext]',
         
-        manualChunks: (id) => {
-          // ========== 首屏必须加载 ==========
-          // React 核心
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'core-react';
-          }
-          // React Router
-          if (id.includes('node_modules/react-router')) {
-            return 'core-react';
-          }
-          // scheduler (React 依赖)
-          if (id.includes('node_modules/scheduler')) {
-            return 'core-react';
-          }
-          
-          // ========== Ant Design 拆分 ==========
-          // 图标 - 体积大，单独拆分
-          if (id.includes('@ant-design/icons')) {
-            return 'ui-antd-icons';
-          }
-          // rc-* 底层组件
-          if (id.includes('node_modules/rc-')) {
-            return 'ui-antd-base';
-          }
-          // antd 核心
-          if (id.includes('node_modules/antd/')) {
-            return 'ui-antd';
-          }
-          // @ant-design 其他包
-          if (id.includes('node_modules/@ant-design/')) {
-            return 'ui-antd-base';
-          }
-          
-          // ========== 大型库 - 按需加载 ==========
+manualChunks: {
+          // React 核心（必须首屏加载）
+          'vendor-react': [
+            'react', 
+            'react-dom', 
+            'react-router-dom',
+            'scheduler'
+          ],
+          // Ant Design 全家桶（合并避免循环依赖）
+          'vendor-antd': [
+            'antd',
+            '@ant-design/icons',
+            '@ant-design/cssinjs'
+          ],
           // ECharts（仅图表页面需要）
-          if (id.includes('node_modules/echarts') || id.includes('node_modules/zrender')) {
-            return 'lib-echarts';
-          }
-          
+          'vendor-echarts': [
+            'echarts',
+            'echarts-for-react',
+            'zrender'
+          ],
           // XLSX（仅导入页面需要）
-          if (id.includes('node_modules/xlsx') || id.includes('node_modules/codepage')) {
-            return 'lib-xlsx';
-          }
-          
-          // Markdown（仅文档/AI页面需要）
-          if (id.includes('node_modules/react-markdown') || 
-              id.includes('node_modules/remark') || 
-              id.includes('node_modules/unified') ||
-              id.includes('node_modules/micromark') ||
-              id.includes('node_modules/mdast') ||
-              id.includes('node_modules/hast') ||
-              id.includes('node_modules/unist')) {
-            return 'lib-markdown';
-          }
-          
-          // Sentry（错误监控，可延迟）
-          if (id.includes('node_modules/@sentry')) {
-            return 'lib-sentry';
-          }
-          
-          // ========== 工具库 ==========
-          // dayjs
-          if (id.includes('node_modules/dayjs')) {
-            return 'util-dayjs';
-          }
-          
-          // Lucide 图标
-          if (id.includes('node_modules/lucide-react')) {
-            return 'util-icons';
-          }
-          
-          // React Spring 动画
-          if (id.includes('node_modules/@react-spring')) {
-            return 'util-animation';
-          }
-          
-          // ========== 其他 ==========
-          if (id.includes('node_modules/')) {
-            return 'vendor';
-          }
+          'vendor-xlsx': [
+            'xlsx'
+          ],
+          // 工具库
+          'vendor-utils': [
+            'dayjs',
+            'react-markdown',
+            'lucide-react',
+            '@react-spring/web'
+          ],
         },
       },
     },
