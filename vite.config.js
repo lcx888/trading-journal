@@ -11,79 +11,97 @@ export default defineConfig({
     // 🚀 代码分割优化 - 减少首屏加载体积
     rollupOptions: {
       output: {
+        // 优化文件名，便于缓存
+        chunkFileNames: 'assets/[name]-[hash:8].js',
+        entryFileNames: 'assets/[name]-[hash:8].js',
+        assetFileNames: 'assets/[name]-[hash:8].[ext]',
+        
         manualChunks: (id) => {
-          // React 核心 - 必须首屏加载
+          // ========== 首屏必须加载 ==========
+          // React 核心
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'vendor-react';
+            return 'core-react';
           }
-          // React Router - 必须首屏加载
+          // React Router
           if (id.includes('node_modules/react-router')) {
-            return 'vendor-react';
+            return 'core-react';
+          }
+          // scheduler (React 依赖)
+          if (id.includes('node_modules/scheduler')) {
+            return 'core-react';
           }
           
-          // Ant Design 拆分：核心 vs 图标
+          // ========== Ant Design 拆分 ==========
+          // 图标 - 体积大，单独拆分
           if (id.includes('@ant-design/icons')) {
-            return 'vendor-antd-icons'; // 图标单独拆分
+            return 'ui-antd-icons';
           }
+          // rc-* 底层组件
+          if (id.includes('node_modules/rc-')) {
+            return 'ui-antd-base';
+          }
+          // antd 核心
           if (id.includes('node_modules/antd/')) {
-            return 'vendor-antd';
+            return 'ui-antd';
+          }
+          // @ant-design 其他包
+          if (id.includes('node_modules/@ant-design/')) {
+            return 'ui-antd-base';
           }
           
-          // ECharts - 仅 Dashboard/TradeList 等页面需要
-          if (id.includes('node_modules/echarts')) {
-            return 'vendor-echarts';
+          // ========== 大型库 - 按需加载 ==========
+          // ECharts（仅图表页面需要）
+          if (id.includes('node_modules/echarts') || id.includes('node_modules/zrender')) {
+            return 'lib-echarts';
           }
           
-          // XLSX - 仅导入数据页面需要
-          if (id.includes('node_modules/xlsx')) {
-            return 'vendor-xlsx';
+          // XLSX（仅导入页面需要）
+          if (id.includes('node_modules/xlsx') || id.includes('node_modules/codepage')) {
+            return 'lib-xlsx';
           }
           
-          // Markdown 相关 - 仅文档/AI分析页面需要
+          // Markdown（仅文档/AI页面需要）
           if (id.includes('node_modules/react-markdown') || 
               id.includes('node_modules/remark') || 
               id.includes('node_modules/unified') ||
               id.includes('node_modules/micromark') ||
               id.includes('node_modules/mdast') ||
-              id.includes('node_modules/hast')) {
-            return 'vendor-markdown';
+              id.includes('node_modules/hast') ||
+              id.includes('node_modules/unist')) {
+            return 'lib-markdown';
           }
           
-          // dayjs 及其插件
-          if (id.includes('node_modules/dayjs')) {
-            return 'vendor-dayjs';
-          }
-          
-          // Sentry 错误监控 - 延迟加载（体积较大）
+          // Sentry（错误监控，可延迟）
           if (id.includes('node_modules/@sentry')) {
-            return 'vendor-sentry';
+            return 'lib-sentry';
           }
           
-          // rc-* 组件（Ant Design 底层依赖）
-          if (id.includes('node_modules/rc-')) {
-            return 'vendor-antd-rc';
+          // ========== 工具库 ==========
+          // dayjs
+          if (id.includes('node_modules/dayjs')) {
+            return 'util-dayjs';
           }
           
           // Lucide 图标
           if (id.includes('node_modules/lucide-react')) {
-            return 'vendor-lucide';
+            return 'util-icons';
           }
           
           // React Spring 动画
           if (id.includes('node_modules/@react-spring')) {
-            return 'vendor-animation';
+            return 'util-animation';
           }
           
-          // 其他小型第三方库 - 合并到一个包
+          // ========== 其他 ==========
           if (id.includes('node_modules/')) {
-            return 'vendor-misc';
+            return 'vendor';
           }
         },
       },
     },
     
-    // 提高警告阈值
-    chunkSizeWarningLimit: 500,
+    // 警告阈值
+    chunkSizeWarningLimit: 400,
     
     // CSS 兼容性
     cssTarget: ['chrome61', 'safari11'],
@@ -94,21 +112,32 @@ export default defineConfig({
     // 压缩配置
     minify: 'esbuild',
     
-    // 生成 sourcemap 便于调试（生产环境可关闭）
+    // 关闭 sourcemap（生产环境）
     sourcemap: false,
+    
+    // 资源内联阈值（小于 4KB 的资源内联为 base64）
+    assetsInlineLimit: 4096,
   },
   
   // 优化依赖预构建
   optimizeDeps: {
-    include: ['react', 'react-dom', 'antd'],
-    // 排除大型库，让它们按需加载
-    exclude: ['echarts', 'xlsx'],
+    include: ['react', 'react-dom', 'react-router-dom'],
+    // 排除大型库
+    exclude: ['echarts', 'xlsx', '@sentry/react'],
   },
   
   // esbuild 转译配置
   esbuild: {
     target: 'es2015',
-    // 移除 console.log（生产环境）
+    // 生产环境移除 console
     drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+  
+  // 服务器配置
+  server: {
+    // 预热常用文件
+    warmup: {
+      clientFiles: ['./src/App.jsx', './src/pages/Home.jsx'],
+    },
   },
 })
