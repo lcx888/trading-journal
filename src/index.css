@@ -26,9 +26,6 @@ button:focus {
    ============================================ */
 
 :root {
-  /* ========== 动态视口高度（解决移动端地址栏问题）========== */
-  --vh: 1vh;  /* 将被 JS 动态设置 */
-  
   /* ========== 背景色（极深层次）========== */
   --bg-primary: #050505;      /* 页面主背景 - 纯黑感 */
   --bg-secondary: #0a0a0c;    /* 卡片/模块背景 */
@@ -740,9 +737,8 @@ html {
 /* 遮罩层 */
 .ant-modal-root .ant-modal-mask,
 .ant-modal-mask {
-  background: rgba(0, 0, 0, 0.85) !important; /* 加深背景作为降级 */
-  -webkit-backdrop-filter: blur(4px); /* Safari 兼容 */
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 /* 弹窗外层容器 (Ant Design 5.x 新增) */
@@ -1353,6 +1349,7 @@ html {
   /* 图片和视频自适应 */
   img, video, iframe, embed, object {
     max-width: 100% !important;
+    height: auto !important;
   }
   
   /* 表格容器水平滚动 */

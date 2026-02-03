@@ -1,6 +1,5 @@
 /**
- * MobileApp.jsx - 轻量级移动端入口
- * 完全不依赖 Ant Design / ECharts，体积极小
+ * MobileApp.jsx - 移动端入口
  */
 import { useState, useEffect } from 'react';
 import { getMe, logout } from '../services/auth';
@@ -11,19 +10,11 @@ import MobileTradeList from './MobileTradeList';
 import MobileLogin from './MobileLogin';
 import './mobile.css';
 
-// 简单的加载指示器
-const MobileLoading = () => (
-  <div className="m-loading">
-    <img src="/logo.svg" alt="Logo" className="m-loading-logo" />
-    <div className="m-spinner" />
-  </div>
-);
-
 // 底部导航
 const BottomNav = ({ active, onChange }) => {
   const tabs = [
-    { key: 'dashboard', icon: '📊', label: '面板' },
-    { key: 'trades', icon: '📋', label: '交易' },
+    { key: 'dashboard', icon: '⚡', label: '概览' },
+    { key: 'trades', icon: '📝', label: '记录' },
     { key: 'profile', icon: '👤', label: '我的' },
   ];
 
@@ -46,48 +37,66 @@ const BottomNav = ({ active, onChange }) => {
 // 个人中心页面
 const ProfilePage = ({ user, records, currentRecord, onRecordChange, onLogout, onGoToWeb }) => {
   return (
-    <div className="m-page m-profile">
-      <div className="m-profile-header">
-        <div className="m-avatar">{user?.email?.[0]?.toUpperCase() || '?'}</div>
-        <div className="m-user-info">
-          <div className="m-user-email">{user?.email}</div>
-          <div className="m-user-plan">Free Plan</div>
+    <div className="m-page" style={{paddingTop: 32}}>
+      <div style={{display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32}}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', 
+          background: 'var(--m-brand-dim)', color: 'var(--m-brand)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20, fontWeight: 600
+        }}>
+          {user?.email?.[0]?.toUpperCase()}
+        </div>
+        <div>
+          <div style={{fontSize: 16, fontWeight: 500}}>{user?.email}</div>
+          <div className="text-ter" style={{fontSize: 12}}>Free Plan</div>
         </div>
       </div>
 
-      <div className="m-section">
-        <div className="m-section-title">当前账本</div>
-        <div className="m-record-list">
-          {records.map(r => (
-            <button
-              key={r.id}
-              className={`m-record-item ${currentRecord?.id === r.id ? 'active' : ''}`}
-              onClick={() => onRecordChange(r)}
-            >
-              <span className="m-record-icon">📁</span>
-              <span className="m-record-name">{r.name}</span>
-              {currentRecord?.id === r.id && <span className="m-check">✓</span>}
-            </button>
-          ))}
-        </div>
+      <div className="m-hero-label" style={{marginBottom: 12}}>当前账本</div>
+      <div className="m-card" style={{padding: 0, overflow: 'hidden'}}>
+        {records.map(r => (
+          <button
+            key={r.id}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+              padding: '14px 16px', background: 'none', border: 'none',
+              borderBottom: '1px solid var(--m-border)',
+              color: 'var(--m-text)', fontSize: 14, textAlign: 'left'
+            }}
+            onClick={() => onRecordChange(r)}
+          >
+            <span style={{fontSize: 16}}>📁</span>
+            <span style={{flex: 1}}>{r.name}</span>
+            {currentRecord?.id === r.id && <span className="text-brand">✓</span>}
+          </button>
+        ))}
       </div>
 
-      <div className="m-section">
-        <div className="m-section-title">更多功能</div>
-        <button className="m-menu-item" onClick={onGoToWeb}>
+      <div className="m-hero-label" style={{margin: '24px 0 12px'}}>更多</div>
+      <div className="m-card" style={{padding: 0, overflow: 'hidden'}}>
+        <button 
+          style={{
+            width: '100%', padding: '14px 16px', background: 'none', border: 'none',
+            borderBottom: '1px solid var(--m-border)', color: 'var(--m-text)',
+            display: 'flex', alignItems: 'center', gap: 12, fontSize: 14
+          }}
+          onClick={onGoToWeb}
+        >
           <span>🖥️</span>
-          <span>访问完整版 Web</span>
-          <span className="m-arrow">→</span>
+          <span style={{flex: 1, textAlign: 'left'}}>切换至完整版 Web</span>
+          <span className="text-ter">→</span>
         </button>
-        <button className="m-menu-item" onClick={onLogout}>
+        <button 
+          style={{
+            width: '100%', padding: '14px 16px', background: 'none', border: 'none',
+            color: 'var(--m-loss)', display: 'flex', alignItems: 'center', gap: 12, fontSize: 14
+          }}
+          onClick={onLogout}
+        >
           <span>🚪</span>
-          <span>退出登录</span>
-          <span className="m-arrow">→</span>
+          <span style={{flex: 1, textAlign: 'left'}}>退出登录</span>
         </button>
-      </div>
-
-      <div className="m-footer-tip">
-        💡 完整功能请使用电脑访问 Web 版
       </div>
     </div>
   );
@@ -102,7 +111,6 @@ export default function MobileApp() {
   const [trades, setTrades] = useState([]);
   const [instruments, setInstruments] = useState([]);
 
-  // 检查登录状态
   useEffect(() => {
     const checkAuth = async () => {
       const token = getAuthToken();
@@ -110,117 +118,64 @@ export default function MobileApp() {
         setLoading(false);
         return;
       }
-
       try {
         const userData = await getMe();
         setUser(userData);
         await loadData();
       } catch (e) {
-        console.error('Auth check failed:', e);
         localStorage.removeItem('auth_token');
       } finally {
         setLoading(false);
       }
     };
-
     checkAuth();
   }, []);
 
-  // 加载数据
   const loadData = async () => {
     try {
       const [recordList, instrumentList] = await Promise.all([
         StorageService.getTradingRecords(),
         StorageService.getInstruments(),
       ]);
-
       setRecords(recordList || []);
       setInstruments(instrumentList || []);
-
-      // 恢复上次选择的账本
-      const savedRecordId = localStorage.getItem('currentRecordId');
-      let selectedRecord = null;
       
-      if (savedRecordId && recordList) {
-        selectedRecord = recordList.find(r => r.id === savedRecordId);
-      }
-      if (!selectedRecord && recordList?.length > 0) {
-        selectedRecord = recordList[0];
-      }
+      const savedRecordId = localStorage.getItem('currentRecordId');
+      const selectedRecord = (recordList && recordList.find(r => r.id === savedRecordId)) || recordList?.[0];
       
       if (selectedRecord) {
         setCurrentRecord(selectedRecord);
         await loadTrades(selectedRecord.id);
       }
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error(error);
     }
   };
 
-  // 加载交易数据
   const loadTrades = async (recordId) => {
     try {
       const allTrades = await StorageService.getAllTrades();
-      const filteredTrades = recordId 
-        ? allTrades.filter(t => t.recordId === recordId)
-        : allTrades;
+      const filteredTrades = recordId ? allTrades.filter(t => t.recordId === recordId) : allTrades;
       setTrades(filteredTrades);
     } catch (error) {
-      console.error('Failed to load trades:', error);
+      console.error(error);
     }
   };
 
-  // 切换账本
   const handleRecordChange = async (record) => {
     setCurrentRecord(record);
     localStorage.setItem('currentRecordId', record.id);
     await loadTrades(record.id);
   };
 
-  // 登录成功
-  const handleLoginSuccess = async (userData) => {
-    setUser(userData);
-    setLoading(true);
-    await loadData();
-    setLoading(false);
-  };
-
-  // 登出
   const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (e) {
-      console.error('Logout error:', e);
-    }
+    await logout();
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('currentRecordId');
     setUser(null);
-    setTrades([]);
-    setRecords([]);
-    setCurrentRecord(null);
   };
 
-  // 跳转完整版
-  const goToFullWeb = () => {
-    // 添加标记，强制使用完整版
-    localStorage.setItem('force_full_version', 'true');
-    window.location.reload();
-  };
-
-  // 刷新数据
-  const refreshData = async () => {
-    if (currentRecord) {
-      await loadTrades(currentRecord.id);
-    }
-  };
-
-  if (loading) {
-    return <MobileLoading />;
-  }
-
-  if (!user) {
-    return <MobileLogin onSuccess={handleLoginSuccess} />;
-  }
+  if (loading) return <div className="m-loading-spinner" style={{margin: 'auto', marginTop: '40vh'}} />;
+  if (!user) return <MobileLogin onSuccess={(u) => { setUser(u); loadData(); }} />;
 
   return (
     <div className="m-app">
@@ -230,14 +185,11 @@ export default function MobileApp() {
             trades={trades} 
             instruments={instruments}
             currentRecord={currentRecord}
-            onRefresh={refreshData}
+            onRefresh={() => loadTrades(currentRecord?.id)}
           />
         )}
         {currentTab === 'trades' && (
-          <MobileTradeList 
-            trades={trades} 
-            instruments={instruments}
-          />
+          <MobileTradeList trades={trades} instruments={instruments} />
         )}
         {currentTab === 'profile' && (
           <ProfilePage 
@@ -246,7 +198,10 @@ export default function MobileApp() {
             currentRecord={currentRecord}
             onRecordChange={handleRecordChange}
             onLogout={handleLogout}
-            onGoToWeb={goToFullWeb}
+            onGoToWeb={() => {
+              localStorage.setItem('force_full_version', 'true');
+              window.location.reload();
+            }}
           />
         )}
       </div>

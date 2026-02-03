@@ -91,146 +91,17 @@
     }
     </script>
     
-    <!-- 🚀 预加载关键资源 -->
-    <link rel="preload" href="/logo.svg" as="image" type="image/svg+xml" />
-    
-    <!-- 🚀 DNS 预解析（加速第三方资源） -->
-    <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
-    
-    <!-- Fonts: 使用国内 CDN 镜像，避免 Google Fonts 加载失败 -->
-    <!-- 主要字体：使用系统字体栈作为后备，确保页面不会因字体加载失败而白屏 -->
-    <style>
-      /* 定义字体，使用 font-display: swap 确保文字先用系统字体显示 */
-      @font-face {
-        font-family: 'DM Sans';
-        font-style: normal;
-        font-weight: 400 700;
-        font-display: swap;
-        src: local('DM Sans'), local('DMSans-Regular'), local('system-ui');
-      }
-      @font-face {
-        font-family: 'JetBrains Mono';
-        font-style: normal;
-        font-weight: 400 700;
-        font-display: swap;
-        src: local('JetBrains Mono'), local('JetBrainsMono-Regular'), local('monospace');
-      }
-    </style>
-    <!-- 异步加载 Google Fonts，失败不影响页面显示 -->
+    <!-- Preconnect to external resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    </noscript>
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    
+    <!-- Fonts: DM Sans + JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <!-- 🔧 Eruda 移动端调试控制台（仅在 URL 含 ?debug 时加载）-->
-    <script>
-      if (/debug/.test(location.search)) {
-        var s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/eruda@3.0.1/eruda.min.js';
-        s.onload = function() { eruda.init(); };
-        document.head.appendChild(s);
-      }
-    </script>
-    
-    <!-- 🚀 性能监控脚本（ES5 兼容）-->
-    <script>
-      (function() {
-        var perf = window.__perfMetrics = {
-          pageStart: Date.now(),
-          marks: {},
-          mark: function(name) {
-            this.marks[name] = Date.now() - this.pageStart;
-          },
-          report: function() {
-            var nav = performance.timing || {};
-            var metrics = {
-              'DNS': nav.domainLookupEnd - nav.domainLookupStart,
-              'TCP': nav.connectEnd - nav.connectStart,
-              'TTFB': nav.responseStart - nav.requestStart,
-              'DOM': nav.domContentLoadedEventEnd - nav.navigationStart,
-              'Load': nav.loadEventEnd - nav.navigationStart
-            };
-            for (var k in this.marks) {
-              if (this.marks.hasOwnProperty(k)) {
-                metrics[k] = this.marks[k];
-              }
-            }
-            return metrics;
-          },
-          show: function() {
-            var m = this.report();
-            var html = '<div style="position:fixed;top:0;left:0;right:0;background:#1a1a1a;color:#0f0;font:11px monospace;padding:8px;z-index:999999;">';
-            html += '<div style="color:#ff0;font-weight:bold;">性能(ms) - 点击关闭</div>';
-            for (var k in m) {
-              if (m.hasOwnProperty(k)) {
-                html += '<div>' + k + ': ' + (m[k] || 0) + '</div>';
-              }
-            }
-            html += '</div>';
-            var div = document.createElement('div');
-            div.innerHTML = html;
-            div.onclick = function() { div.parentNode.removeChild(div); };
-            document.body.appendChild(div);
-          }
-        };
-        perf.mark('Start');
-      })();
-    </script>
-    
-    <!-- 🔧 移动端早期错误捕获（在任何 JS 执行前） -->
-    <script>
-      (function() {
-        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        var debugPanel = null;
-        var debugLogs = [];
-        
-        function createDebugPanel() {
-          if (debugPanel) return debugPanel;
-          debugPanel = document.createElement('div');
-          debugPanel.id = 'mobile-debug-panel';
-          debugPanel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#1a1a1a;color:#fff;font-size:11px;font-family:monospace;padding:8px;z-index:999999;border-top:2px solid #f00;display:none;';
-          document.body.appendChild(debugPanel);
-          return debugPanel;
-        }
-        
-        function logDebug(type, msg) {
-          var time = new Date().toLocaleTimeString();
-          var elapsed = Date.now() - (window.__perfMetrics ? window.__perfMetrics.pageStart : Date.now());
-          debugLogs.push('[' + elapsed + 'ms] ' + type + ': ' + msg);
-          if (debugLogs.length > 50) debugLogs.shift();
-          
-          if (type === 'ERROR' || type === 'REJECT') {
-            var panel = createDebugPanel();
-            panel.style.display = 'block';
-            panel.innerHTML = '<div style="color:#f66;font-weight:bold;margin-bottom:4px;">⚠️ 页面发生错误 (点击隐藏)</div>' + 
-              debugLogs.map(function(l) { return '<div>' + l + '</div>'; }).join('');
-            panel.onclick = function() { panel.style.display = 'none'; };
-          }
-        }
-        
-        window.onerror = function(msg, url, line, col, err) {
-          logDebug('ERROR', msg + ' at ' + (url || '').split('/').pop() + ':' + line);
-          return false;
-        };
-        
-        window.onunhandledrejection = function(e) {
-          var reason = e.reason;
-          logDebug('REJECT', (reason && reason.message) || String(reason));
-        };
-        
-        logDebug('INFO', 'Mobile: ' + isMobile + ', Screen: ' + screen.width + 'x' + screen.height);
-        
-        window.__mobileDebug = { 
-          logs: debugLogs, 
-          show: function() { createDebugPanel().style.display = 'block'; },
-          log: logDebug
-        };
-      })();
-    </script>
-    
     <!-- Noscript fallback -->
     <noscript>
       <div style="padding: 20px; text-align: center; font-family: sans-serif;">

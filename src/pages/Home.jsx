@@ -1,59 +1,27 @@
 import { useState, useEffect } from 'react';
-
-// 🚀 轻量级 SVG 图标组件（避免加载 1.2MB 的 @ant-design/icons）
-const Icon = ({ d, className = "", size = 16 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className={className}>
-    <path d={d} />
-  </svg>
-);
-
-// 常用图标 SVG path
-const ICONS = {
-  arrowRight: "M13.3 17.3L18.6 12 13.3 6.7 12 8.1 15.2 11H6v2h9.2L12 15.9z",
-  barChart: "M4 20h16V4H4v16zm2-2V6h12v12H6zm2-2h2v-6H8v6zm4 0h2V8h-2v8zm4 0h2v-4h-2v4z",
-  rise: "M16 6l2.3 2.3-4.9 4.9-4-4L3 15.6 4.4 17l6-6 4 4 6.3-6.3L23 11V6z",
-  menu: "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
-  close: "M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z",
-  shield: "M12 1L3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5l-9-4zm0 11h7c-.5 4-3 7.5-7 8.7V12H5V6.3l7-3.1v8.8z",
-  thunder: "M11 21h-1l1-7H7.5c-.9 0-.5-.7-.1-1.3L11 3h1l-1 7h3.5c.5 0 .7.4.4.8L11 21z",
-  check: "M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z",
-  aim: "M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm8.9 3H23v2h-2.1c-.5 4-3.5 7-7.4 7.9V23h-2v-2.1c-4-.5-7-3.5-7.9-7.4H1.5v-2h2.1c.5-4 3.5-7 7.4-7.9V1.5h2v2.1c4 .5 7 3.5 7.9 7.4zM12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6z",
-  bulb: "M9 21h6v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z",
-  star: "M12 17.3l-6.2 3.7 1.6-7L2 9.2l7.2-.6L12 2l2.8 6.6 7.2.6-5.4 4.8 1.6 7z",
-  robot: "M20 9V7c0-1.1-.9-2-2-2h-3c0-1.7-1.3-3-3-3S9 3.3 9 5H6c-1.1 0-2 .9-2 2v2c-1.7 0-3 1.3-3 3s1.3 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.7 0 3-1.3 3-3s-1.3-3-3-3zM7.5 12c-.8 0-1.5-.7-1.5-1.5S6.7 9 7.5 9s1.5.7 1.5 1.5S8.3 12 7.5 12zM12 16c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2zm4.5-4c-.8 0-1.5-.7-1.5-1.5S15.7 9 16.5 9s1.5.7 1.5 1.5-.7 1.5-1.5 1.5z",
-  experiment: "M19.8 18.4L14 10.7V6.5l1.3-1.3c.4-.4.4-1 0-1.4-.4-.4-1-.4-1.4 0L12 5.7l-1.9-1.9c-.4-.4-1-.4-1.4 0-.4.4-.4 1 0 1.4L10 6.5v4.2l-5.8 7.7c-.5.7-.2 1.6.6 1.6h14.4c.8 0 1.1-.9.6-1.6z",
-  alert: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
-  dashboard: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
-  lineChart: "M3.5 18.5L9.5 12.5 13.5 16.5 22 6.9 20.6 5.5 13.5 13.5 9.5 9.5 2 17z",
-  heart: "M12 21.4l-1.5-1.3C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.6L12 21.4z",
-  fire: "M13.5.7l-.4.8C12.6 2.5 11 6.5 11 9.3v.3c-.3-.3-.6-.8-.9-1.4-.6-1.1-1.1-2.5-1.1-4.2v-.9l-.8.4C5 5 2 9.5 2 14.5c0 5.5 4.5 10 10 10s10-4.5 10-10C22 9 18.2 3.8 13.5.7z",
-  trophy: "M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.6 1.7 4.7 4 5.5V17H5v2h14v-2h-2v-3.5c2.3-.8 4-2.9 4-5.5V7c0-1.1-.9-2-2-2zm-2 8c0 1.9-1.3 3.4-3 3.9V13h2v-2h-2V9h2V7h-2V5h3v8z",
-  book: "M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.8L9 9V4zm9 16H6V4h1v9l3-2.3 3 2.3V4h5v16z",
-  question: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 17h-2v-2h2v2zm2.1-7.8l-.9.9c-.8.8-1.2 1.4-1.2 2.9h-2v-.5c0-1.1.5-2.1 1.2-2.8l1.2-1.3c.4-.3.6-.8.6-1.4 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.2 1.8-4 4-4s4 1.8 4 4c0 .9-.4 1.7-.9 2.2z"
-};
-
-// 图标组件（保持与原来相同的名称接口）
-const ArrowRightOutlined = ({ className }) => <Icon d={ICONS.arrowRight} className={className} />;
-const BarChartOutlined = ({ className }) => <Icon d={ICONS.barChart} className={className} />;
-const RiseOutlined = ({ className }) => <Icon d={ICONS.rise} className={className} />;
-const MenuOutlined = ({ className }) => <Icon d={ICONS.menu} className={className} />;
-const CloseOutlined = ({ className }) => <Icon d={ICONS.close} className={className} />;
-const SafetyCertificateOutlined = ({ className }) => <Icon d={ICONS.shield} className={className} />;
-const ThunderboltOutlined = ({ className }) => <Icon d={ICONS.thunder} className={className} />;
-const CheckCircleOutlined = ({ className }) => <Icon d={ICONS.check} className={className} />;
-const AimOutlined = ({ className }) => <Icon d={ICONS.aim} className={className} />;
-const BulbOutlined = ({ className }) => <Icon d={ICONS.bulb} className={className} />;
-const StarOutlined = ({ className }) => <Icon d={ICONS.star} className={className} />;
-const RobotOutlined = ({ className }) => <Icon d={ICONS.robot} className={className} />;
-const ExperimentOutlined = ({ className }) => <Icon d={ICONS.experiment} className={className} />;
-const AlertOutlined = ({ className }) => <Icon d={ICONS.alert} className={className} />;
-const DashboardOutlined = ({ className }) => <Icon d={ICONS.dashboard} className={className} />;
-const LineChartOutlined = ({ className }) => <Icon d={ICONS.lineChart} className={className} />;
-const HeartOutlined = ({ className }) => <Icon d={ICONS.heart} className={className} />;
-const FireOutlined = ({ className }) => <Icon d={ICONS.fire} className={className} />;
-const TrophyOutlined = ({ className }) => <Icon d={ICONS.trophy} className={className} />;
-const BookOutlined = ({ className }) => <Icon d={ICONS.book} className={className} />;
-const QuestionCircleOutlined = ({ className }) => <Icon d={ICONS.question} className={className} />;
+import { 
+  ArrowRightOutlined,
+  BarChartOutlined,
+  RiseOutlined,
+  MenuOutlined,
+  CloseOutlined,
+  SafetyCertificateOutlined,
+  ThunderboltOutlined,
+  CheckCircleOutlined,
+  AimOutlined,
+  BulbOutlined,
+  StarOutlined,
+  RobotOutlined,
+  ExperimentOutlined,
+  AlertOutlined,
+  DashboardOutlined,
+  LineChartOutlined,
+  HeartOutlined,
+  FireOutlined,
+  TrophyOutlined,
+  BookOutlined,
+  QuestionCircleOutlined,
+} from '@ant-design/icons';
 
 // 导航栏
 const Navbar = ({ onStart, onDocs }) => {
@@ -67,10 +35,10 @@ const Navbar = ({ onStart, onDocs }) => {
   }, []);
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-2.5 md:py-3' : 'bg-transparent py-4 md:py-6'}`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-between items-center">
-        <div className="flex items-center">
-          <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 w-auto object-contain" />
+    <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-3' : 'bg-transparent py-6'}`}>
+      <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 object-contain" />
         </div>
         
         <div className="hidden md:flex items-center gap-10">
@@ -574,7 +542,7 @@ const Home = ({ onStart, onDocs }) => {
       <footer className="py-6 md:py-8 px-4 md:px-6 border-t border-[#1a1a1f]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 object-contain" />
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-5 md:h-6 object-contain" />
           </div>
           <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm text-[#555]">
             <button onClick={onDocs} className="hover:text-[#c9a227] transition-colors">文档</button>

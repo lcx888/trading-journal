@@ -1,12 +1,12 @@
 /**
- * MobileLogin.jsx - 轻量级移动端登录页
- * 不依赖 Ant Design
+ * MobileLogin.jsx - 极简登录页
+ * 对齐 Web 端视觉风格
  */
 import { useState } from 'react';
 import { login, register } from '../services/auth';
 
 export default function MobileLogin({ onSuccess }) {
-  const [mode, setMode] = useState('login'); // login | register
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,94 +27,84 @@ export default function MobileLogin({ onSuccess }) {
         ? await login(email, password)
         : await register(email, password);
       
-      if (result.token) {
-        localStorage.setItem('auth_token', result.token);
-      }
-      
+      if (result.token) localStorage.setItem('auth_token', result.token);
       onSuccess(result.user || result);
     } catch (err) {
-      setError(err.message || '操作失败，请重试');
+      setError(err.message || '操作失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const goToFullWeb = () => {
-    localStorage.setItem('force_full_version', 'true');
-    window.location.reload();
-  };
-
   return (
-    <div className="m-login-page">
-      <div className="m-login-header">
-        <img src="/logo.svg" alt="TradeWhy" className="m-login-logo" />
-        <p className="m-login-subtitle">交易复盘 · AI 教练</p>
-      </div>
-
-      <form className="m-login-form" onSubmit={handleSubmit}>
-        <div className="m-tabs">
-          <button 
-            type="button"
-            className={`m-tab ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => setMode('login')}
-          >
-            登录
-          </button>
-          <button 
-            type="button"
-            className={`m-tab ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => setMode('register')}
-          >
-            注册
-          </button>
+    <div className="m-login-container">
+      <div className="m-login-hero">
+        <img src="/logo.svg" alt="TradeWhy" style={{height: 32, marginBottom: 16}} />
+        <div className="text-sec" style={{fontSize: 13, marginBottom: 48}}>
+          像顶级对冲基金一样复盘
         </div>
 
-        {error && (
-          <div className="m-error">{error}</div>
-        )}
+        <form onSubmit={handleSubmit} style={{width: '100%', maxWidth: 320}}>
+          {error && (
+            <div style={{
+              background: 'var(--m-loss-dim)', 
+              color: 'var(--m-loss)', 
+              padding: 12, 
+              borderRadius: 8, 
+              fontSize: 13,
+              marginBottom: 16,
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
 
-        <div className="m-input-group">
-          <label className="m-label">邮箱</label>
           <input
             type="email"
-            className="m-input"
-            placeholder="your@email.com"
+            className="m-input-field"
+            placeholder="邮箱地址"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
           />
-        </div>
-
-        <div className="m-input-group">
-          <label className="m-label">密码</label>
+          
           <input
             type="password"
-            className="m-input"
-            placeholder="••••••••"
+            className="m-input-field"
+            placeholder="密码"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           />
-        </div>
 
-        <button 
-          type="submit" 
-          className="m-submit-btn"
-          disabled={loading}
-        >
-          {loading ? '处理中...' : (mode === 'login' ? '登录' : '注册')}
-        </button>
-      </form>
+          <button type="submit" className="m-btn-primary" disabled={loading}>
+            {loading ? '处理中...' : (mode === 'login' ? '登 录' : '注 册')}
+          </button>
 
-      <div className="m-login-footer">
-        <button className="m-link-btn" onClick={goToFullWeb}>
-          🖥️ 使用完整版 Web
-        </button>
+          <button 
+            type="button" 
+            className="m-btn-text"
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login');
+              setError('');
+            }}
+          >
+            {mode === 'login' ? '没有账号？立即注册' : '已有账号？立即登录'}
+          </button>
+        </form>
       </div>
 
-      <div className="m-login-tip">
-        💡 移动版仅提供数据查看功能<br/>
-        完整功能请使用电脑访问
+      <div style={{textAlign: 'center', marginTop: 'auto'}}>
+        <button 
+          className="text-ter" 
+          style={{background: 'none', border: 'none', fontSize: 12, padding: 12}}
+          onClick={() => {
+            localStorage.setItem('force_full_version', 'true');
+            window.location.reload();
+          }}
+        >
+          切换至完整版 Web
+        </button>
       </div>
     </div>
   );
