@@ -2316,7 +2316,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
+        height: 'calc(var(--vh, 1vh) * 100)',
+        minHeight: '100vh',
         zIndex: 99999,
         backgroundColor: '#0f0f10',
         padding: 24,
@@ -4308,11 +4309,12 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.6);
+          background: rgba(0, 0, 0, 0.75);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
+          -webkit-backdrop-filter: blur(4px);
           backdrop-filter: blur(4px);
         }
 

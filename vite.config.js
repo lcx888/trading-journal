@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    // 🔧 兼容性配置：支持 iOS 12+, Android 5+ 等旧版浏览器
+    target: ['es2015', 'chrome63', 'firefox67', 'safari11', 'edge79'],
     // 代码分割配置
     rollupOptions: {
       output: {
@@ -22,9 +24,15 @@ export default defineConfig({
     },
     // 提高警告阈值
     chunkSizeWarningLimit: 600,
+    // CSS 兼容性
+    cssTarget: ['chrome61', 'safari11'],
   },
   // 优化依赖预构建
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', 'echarts'],
+  },
+  // esbuild 转译配置
+  esbuild: {
+    target: 'es2015',
   },
 })

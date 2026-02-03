@@ -117,13 +117,68 @@
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     </noscript>
-    <script type="module" crossorigin src="/assets/index-e8a54d42.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-fa9da516.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-antd-01347ada.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-4aeb5550.js">
-    <link rel="stylesheet" href="/assets/index-c0100d4f.css">
+    <script type="module" crossorigin src="/assets/index-470eec5a.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-06b64bb0.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-antd-63ce39a8.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-da3e66bb.js">
+    <link rel="stylesheet" href="/assets/index-4a5c9b16.css">
   </head>
   <body>
+    <!-- 🔧 移动端早期错误捕获（在任何 JS 执行前） -->
+    <script>
+      (function() {
+        // 检测是否为移动端
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        // 创建调试面板（仅在出错时显示）
+        var debugPanel = null;
+        var debugLogs = [];
+        
+        function createDebugPanel() {
+          if (debugPanel) return debugPanel;
+          debugPanel = document.createElement('div');
+          debugPanel.id = 'mobile-debug-panel';
+          debugPanel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#1a1a1a;color:#fff;font-size:11px;font-family:monospace;padding:8px;z-index:999999;border-top:2px solid #f00;display:none;';
+          document.body.appendChild(debugPanel);
+          return debugPanel;
+        }
+        
+        function logDebug(type, msg) {
+          var time = new Date().toLocaleTimeString();
+          debugLogs.push('[' + time + '] ' + type + ': ' + msg);
+          if (debugLogs.length > 50) debugLogs.shift();
+          
+          // 如果是错误，显示调试面板
+          if (type === 'ERROR' || type === 'REJECT') {
+            var panel = createDebugPanel();
+            panel.style.display = 'block';
+            panel.innerHTML = '<div style="color:#f66;font-weight:bold;margin-bottom:4px;">⚠️ 页面发生错误 (点击隐藏)</div>' + 
+              debugLogs.map(function(l) { return '<div>' + l + '</div>'; }).join('');
+            panel.onclick = function() { panel.style.display = 'none'; };
+          }
+        }
+        
+        // 全局错误捕获
+        window.onerror = function(msg, url, line, col, err) {
+          logDebug('ERROR', msg + ' at ' + (url || '').split('/').pop() + ':' + line);
+          return false;
+        };
+        
+        // Promise 错误捕获
+        window.onunhandledrejection = function(e) {
+          var reason = e.reason;
+          logDebug('REJECT', (reason && reason.message) || String(reason));
+        };
+        
+        // 记录启动信息
+        logDebug('INFO', 'Mobile: ' + isMobile + ', UA: ' + navigator.userAgent.substring(0, 60));
+        logDebug('INFO', 'Screen: ' + screen.width + 'x' + screen.height + ', Viewport: ' + window.innerWidth + 'x' + window.innerHeight);
+        
+        // 暴露到全局方便调试
+        window.__mobileDebug = { logs: debugLogs, show: function() { createDebugPanel().style.display = 'block'; } };
+      })();
+    </script>
+    
     <!-- Noscript fallback -->
     <noscript>
       <div style="padding: 20px; text-align: center; font-family: sans-serif;">

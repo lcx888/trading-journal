@@ -487,7 +487,7 @@ function App() {
         }
       }}
     >
-      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      <Layout style={{ height: 'calc(var(--vh, 1vh) * 100)', minHeight: '100vh', overflow: 'hidden' }}>
         {/* 移动端抽屉菜单 */}
         <Drawer
           placement="left"
@@ -596,7 +596,8 @@ function App() {
         <Layout style={{ 
           marginLeft: isMobile ? 0 : (collapsed ? 64 : 240), 
           transition: 'margin 0.2s',
-          height: '100vh',
+          height: 'calc(var(--vh, 1vh) * 100)',
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
