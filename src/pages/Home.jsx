@@ -35,10 +35,10 @@ const Navbar = ({ onStart, onDocs }) => {
   }, []);
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-3' : 'bg-transparent py-6'}`}>
-      <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="TradeWhy.AI" className="h-5 sm:h-6 md:h-7 max-w-[120px] sm:max-w-none object-contain" />
+    <nav className={`fixed w-full z-50 transition-all duration-500 ${scrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-[#1a1a1f] py-2.5 md:py-3' : 'bg-transparent py-4 md:py-6'}`}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-between items-center">
+        <div className="flex items-center">
+          <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 w-auto object-contain" />
         </div>
         
         <div className="hidden md:flex items-center gap-10">
@@ -542,7 +542,7 @@ const Home = ({ onStart, onDocs }) => {
       <footer className="py-6 md:py-8 px-4 md:px-6 border-t border-[#1a1a1f]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="TradeWhy.AI" className="h-5 md:h-6 object-contain" />
+            <img src="/logo.svg" alt="TradeWhy.AI" className="h-6 md:h-7 object-contain" />
           </div>
           <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm text-[#555]">
             <button onClick={onDocs} className="hover:text-[#c9a227] transition-colors">文档</button>
