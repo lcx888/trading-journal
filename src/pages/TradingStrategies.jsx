@@ -439,30 +439,41 @@ const TradingStrategies = ({ onNavigate }) => {
         />
       </div>
 
-      {/* 策略表单弹窗 */}
-      <Modal
+      {/* 策略表单抽屉 */}
+      <Drawer
         title={
-          <div className="flex items-center gap-3 py-2">
+          <div className="flex items-center gap-3">
             <span className="text-xl">⚡</span>
             <span className="font-medium text-lg text-primary">
               {editingStrategy ? '编辑策略档案' : '新建策略档案'}
             </span>
           </div>
         }
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={handleSave}
-        confirmLoading={loading}
+        placement="right"
         width={500}
-        destroyOnClose
-        okText="保存档案"
-        cancelText="取消"
-        className="modern-modal"
+        open={modalVisible}
+        onClose={() => setModalVisible(false)}
+        className="archive-drawer"
+        footer={
+          <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
+            <Button onClick={() => setModalVisible(false)} className="text-secondary hover:text-primary">
+              取消
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleSave} 
+              loading={loading}
+              className="bg-brand text-bg-primary font-semibold border-none hover:opacity-90"
+            >
+              保存档案
+            </Button>
+          </div>
+        }
       >
-        <Form form={form} layout="vertical" className="mt-6">
+        <Form form={form} layout="vertical" className="mt-2">
           <Form.Item
             name="name"
-            label="策略名称"
+            label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">策略名称</span>}
             rules={[{ required: true, message: '请输入策略名称' }]}
           >
             <Input 
@@ -473,7 +484,10 @@ const TradingStrategies = ({ onNavigate }) => {
           </Form.Item>
 
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item name="category" label="策略类型">
+            <Form.Item 
+              name="category" 
+              label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">策略类型</span>}
+            >
               <Select className="bg-bg-tertiary">
                 {STRATEGY_CATEGORIES.map(cat => (
                   <Select.Option key={cat.value} value={cat.value}>
@@ -486,25 +500,31 @@ const TradingStrategies = ({ onNavigate }) => {
               </Select>
             </Form.Item>
             
-            <Form.Item name="color" label="标识颜色">
-              <div className="flex items-center gap-3 bg-bg-tertiary p-2 rounded border border-border-primary">
-                <ColorPicker presets={[{ label: '推荐', colors: PRESET_COLORS }]} />
+            <Form.Item 
+              name="color" 
+              label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">标识颜色</span>}
+            >
+              <div className="flex items-center gap-3 bg-bg-tertiary p-2 rounded border border-border-primary h-[32px]">
+                <ColorPicker presets={[{ label: '推荐', colors: PRESET_COLORS }]} size="small" />
                 <span className="text-xs text-secondary">用于图表区分</span>
               </div>
             </Form.Item>
           </div>
 
-          <Form.Item name="description" label="执行逻辑 / 规则">
+          <Form.Item 
+            name="description" 
+            label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">执行逻辑 / 规则</span>}
+          >
             <Input.TextArea 
-              rows={4} 
+              rows={8} 
               placeholder="描述入场条件、出场规则与风控要求..."
-              maxLength={500}
+              maxLength={1000}
               showCount
               className="bg-bg-tertiary border-border-primary text-primary"
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
       {/* 关联订单抽屉 */}
       <Drawer
