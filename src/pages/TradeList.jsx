@@ -3583,7 +3583,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
           </div>
         }
         placement="right"
-        width={isMobile ? '100vw' : 520}
+        width={isMobile ? '100vw' : '50vw'}
         open={editModalVisible}
         onClose={() => setEditModalVisible(false)}
         styles={{
