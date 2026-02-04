@@ -63,8 +63,8 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       setLoading(true);
       try {
         // 加载策略信息
-        const strategies = await StorageService.getStrategies();
-        const targetStrategy = strategies.find(s => s.id === strategyId);
+        const strategies = await StorageService.refreshStrategyUsageCounts();
+        const targetStrategy = (strategies || []).find(s => s.id === strategyId);
         setStrategy(targetStrategy);
         
         // 加载合约信息
@@ -72,7 +72,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         setInstruments(instrumentsData || []);
         
         // 加载所有交易
-        const allTrades = await StorageService.getTrades();
+        const allTrades = await StorageService.getAllTrades();
         
         // 筛选使用该策略的订单
         const strategyTrades = allTrades.filter(trade => {
