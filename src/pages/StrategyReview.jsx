@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Table, Button, Tag, Input, DatePicker, Space, 
-  Modal, Spin, Tooltip, Progress, message, Segmented
+  Modal, Spin, Tooltip, Progress, message, Segmented, Divider
 } from 'antd';
 import { 
   ArrowLeftOutlined, SearchOutlined, EditOutlined,
   CheckCircleOutlined, ClockCircleOutlined,
   ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined, 
-  MergeCellsOutlined, UnorderedListOutlined
+  MergeCellsOutlined, UnorderedListOutlined,
+  FileTextOutlined, CalendarOutlined, NumberOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -26,24 +27,6 @@ const getNetPnL = (trade) => {
   const totalFees = roundTrips * feePerContract * 2;
   return pnl - totalFees;
 };
-
-// 统计指标组件
-const StatItem = ({ label, value, subValue, valueColor, prefix, suffix }) => (
-  <div className="card flex flex-col justify-between h-full hover-lift">
-    <div className="stat-label mb-2">{label}</div>
-    <div className="flex items-baseline gap-1">
-      {prefix && <span className="text-lg text-secondary font-mono">{prefix}</span>}
-      <div 
-        className="stat-value"
-        style={{ color: valueColor || 'var(--text-primary)' }}
-      >
-        {value}
-      </div>
-      {suffix && <span className="text-sm text-secondary font-mono ml-1">{suffix}</span>}
-    </div>
-    {subValue && <div className="mt-2">{subValue}</div>}
-  </div>
-);
 
 const StrategyReview = ({ onNavigate, strategyId }) => {
   const [strategy, setStrategy] = useState(null);
@@ -253,100 +236,91 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   // 表格列定义
   const columns = [
     {
-      title: '时间',
-      dataIndex: 'openTime',
-      key: 'openTime',
-      width: 160,
-      fixed: 'left',
-      render: (time, record) => {
-        if (record.isMergedGroup && record.mergeStats) {
-          const stats = record.mergeStats;
-          return (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <MergeCellsOutlined className="text-brand" />
-                <span className="text-xs font-medium text-brand bg-brand-bg px-1 rounded">
-                  合并 {stats.tradeCount} 笔
-                </span>
-              </div>
-              <div className="font-mono text-primary font-medium">
-                {dayjs(stats.firstOpenTime).format('MM-DD HH:mm')}
-              </div>
-              <div className="font-mono text-xs text-secondary">
-                至 {dayjs(stats.lastCloseTime).format('MM-DD HH:mm')}
-              </div>
-            </div>
-          );
+      title: '复盘档案',
+      dataIndex: 'reviewTitle',
+      key: 'reviewTitle',
+      width: 400,
+      render: (text, record) => {
+        let title = text;
+        let content = record.reviewContent;
+        let hasReview = false;
+
+        // 处理合并交易的标题显示
+        if (record.isMergedGroup && record.mergeStats?.trades) {
+          const firstReviewed = record.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
+          const firstContent = record.mergeStats.trades.find(t => t.reviewContent && t.reviewContent !== '<p></p>');
+          title = firstReviewed?.reviewTitle;
+          content = firstContent?.reviewContent;
+          hasReview = !!(title || content);
+        } else {
+          hasReview = !!(text && text.trim()) || (content && content !== '<p></p>');
         }
+
         return (
-          <div>
-            <div className="font-mono text-primary font-medium">
-              {dayjs(time).format('YYYY-MM-DD')}
+          <div className="py-1">
+            <div className="flex items-center gap-2 mb-1">
+              {hasReview ? (
+                <span className="font-medium text-base text-primary hover:text-brand transition-colors cursor-pointer" onClick={() => handleEdit(record)}>
+                  {title || '无标题复盘'}
+                </span>
+              ) : (
+                <span className="text-tertiary italic cursor-pointer hover:text-brand" onClick={() => handleEdit(record)}>
+                  点击添加复盘...
+                </span>
+              )}
+              {record.isMergedGroup && (
+                <Tag className="border-none bg-blue-500/10 text-blue-500 m-0 text-[10px]">
+                  合并{record.mergeStats?.tradeCount}笔
+                </Tag>
+              )}
             </div>
-            <div className="font-mono text-xs text-secondary">
-              {dayjs(time).format('HH:mm:ss')}
+            {content && content !== '<p></p>' && (
+              <div 
+                className="text-xs text-secondary truncate-2 max-w-[380px]"
+                dangerouslySetInnerHTML={{ __html: content.replace(/<[^>]*>/g, ' ').substring(0, 100) }}
+              />
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '交易背景',
+      key: 'context',
+      width: 200,
+      render: (_, record) => {
+        const isMerged = record.isMergedGroup;
+        const stats = isMerged ? record.mergeStats : null;
+        
+        const time = isMerged ? stats.firstOpenTime : record.openTime;
+        const code = isMerged ? stats.instrumentCode : record.instrumentCode;
+        const dir = isMerged ? stats.direction : record.direction;
+        const qty = isMerged ? stats.totalQuantity : (record.openQuantity || 1);
+        
+        const isLong = dir === 'LONG';
+
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-primary">{code}</span>
+              <span className={`text-xs font-medium ${isLong ? 'text-profit' : 'text-loss'}`}>
+                {isLong ? '做多' : '做空'}
+              </span>
+              <span className="text-xs text-tertiary font-mono">
+                {qty}手
+              </span>
+            </div>
+            <div className="text-xs text-secondary font-mono">
+              {dayjs(time).format('YYYY-MM-DD HH:mm')}
             </div>
           </div>
         );
       },
     },
     {
-      title: '品种',
-      dataIndex: 'instrument',
-      key: 'instrument',
-      width: 100,
-      render: (instrument, record) => {
-        const code = record.isMergedGroup ? record.mergeStats?.instrumentCode : (instrument || record.instrumentCode);
-        return (
-          <span className="font-mono font-bold bg-tertiary px-2 py-1 rounded text-primary">
-            {code}
-          </span>
-        );
-      },
-    },
-    {
-      title: '方向',
-      dataIndex: 'direction',
-      key: 'direction',
-      width: 80,
-      render: (direction, record) => {
-        const dir = record.isMergedGroup ? record.mergeStats?.direction : direction;
-        const isLong = dir === 'LONG';
-        return (
-          <Tag 
-            className={isLong ? 'tag-profit border-none' : 'tag-loss border-none'}
-            icon={isLong ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-          >
-            {isLong ? '多' : '空'}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: '数量',
-      key: 'quantity',
-      width: 80,
-      align: 'right',
-      render: (_, record) => {
-        if (record.isMergedGroup && record.mergeStats) {
-          return (
-            <div className="text-right">
-              <div className="font-mono font-bold text-primary">
-                {record.mergeStats.totalQuantity}
-              </div>
-              <div className="font-mono text-xs text-secondary">
-                峰值: {record.mergeStats.maxConcurrentQty}
-              </div>
-            </div>
-          );
-        }
-        return <span className="font-mono font-medium text-primary">{record.openQuantity || 1}</span>;
-      },
-    },
-    {
-      title: '盈亏',
-      key: 'pnl',
-      width: 120,
+      title: '结果',
+      key: 'result',
+      width: 150,
       align: 'right',
       sorter: (a, b) => {
         const pnlA = a.isMergedGroup ? (a.mergeStats?.totalPnL || 0) : getNetPnL(a);
@@ -354,89 +328,21 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         return pnlA - pnlB;
       },
       render: (_, record) => {
-        if (record.isMergedGroup && record.mergeStats) {
-          const stats = record.mergeStats;
-          const totalPnL = stats.totalPnL || 0;
-          return (
-            <div className="text-right">
-              <div className={`font-mono font-bold text-base ${totalPnL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)}
-              </div>
-              <div className="font-mono text-xs text-secondary">
-                均: {stats.avgPnL?.toFixed(2)}
-              </div>
-            </div>
-          );
-        }
-        const pnl = getNetPnL(record);
+        const pnl = record.isMergedGroup 
+          ? (record.mergeStats?.totalPnL || 0) 
+          : getNetPnL(record);
+        
         return (
-          <span className={`font-mono font-bold ${pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
-          </span>
-        );
-      },
-    },
-    {
-      title: '复盘状态',
-      key: 'reviewStatus',
-      width: 100,
-      filters: [
-        { text: '已复盘', value: 'reviewed' },
-        { text: '待复盘', value: 'pending' },
-      ],
-      onFilter: (value, record) => {
-        if (record.isMergedGroup && record.mergeStats?.trades) {
-          const reviewedCount = record.mergeStats.trades.filter(t => 
-            (t.reviewTitle && t.reviewTitle.trim()) || (t.reviewContent && t.reviewContent !== '<p></p>')
-          ).length;
-          const hasReview = reviewedCount > 0;
-          return value === 'reviewed' ? hasReview : !hasReview;
-        }
-        const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
-        return value === 'reviewed' ? hasReview : !hasReview;
-      },
-      render: (_, record) => {
-        if (record.isMergedGroup && record.mergeStats?.trades) {
-          const subTrades = record.mergeStats.trades;
-          const reviewedCount = subTrades.filter(t => 
-            (t.reviewTitle && t.reviewTitle.trim()) || (t.reviewContent && t.reviewContent !== '<p></p>')
-          ).length;
-          if (reviewedCount === subTrades.length) {
-            return <Tag color="success" icon={<CheckCircleOutlined />} className="border-none">已复盘</Tag>;
-          } else if (reviewedCount > 0) {
-            return <Tag color="processing" className="border-none">{reviewedCount}/{subTrades.length}</Tag>;
-          }
-          return <Tag color="warning" icon={<ClockCircleOutlined />} className="border-none">待复盘</Tag>;
-        }
-        const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
-        return hasReview ? (
-          <Tag color="success" icon={<CheckCircleOutlined />} className="border-none">已复盘</Tag>
-        ) : (
-          <Tag color="warning" icon={<ClockCircleOutlined />} className="border-none">待复盘</Tag>
-        );
-      },
-    },
-    {
-      title: '复盘标题',
-      dataIndex: 'reviewTitle',
-      key: 'reviewTitle',
-      width: 200,
-      ellipsis: true,
-      render: (text, record) => {
-        // 合并交易取第一笔有复盘标题的子交易
-        if (record.isMergedGroup && record.mergeStats?.trades) {
-          const firstReviewed = record.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
-          const title = firstReviewed?.reviewTitle;
-          return title ? (
-            <span className="font-medium text-primary">{title}</span>
-          ) : (
-            <span className="text-tertiary">-</span>
-          );
-        }
-        return text && text.trim() ? (
-          <span className="font-medium text-primary">{text}</span>
-        ) : (
-          <span className="text-tertiary">-</span>
+          <div>
+            <div className={`font-mono font-bold text-base ${pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
+              {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+            </div>
+            {record.isMergedGroup && (
+               <div className="text-[10px] text-tertiary font-mono">
+                 均: {record.mergeStats?.avgPnL?.toFixed(2)}
+               </div>
+            )}
+          </div>
         );
       },
     },
@@ -444,16 +350,15 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       title: '操作',
       key: 'action',
       width: 80,
-      fixed: 'right',
+      align: 'right',
       render: (_, record) => (
         <Button 
-          type="primary" 
+          type="text" 
           size="small" 
           icon={<EditOutlined />}
           onClick={() => handleEdit(record)}
-        >
-          编辑
-        </Button>
+          className="text-secondary hover:text-brand"
+        />
       ),
     },
   ];
@@ -467,296 +372,190 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto p-6 space-y-6">
-      {/* 头部 */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-[1600px] mx-auto p-6 min-h-screen">
+      {/* 极简头部 */}
+      <div className="flex items-end justify-between mb-8 pb-4 border-b border-border-primary">
         <div>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-2">
             <Button 
               type="text" 
               icon={<ArrowLeftOutlined />} 
               onClick={() => onNavigate && onNavigate('strategies')}
-              className="text-secondary hover:text-primary p-0 h-auto"
+              className="text-secondary hover:text-primary p-0"
             />
-            <h1 className="text-2xl font-medium tracking-tight text-primary m-0">
-              策略复盘中心
+            <h1 className="text-3xl font-light text-primary m-0 tracking-tight">
+              {strategy?.name || '策略复盘'}
             </h1>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-secondary pl-8">
             {strategy && (
-              <>
-                <span 
-                  className="w-2 h-2 rounded-full" 
-                  style={{ backgroundColor: strategy.color }}
-                />
-                <span className="font-medium">{strategy.name}</span>
-                <span className="text-tertiary mx-1">|</span>
-                <span className="text-tertiary">管理与回顾您的策略执行情况</span>
-              </>
+              <span 
+                className="w-2 h-2 rounded-full mt-2" 
+                style={{ backgroundColor: strategy.color }}
+              />
             )}
           </div>
-        </div>
-        <Button 
-          icon={<ReloadOutlined />} 
-          onClick={() => window.location.reload()}
-          className="btn-secondary"
-        >
-          刷新数据
-        </Button>
-      </div>
-
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatItem 
-          label="总交易数" 
-          value={stats.totalTrades} 
-          suffix="笔"
-        />
-        <StatItem 
-          label="复盘进度" 
-          value={`${Math.round(stats.reviewProgress)}%`}
-          subValue={
-            <Progress 
-              percent={Math.round(stats.reviewProgress)} 
-              showInfo={false} 
-              strokeColor="var(--color-brand)" 
-              trailColor="var(--bg-tertiary)"
-              size="small"
-            />
-          }
-          suffix={<span className="text-xs text-tertiary">({stats.reviewedTrades}/{stats.totalTrades})</span>}
-        />
-        <StatItem 
-          label="总盈亏" 
-          value={stats.totalPnL.toFixed(2)}
-          prefix={stats.totalPnL >= 0 ? '+' : ''}
-          valueColor={stats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
-        />
-        <StatItem 
-          label="胜率" 
-          value={stats.winRate.toFixed(1)}
-          suffix="%"
-        />
-        <StatItem 
-          label="平均盈亏" 
-          value={Math.abs(stats.avgPnL).toFixed(2)}
-          prefix={stats.avgPnL >= 0 ? '+' : '-'}
-          valueColor={stats.avgPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
-        />
-      </div>
-
-      {/* 筛选工具栏 */}
-      <div className="card flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-4 items-center">
-          {/* 合并显示开关 */}
-          <Tooltip title={mergeEnabled ? '点击显示单笔交易' : '点击合并加减仓'}>
-            <Button
-              icon={mergeEnabled ? <MergeCellsOutlined /> : <UnorderedListOutlined />}
-              onClick={() => setMergeEnabled(!mergeEnabled)}
-              type={mergeEnabled ? 'primary' : 'default'}
-            >
-              {mergeEnabled ? '合并显示' : '逐笔显示'}
-            </Button>
-          </Tooltip>
-          
-          <div className="h-6 w-px bg-border-primary mx-2" />
-          
-          <RangePicker 
-            placeholder={['开始日期', '结束日期']}
-            value={filters.dateRange}
-            onChange={(dates) => setFilters(prev => ({ ...prev, dateRange: dates }))}
-            className="w-64"
-          />
-          <Segmented
-            value={filters.pnlFilter}
-            onChange={(value) => setFilters(prev => ({ ...prev, pnlFilter: value }))}
-            options={[
-              { label: '全部', value: 'all' },
-              { label: '盈利', value: 'profit' },
-              { label: '亏损', value: 'loss' },
-            ]}
-          />
-          <Segmented
-            value={filters.reviewStatus}
-            onChange={(value) => setFilters(prev => ({ ...prev, reviewStatus: value }))}
-            options={[
-              { label: '全部', value: 'all' },
-              { label: '已复盘', value: 'reviewed' },
-              { label: '待复盘', value: 'pending' },
-            ]}
-          />
+          <div className="flex items-center gap-6 text-sm text-secondary font-mono">
+            <span>总交易: <span className="text-primary">{stats.totalTrades}</span></span>
+            <span>复盘率: <span className="text-brand">{Math.round(stats.reviewProgress)}%</span></span>
+            <span>胜率: <span className="text-primary">{stats.winRate.toFixed(1)}%</span></span>
+            <span>总盈亏: <span className={stats.totalPnL >= 0 ? 'text-profit' : 'text-loss'}>
+              {stats.totalPnL >= 0 ? '+' : ''}{stats.totalPnL.toFixed(2)}
+            </span></span>
+          </div>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Input
-            placeholder="搜索品种/复盘内容..."
+            placeholder="搜索复盘档案..."
             prefix={<SearchOutlined className="text-tertiary" />}
             value={filters.searchText}
             onChange={(e) => setFilters(prev => ({ ...prev, searchText: e.target.value }))}
-            className="w-64"
+            className="w-64 bg-transparent border-border-primary hover:border-border-hover focus:border-brand"
             allowClear
+            bordered={false}
+            style={{ borderBottom: '1px solid var(--border-primary)', borderRadius: 0 }}
           />
-          {selectedRowKeys.length > 0 && (
-            <Button type="primary" onClick={() => setBatchModalVisible(true)}>
-              批量编辑 ({selectedRowKeys.length})
-            </Button>
-          )}
+          <Tooltip title={mergeEnabled ? '切换至逐笔显示' : '切换至合并显示'}>
+            <Button
+              type="text"
+              icon={mergeEnabled ? <MergeCellsOutlined /> : <UnorderedListOutlined />}
+              onClick={() => setMergeEnabled(!mergeEnabled)}
+              className={mergeEnabled ? 'text-brand' : 'text-secondary'}
+            />
+          </Tooltip>
+          <Button 
+            type="text"
+            icon={<ReloadOutlined />} 
+            onClick={() => window.location.reload()}
+            className="text-secondary hover:text-primary"
+          />
         </div>
       </div>
 
-      {/* 表格 */}
-      <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-border-primary flex justify-between items-center">
-          <h3 className="text-base font-medium text-primary m-0">交易列表</h3>
-          <span className="text-xs text-secondary">共 {filteredTrades.length} 笔交易</span>
-        </div>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={filteredTrades}
-          pagination={{
-            ...pagination,
-            total: filteredTrades.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            className: "p-4"
-          }}
-          onChange={(newPagination) => setPagination(newPagination)}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-          }}
-          scroll={{ x: 1200 }}
-          size="middle"
-          rowClassName={(record) => {
-            const pnl = record.isMergedGroup 
-              ? (record.mergeStats?.totalPnL || 0) 
-              : getNetPnL(record);
-            return pnl >= 0 ? 'trade-row-profit' : 'trade-row-loss';
-          }}
-        />
-      </div>
+      {/* 档案列表 */}
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={filteredTrades}
+        pagination={{
+          ...pagination,
+          total: filteredTrades.length,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => <span className="text-tertiary">共 {total} 条档案</span>,
+          pageSizeOptions: ['20', '50', '100'],
+          className: "py-4"
+        }}
+        onChange={(newPagination) => setPagination(newPagination)}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 800 }}
+        size="middle"
+        className="archive-table"
+        rowClassName="archive-row hover:bg-bg-tertiary transition-colors cursor-pointer"
+        onRow={(record) => ({
+          onClick: () => handleEdit(record),
+        })}
+      />
 
       {/* 复盘编辑弹窗 */}
       <Modal
-        title={
-          <div className="flex items-center gap-3">
-            <span className="text-xl">📝</span>
-            <span className="font-medium text-lg">交易复盘</span>
-            {editingTrade && (
-              <div className="flex gap-2 ml-2">
-                {editingTrade.isMergedGroup && (
-                  <Tag color="blue" icon={<MergeCellsOutlined />} className="border-none">
-                    合并 {editingTrade.mergeStats?.tradeCount} 笔
-                  </Tag>
-                )}
-                <Tag className="border-none font-mono font-bold">
-                  {editingTrade.isMergedGroup 
-                    ? editingTrade.mergeStats?.instrumentCode 
-                    : (editingTrade.instrument || editingTrade.instrumentCode)}
-                </Tag>
-              </div>
-            )}
-          </div>
-        }
+        title={null}
+        footer={null}
         open={editModalVisible}
         onCancel={() => setEditModalVisible(false)}
-        onOk={handleSave}
-        confirmLoading={saving}
-        width={800}
-        okText={editingTrade?.isMergedGroup ? `保存 ${editingTrade.mergeStats?.tradeCount} 笔复盘` : '保存复盘'}
-        cancelText="取消"
-        className="modern-modal"
+        width={900}
+        className="archive-modal"
+        styles={{ content: { padding: 0, overflow: 'hidden' } }}
+        closeIcon={null}
       >
         {editingTrade && (
-          <div className="space-y-6">
-            {/* 合并交易提示 */}
-            {editingTrade.isMergedGroup && (
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3">
-                <MergeCellsOutlined className="text-blue-500 mt-1" />
-                <div>
-                  <div className="font-medium text-blue-500">合并交易组</div>
-                  <div className="text-xs text-secondary mt-1">
-                    此复盘将同时应用于组内 {editingTrade.mergeStats?.tradeCount} 笔子交易
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* 交易详情卡片 */}
-            <div className="grid grid-cols-4 gap-4 bg-tertiary p-4 rounded-lg border border-border-primary">
+          <div className="flex h-[80vh]">
+            {/* 左侧：交易数据 (侧边栏风格) */}
+            <div className="w-64 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6">
               <div>
-                <div className="text-xs text-secondary uppercase tracking-wider mb-1">品种</div>
-                <div className="font-mono font-bold text-lg text-primary">
+                <div className="text-xs text-tertiary uppercase tracking-wider mb-2">交易档案</div>
+                <div className="font-mono text-xl font-bold text-primary mb-1">
                   {editingTrade.isMergedGroup 
                     ? editingTrade.mergeStats?.instrumentCode 
                     : (editingTrade.instrument || editingTrade.instrumentCode)}
                 </div>
-              </div>
-              <div>
-                <div className="text-xs text-secondary uppercase tracking-wider mb-1">方向</div>
-                <Tag 
-                  className="border-none px-2 py-1 text-sm m-0"
-                  color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
-                >
-                  {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多 ↑' : '做空 ↓'}
-                </Tag>
-              </div>
-              <div>
-                <div className="text-xs text-secondary uppercase tracking-wider mb-1">
-                  {editingTrade.isMergedGroup ? '时间范围' : '开仓时间'}
+                <div className="flex items-center gap-2">
+                  <Tag 
+                    className="border-none px-0 m-0 bg-transparent font-bold"
+                    color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
+                  >
+                    {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多' : '做空'}
+                  </Tag>
+                  <span className="text-secondary text-sm">
+                    {editingTrade.isMergedGroup ? editingTrade.mergeStats?.totalQuantity : (editingTrade.openQuantity || 1)}手
+                  </span>
                 </div>
-                <div className="font-mono font-medium text-primary">
-                  {editingTrade.isMergedGroup 
-                    ? `${dayjs(editingTrade.mergeStats?.firstOpenTime).format('MM/DD HH:mm')}`
-                    : dayjs(editingTrade.openTime).format('MM/DD HH:mm:ss')}
-                </div>
-                {editingTrade.isMergedGroup && (
-                  <div className="font-mono text-xs text-secondary">
-                    至 {dayjs(editingTrade.mergeStats?.lastCloseTime).format('MM/DD HH:mm')}
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs text-tertiary mb-1">时间</div>
+                  <div className="font-mono text-sm text-secondary">
+                    {editingTrade.isMergedGroup 
+                      ? dayjs(editingTrade.mergeStats?.firstOpenTime).format('MM-DD HH:mm')
+                      : dayjs(editingTrade.openTime).format('MM-DD HH:mm')}
                   </div>
-                )}
-              </div>
-              <div>
-                <div className="text-xs text-secondary uppercase tracking-wider mb-1">
-                  {editingTrade.isMergedGroup ? '总盈亏' : '盈亏'}
                 </div>
-                <div className={`font-mono font-bold text-xl ${(editingTrade.isMergedGroup 
-                    ? editingTrade.mergeStats?.totalPnL 
-                    : getNetPnL(editingTrade)) >= 0 ? 'text-profit' : 'text-loss'}`}>
-                  {(editingTrade.isMergedGroup 
-                    ? editingTrade.mergeStats?.totalPnL 
-                    : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
-                  ${(editingTrade.isMergedGroup 
-                    ? editingTrade.mergeStats?.totalPnL 
-                    : getNetPnL(editingTrade))?.toFixed(2)}
+                
+                <div>
+                  <div className="text-xs text-tertiary mb-1">盈亏结果</div>
+                  <div className={`font-mono text-xl font-bold ${(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade)) >= 0 ? 'text-profit' : 'text-loss'}`}>
+                    {(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
+                    ${(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade))?.toFixed(2)}
+                  </div>
                 </div>
               </div>
+
+              {editingTrade.isMergedGroup && (
+                <div className="mt-auto bg-blue-500/5 p-3 rounded border border-blue-500/10">
+                  <div className="flex items-center gap-2 text-blue-500 mb-1">
+                    <MergeCellsOutlined />
+                    <span className="text-xs font-bold">合并交易组</span>
+                  </div>
+                  <div className="text-[10px] text-blue-400/80 leading-relaxed">
+                    包含 {editingTrade.mergeStats?.tradeCount} 笔子交易。保存复盘将同步更新组内所有记录。
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium text-primary mb-2">复盘标题</div>
-                <Input
+            {/* 右侧：复盘内容 (文档风格) */}
+            <div className="flex-1 flex flex-col bg-bg-primary">
+              <div className="p-6 border-b border-border-primary flex justify-between items-start">
+                <Input.TextArea
                   value={reviewTitle}
                   onChange={(e) => setReviewTitle(e.target.value)}
-                  placeholder="例如：突破做多案例 - 完美执行"
-                  className="font-medium text-lg py-2"
-                  maxLength={50}
-                  showCount
+                  placeholder="在此输入复盘标题..."
+                  className="text-2xl font-bold bg-transparent border-none focus:shadow-none p-0 resize-none !text-primary placeholder:text-tertiary/50"
+                  autoSize
+                  maxLength={100}
                 />
+                <div className="flex gap-2 ml-4">
+                  <Button onClick={() => setEditModalVisible(false)}>取消</Button>
+                  <Button type="primary" onClick={handleSave} loading={saving} className="bg-brand text-bg-primary">保存</Button>
+                </div>
               </div>
               
-              <div>
-                <div className="text-sm font-medium text-primary mb-2">详细复盘内容</div>
+              <div className="flex-1 overflow-y-auto p-6">
                 <RichEditor
                   value={reviewContent}
                   onChange={setReviewContent}
-                  placeholder="记录你的交易思路、情绪状态、执行细节..."
-                  minHeight={300}
-                  maxHeight={500}
+                  placeholder="开始撰写复盘..."
+                  minHeight={400}
+                  className="border-none"
                 />
               </div>
             </div>
@@ -764,46 +563,25 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         )}
       </Modal>
 
-      {/* 批量编辑弹窗 */}
-      <Modal
-        title={`批量编辑复盘 (${selectedRowKeys.length} 笔)`}
-        open={batchModalVisible}
-        onCancel={() => setBatchModalVisible(false)}
-        onOk={async () => {
-          if (!batchReviewContent || batchReviewContent === '<p></p>') {
-            message.warning('请填写复盘内容');
-            return;
-          }
-          
-          try {
-            for (const id of selectedRowKeys) {
-              await StorageService.updateTrade(id, { reviewContent: batchReviewContent });
-            }
-            message.success(`已更新 ${selectedRowKeys.length} 笔交易`);
-            setBatchModalVisible(false);
-            setSelectedRowKeys([]);
-            setBatchReviewContent('');
-            // 刷新数据
-            setTrades(prev => prev.map(t => 
-              selectedRowKeys.includes(t.id) ? { ...t, reviewContent: batchReviewContent } : t
-            ));
-          } catch (error) {
-            console.error('批量更新失败:', error);
-            message.error('批量更新失败');
-          }
-        }}
-        okText="批量更新"
-        cancelText="取消"
-        width={800}
-      >
-        <RichEditor
-          value={batchReviewContent}
-          onChange={setBatchReviewContent}
-          placeholder="统一的复盘内容..."
-          minHeight={300}
-          maxHeight={500}
-        />
-      </Modal>
+      <style jsx global>{`
+        .archive-table .ant-table-thead > tr > th {
+          background: transparent !important;
+          border-bottom: 1px solid var(--border-primary) !important;
+          color: var(--text-tertiary) !important;
+          font-weight: 400 !important;
+          font-size: 12px !important;
+        }
+        .archive-table .ant-table-tbody > tr > td {
+          border-bottom: 1px solid var(--border-primary) !important;
+          padding: 16px 16px !important;
+        }
+        .archive-table .ant-table-tbody > tr:last-child > td {
+          border-bottom: none !important;
+        }
+        .archive-row:hover > td {
+          background: var(--bg-tertiary) !important;
+        }
+      `}</style>
     </div>
   );
 };
