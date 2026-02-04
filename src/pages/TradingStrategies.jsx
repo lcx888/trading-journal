@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Modal, Form, Input, Select, Tag, Space,
-  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin, Grid
+  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin
 } from 'antd';
 import {
   PlusOutlined,
@@ -23,14 +23,11 @@ import {
   CalendarOutlined,
   FolderOpenOutlined,
   FileTextOutlined,
-  CloseOutlined,
-  MergeCellsOutlined
+  CloseOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import RichEditor from '../components/RichEditor';
-
-const { useBreakpoint } = Grid;
 
 // 预设颜色（币安风格调色板）
 const PRESET_COLORS = [
@@ -70,7 +67,6 @@ const StatItem = ({ label, value, subValue, valueColor, prefix, suffix }) => (
 );
 
 const TradingStrategies = ({ onNavigate }) => {
-  const screens = useBreakpoint();
   const [strategies, setStrategies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -151,18 +147,8 @@ const TradingStrategies = ({ onNavigate }) => {
   // 打开复盘编辑弹窗
   const handleOpenReview = (trade) => {
     setEditingTrade(trade);
-    
-    // 如果是合并交易，取第一笔有复盘的子交易内容
-    if (trade.isMergedGroup && trade.mergeStats?.trades) {
-      const firstReviewedTitle = trade.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
-      const firstReviewedContent = trade.mergeStats.trades.find(t => t.reviewContent && t.reviewContent !== '<p></p>');
-      setReviewTitle(firstReviewedTitle?.reviewTitle || '');
-      setReviewContent(firstReviewedContent?.reviewContent || '');
-    } else {
-      setReviewTitle(trade.reviewTitle || '');
-      setReviewContent(trade.reviewContent || '');
-    }
-    
+    setReviewTitle(trade.reviewTitle || '');
+    setReviewContent(trade.reviewContent || '');
     setReviewModalVisible(true);
   };
   
@@ -171,30 +157,13 @@ const TradingStrategies = ({ onNavigate }) => {
     if (!editingTrade) return;
     setSavingReview(true);
     try {
-      const updateData = { reviewTitle, reviewContent };
-      
-      // 如果是合并交易组，更新所有子交易
-      if (editingTrade.isMergedGroup && editingTrade.mergeStats?.trades) {
-        const subTrades = editingTrade.mergeStats.trades;
-        for (const subTrade of subTrades) {
-          await StorageService.updateTrade(subTrade.id, updateData);
-        }
-        message.success(`已为 ${subTrades.length} 笔交易保存复盘`);
-        // 更新本地状态
-        const subTradeIds = subTrades.map(t => t.id);
-        setStrategyTrades(prev => prev.map(t => 
-          subTradeIds.includes(t.id) ? { ...t, reviewTitle, reviewContent } : t
-        ));
-      } else {
-        // 单笔交易
-        await StorageService.updateTrade(editingTrade.id, updateData);
-        message.success('复盘保存成功');
-        setStrategyTrades(prev => prev.map(t => 
-          t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
-        ));
-      }
-      
+      await StorageService.updateTrade(editingTrade.id, { reviewTitle, reviewContent });
+      message.success('复盘保存成功');
       setReviewModalVisible(false);
+      // 更新本地状态
+      setStrategyTrades(prev => prev.map(t => 
+        t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
+      ));
     } catch (error) {
       console.error('保存复盘失败:', error);
       message.error('保存失败');
@@ -669,23 +638,23 @@ const TradingStrategies = ({ onNavigate }) => {
         )}
       </Drawer>
 
-      {/* 复盘编辑抽屉 (档案风格) */}
+      {/* 复盘编辑抽屉 (全屏档案风格) */}
       <Drawer
         title={null}
         footer={null}
         open={reviewModalVisible}
         onClose={() => setReviewModalVisible(false)}
-        width={screens.md ? 'calc(100vw - 240px)' : '100%'}
+        width={isMobile ? '100%' : 'calc(100vw - 240px)'}
         placement="right"
-        className="archive-drawer"
+        className="review-fullscreen-drawer"
         styles={{ body: { padding: 0, overflow: 'hidden' } }}
         closeIcon={null}
-        maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
       >
         {editingTrade && (
           <div className="flex h-full">
-            {/* 左侧：交易数据 (侧边栏风格) */}
-            <div className="w-80 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6 overflow-y-auto">
+            {/* 左侧：交易数据侧边栏 */}
+            <div className="w-80 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6 overflow-y-auto flex-shrink-0">
+              {/* 头部信息 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-xs text-tertiary uppercase tracking-wider">交易档案</div>
@@ -697,70 +666,73 @@ const TradingStrategies = ({ onNavigate }) => {
                   />
                 </div>
                 <div className="font-mono text-2xl font-bold text-primary mb-2">
-                  {editingTrade.isMergedGroup 
-                    ? editingTrade.mergeStats?.instrumentCode 
-                    : (editingTrade.instrument || editingTrade.instrumentCode)}
+                  {editingTrade.instrument || editingTrade.instrumentCode}
                 </div>
                 <div className="flex items-center gap-2">
                   <Tag 
                     className="border-none px-2 py-0.5 m-0 font-bold text-sm"
-                    color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
+                    color={editingTrade.direction === 'LONG' ? 'success' : 'error'}
                   >
-                    {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多' : '做空'}
+                    {editingTrade.direction === 'LONG' ? '做多' : '做空'}
                   </Tag>
                   <span className="text-secondary text-sm font-mono bg-bg-tertiary px-2 py-0.5 rounded">
-                    {editingTrade.isMergedGroup ? editingTrade.mergeStats?.totalQuantity : (editingTrade.openQuantity || 1)}手
+                    {editingTrade.openQuantity || 1}手
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className="p-4 bg-bg-tertiary rounded-lg border border-border-primary">
-                  <div className="text-xs text-tertiary mb-1">盈亏结果</div>
-                  <div className={`font-mono text-3xl font-bold ${(editingTrade.isMergedGroup 
-                      ? editingTrade.mergeStats?.totalPnL 
-                      : getNetPnL(editingTrade)) >= 0 ? 'text-profit' : 'text-loss'}`}>
-                    {(editingTrade.isMergedGroup 
-                      ? editingTrade.mergeStats?.totalPnL 
-                      : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
-                    ${(editingTrade.isMergedGroup 
-                      ? editingTrade.mergeStats?.totalPnL 
-                      : getNetPnL(editingTrade))?.toFixed(2)}
+              {/* 盈亏结果 */}
+              <div className="p-4 bg-bg-tertiary rounded-lg border border-border-primary">
+                <div className="text-xs text-tertiary mb-1">盈亏结果</div>
+                <div className={`font-mono text-3xl font-bold ${getNetPnL(editingTrade) >= 0 ? 'text-profit' : 'text-loss'}`}>
+                  {getNetPnL(editingTrade) >= 0 ? '+' : ''}
+                  ${getNetPnL(editingTrade).toFixed(2)}
+                </div>
+              </div>
+
+              {/* 时间信息 */}
+              <div>
+                <div className="text-xs text-tertiary mb-1">开仓时间</div>
+                <div className="font-mono text-base text-primary">
+                  {dayjs(editingTrade.openTime).format('YYYY-MM-DD')}
+                </div>
+                <div className="font-mono text-sm text-secondary">
+                  {dayjs(editingTrade.openTime).format('HH:mm:ss')}
+                </div>
+              </div>
+
+              {/* 价格信息 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs text-tertiary mb-1">开仓价</div>
+                  <div className="font-mono text-base text-primary">
+                    {editingTrade.openPrice?.toFixed(2) || '-'}
                   </div>
                 </div>
-
                 <div>
-                  <div className="text-xs text-tertiary mb-1">时间</div>
+                  <div className="text-xs text-tertiary mb-1">平仓价</div>
                   <div className="font-mono text-base text-primary">
-                    {editingTrade.isMergedGroup 
-                      ? dayjs(editingTrade.mergeStats?.firstOpenTime).format('YYYY-MM-DD')
-                      : dayjs(editingTrade.openTime).format('YYYY-MM-DD')}
-                  </div>
-                  <div className="font-mono text-sm text-secondary">
-                    {editingTrade.isMergedGroup 
-                      ? `${dayjs(editingTrade.mergeStats?.firstOpenTime).format('HH:mm')} - ${dayjs(editingTrade.mergeStats?.lastCloseTime).format('HH:mm')}`
-                      : dayjs(editingTrade.openTime).format('HH:mm:ss')}
+                    {editingTrade.closePrice?.toFixed(2) || '-'}
                   </div>
                 </div>
               </div>
 
-              {editingTrade.isMergedGroup && (
-                <div className="mt-auto bg-blue-500/5 p-4 rounded-lg border border-blue-500/10">
-                  <div className="flex items-center gap-2 text-blue-500 mb-2">
-                    <MergeCellsOutlined />
-                    <span className="text-sm font-bold">合并交易组</span>
+              {/* 策略标签 */}
+              {selectedStrategy && (
+                <div className="mt-auto p-4 bg-brand/5 rounded-lg border border-brand/10">
+                  <div className="flex items-center gap-2 text-brand mb-2">
+                    <BulbOutlined />
+                    <span className="text-sm font-bold">使用策略</span>
                   </div>
-                  <div className="text-xs text-blue-400/80 leading-relaxed">
-                    包含 {editingTrade.mergeStats?.tradeCount} 笔子交易。
-                    <br/>
-                    保存复盘将同步更新组内所有记录。
-                  </div>
+                  <div className="text-sm text-primary">{selectedStrategy.name}</div>
+                  <div className="text-xs text-secondary mt-1">{selectedStrategy.category}</div>
                 </div>
               )}
             </div>
 
-            {/* 右侧：复盘内容 (文档风格) */}
+            {/* 右侧：复盘内容编辑区 */}
             <div className="flex-1 flex flex-col bg-bg-primary h-full overflow-hidden">
+              {/* 标题栏 */}
               <div className="p-8 border-b border-border-primary flex justify-between items-start flex-shrink-0">
                 <Input.TextArea
                   value={reviewTitle}
@@ -770,18 +742,29 @@ const TradingStrategies = ({ onNavigate }) => {
                   autoSize
                   maxLength={100}
                 />
-                <div className="flex gap-3 ml-8">
-                  <Button size="large" onClick={() => setReviewModalVisible(false)}>取消</Button>
-                  <Button size="large" type="primary" onClick={handleSaveReview} loading={savingReview} className="bg-brand text-bg-primary font-semibold px-8">保存档案</Button>
+                <div className="flex gap-3 ml-8 flex-shrink-0">
+                  <Button size="large" onClick={() => setReviewModalVisible(false)}>
+                    取消
+                  </Button>
+                  <Button 
+                    size="large" 
+                    type="primary" 
+                    onClick={handleSaveReview} 
+                    loading={savingReview} 
+                    className="bg-brand text-bg-primary font-semibold px-8"
+                  >
+                    保存档案
+                  </Button>
                 </div>
               </div>
               
+              {/* 富文本编辑区 */}
               <div className="flex-1 overflow-y-auto p-8">
                 <div className="max-w-3xl mx-auto">
                   <RichEditor
                     value={reviewContent}
                     onChange={setReviewContent}
-                    placeholder="开始撰写复盘..."
+                    placeholder="开始撰写复盘内容..."
                     minHeight={500}
                     className="border-none"
                   />
@@ -809,6 +792,12 @@ const TradingStrategies = ({ onNavigate }) => {
         }
         .archive-row:hover > td {
           background: var(--bg-tertiary) !important;
+        }
+        .review-fullscreen-drawer .ant-drawer-content-wrapper {
+          box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3) !important;
+        }
+        .review-fullscreen-drawer .ant-drawer-body {
+          height: 100vh;
         }
       `}</style>
     </div>
