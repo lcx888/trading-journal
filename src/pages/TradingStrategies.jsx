@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Modal, Form, Input, Select, Tag, Space,
-  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin
+  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin, Grid
 } from 'antd';
 import {
   PlusOutlined,
@@ -23,16 +23,14 @@ import {
   CalendarOutlined,
   FolderOpenOutlined,
   FileTextOutlined,
-  RetweetOutlined,
-  ColumnWidthOutlined,
-  FieldTimeOutlined,
-  SwapOutlined,
-  AppstoreOutlined,
-  StockOutlined
+  CloseOutlined,
+  MergeCellsOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import RichEditor from '../components/RichEditor';
+
+const { useBreakpoint } = Grid;
 
 // 预设颜色（币安风格调色板）
 const PRESET_COLORS = [
@@ -41,16 +39,16 @@ const PRESET_COLORS = [
   '#14B8A6', '#EAB308', '#EF4444', '#3B82F6', '#A855F7'
 ];
 
-// 策略分类配置
+// 策略分类
 const STRATEGY_CATEGORIES = [
-  { value: '趋势', label: '趋势策略', icon: <StockOutlined />, color: '#10b981', desc: '跟随市场方向' },
-  { value: '突破', label: '突破策略', icon: <ThunderboltOutlined />, color: '#f59e0b', desc: '捕捉关键位破位' },
-  { value: '反转', label: '反转策略', icon: <RetweetOutlined />, color: '#3b82f6', desc: '寻找趋势拐点' },
-  { value: '区间', label: '区间策略', icon: <ColumnWidthOutlined />, color: '#8b5cf6', desc: '震荡行情套利' },
-  { value: '剥头皮', label: '剥头皮', icon: <FieldTimeOutlined />, color: '#ef4444', desc: '高频微利交易' },
-  { value: '套利', label: '套利策略', icon: <SwapOutlined />, color: '#06b6d4', desc: '价差回归交易' },
-  { value: '实验', label: '实验策略', icon: <ExperimentOutlined />, color: '#ec4899', desc: '测试中的系统' },
-  { value: '通用', label: '通用策略', icon: <AppstoreOutlined />, color: '#6b7280', desc: '其他交易模式' },
+  { value: '趋势', label: '趋势策略', icon: <RocketOutlined /> },
+  { value: '突破', label: '突破策略', icon: <ThunderboltOutlined /> },
+  { value: '反转', label: '反转策略', icon: <ReloadOutlined /> },
+  { value: '区间', label: '区间策略', icon: <AimOutlined /> },
+  { value: '剥头皮', label: '剥头皮策略', icon: <FireOutlined /> },
+  { value: '套利', label: '套利策略', icon: <SafetyOutlined /> },
+  { value: '实验', label: '实验策略', icon: <ExperimentOutlined /> },
+  { value: '通用', label: '通用策略', icon: <BookOutlined /> },
 ];
 
 // 统计指标组件
@@ -72,6 +70,7 @@ const StatItem = ({ label, value, subValue, valueColor, prefix, suffix }) => (
 );
 
 const TradingStrategies = ({ onNavigate }) => {
+  const screens = useBreakpoint();
   const [strategies, setStrategies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -152,8 +151,18 @@ const TradingStrategies = ({ onNavigate }) => {
   // 打开复盘编辑弹窗
   const handleOpenReview = (trade) => {
     setEditingTrade(trade);
-    setReviewTitle(trade.reviewTitle || '');
-    setReviewContent(trade.reviewContent || '');
+    
+    // 如果是合并交易，取第一笔有复盘的子交易内容
+    if (trade.isMergedGroup && trade.mergeStats?.trades) {
+      const firstReviewedTitle = trade.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
+      const firstReviewedContent = trade.mergeStats.trades.find(t => t.reviewContent && t.reviewContent !== '<p></p>');
+      setReviewTitle(firstReviewedTitle?.reviewTitle || '');
+      setReviewContent(firstReviewedContent?.reviewContent || '');
+    } else {
+      setReviewTitle(trade.reviewTitle || '');
+      setReviewContent(trade.reviewContent || '');
+    }
+    
     setReviewModalVisible(true);
   };
   
@@ -162,13 +171,30 @@ const TradingStrategies = ({ onNavigate }) => {
     if (!editingTrade) return;
     setSavingReview(true);
     try {
-      await StorageService.updateTrade(editingTrade.id, { reviewTitle, reviewContent });
-      message.success('复盘保存成功');
+      const updateData = { reviewTitle, reviewContent };
+      
+      // 如果是合并交易组，更新所有子交易
+      if (editingTrade.isMergedGroup && editingTrade.mergeStats?.trades) {
+        const subTrades = editingTrade.mergeStats.trades;
+        for (const subTrade of subTrades) {
+          await StorageService.updateTrade(subTrade.id, updateData);
+        }
+        message.success(`已为 ${subTrades.length} 笔交易保存复盘`);
+        // 更新本地状态
+        const subTradeIds = subTrades.map(t => t.id);
+        setStrategyTrades(prev => prev.map(t => 
+          subTradeIds.includes(t.id) ? { ...t, reviewTitle, reviewContent } : t
+        ));
+      } else {
+        // 单笔交易
+        await StorageService.updateTrade(editingTrade.id, updateData);
+        message.success('复盘保存成功');
+        setStrategyTrades(prev => prev.map(t => 
+          t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
+        ));
+      }
+      
       setReviewModalVisible(false);
-      // 更新本地状态
-      setStrategyTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
-      ));
     } catch (error) {
       console.error('保存复盘失败:', error);
       message.error('保存失败');
@@ -273,10 +299,7 @@ const TradingStrategies = ({ onNavigate }) => {
           </div>
           <div>
             <div className="font-medium text-primary text-sm">{name}</div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STRATEGY_CATEGORIES.find(c => c.value === record.category)?.color }}></span>
-              <span className="text-xs text-tertiary">{record.category}</span>
-            </div>
+            <div className="text-xs text-tertiary mt-0.5">{record.category}</div>
           </div>
         </div>
       ),
@@ -417,25 +440,6 @@ const TradingStrategies = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* 策略类型矩阵 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        {STRATEGY_CATEGORIES.map(cat => (
-          <div 
-            key={cat.value} 
-            className="flex flex-col items-center justify-center p-3 rounded-lg bg-bg-secondary border border-border-primary hover:border-brand/50 transition-colors group cursor-default"
-          >
-            <div 
-              className="w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-transform group-hover:scale-110"
-              style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
-            >
-              {cat.icon}
-            </div>
-            <div className="text-xs font-semibold text-primary">{cat.label}</div>
-            <div className="text-[10px] text-tertiary mt-1 scale-90">{cat.desc}</div>
-          </div>
-        ))}
-      </div>
-
       {/* 策略列表 */}
       <div className="bg-bg-secondary rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-border-primary flex justify-between items-center">
@@ -520,7 +524,7 @@ const TradingStrategies = ({ onNavigate }) => {
                 {STRATEGY_CATEGORIES.map(cat => (
                   <Select.Option key={cat.value} value={cat.value}>
                     <div className="flex items-center gap-2">
-                      <span style={{ color: cat.color }}>{cat.icon}</span>
+                      {cat.icon}
                       <span>{cat.label}</span>
                     </div>
                   </Select.Option>
@@ -665,34 +669,128 @@ const TradingStrategies = ({ onNavigate }) => {
         )}
       </Drawer>
 
-      {/* 复盘编辑弹窗 (简化版) */}
-      <Modal
-        title="快速编辑复盘"
+      {/* 复盘编辑抽屉 (档案风格) */}
+      <Drawer
+        title={null}
+        footer={null}
         open={reviewModalVisible}
-        onCancel={() => setReviewModalVisible(false)}
-        onOk={handleSaveReview}
-        confirmLoading={savingReview}
-        width={600}
-        okText="保存"
-        cancelText="取消"
+        onClose={() => setReviewModalVisible(false)}
+        width={screens.md ? 'calc(100vw - 240px)' : '100%'}
+        placement="right"
+        className="archive-drawer"
+        styles={{ body: { padding: 0, overflow: 'hidden' } }}
+        closeIcon={null}
+        maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
       >
         {editingTrade && (
-          <div className="mt-4 space-y-4">
-            <Input
-              value={reviewTitle}
-              onChange={(e) => setReviewTitle(e.target.value)}
-              placeholder="复盘标题"
-              className="font-medium"
-            />
-            <RichEditor
-              value={reviewContent}
-              onChange={setReviewContent}
-              placeholder="记录你的交易复盘..."
-              minHeight={200}
-            />
+          <div className="flex h-full">
+            {/* 左侧：交易数据 (侧边栏风格) */}
+            <div className="w-80 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6 overflow-y-auto">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-xs text-tertiary uppercase tracking-wider">交易档案</div>
+                  <Button 
+                    type="text" 
+                    icon={<CloseOutlined />} 
+                    onClick={() => setReviewModalVisible(false)}
+                    className="text-tertiary hover:text-primary"
+                  />
+                </div>
+                <div className="font-mono text-2xl font-bold text-primary mb-2">
+                  {editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.instrumentCode 
+                    : (editingTrade.instrument || editingTrade.instrumentCode)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Tag 
+                    className="border-none px-2 py-0.5 m-0 font-bold text-sm"
+                    color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
+                  >
+                    {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多' : '做空'}
+                  </Tag>
+                  <span className="text-secondary text-sm font-mono bg-bg-tertiary px-2 py-0.5 rounded">
+                    {editingTrade.isMergedGroup ? editingTrade.mergeStats?.totalQuantity : (editingTrade.openQuantity || 1)}手
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-bg-tertiary rounded-lg border border-border-primary">
+                  <div className="text-xs text-tertiary mb-1">盈亏结果</div>
+                  <div className={`font-mono text-3xl font-bold ${(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade)) >= 0 ? 'text-profit' : 'text-loss'}`}>
+                    {(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
+                    ${(editingTrade.isMergedGroup 
+                      ? editingTrade.mergeStats?.totalPnL 
+                      : getNetPnL(editingTrade))?.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-tertiary mb-1">时间</div>
+                  <div className="font-mono text-base text-primary">
+                    {editingTrade.isMergedGroup 
+                      ? dayjs(editingTrade.mergeStats?.firstOpenTime).format('YYYY-MM-DD')
+                      : dayjs(editingTrade.openTime).format('YYYY-MM-DD')}
+                  </div>
+                  <div className="font-mono text-sm text-secondary">
+                    {editingTrade.isMergedGroup 
+                      ? `${dayjs(editingTrade.mergeStats?.firstOpenTime).format('HH:mm')} - ${dayjs(editingTrade.mergeStats?.lastCloseTime).format('HH:mm')}`
+                      : dayjs(editingTrade.openTime).format('HH:mm:ss')}
+                  </div>
+                </div>
+              </div>
+
+              {editingTrade.isMergedGroup && (
+                <div className="mt-auto bg-blue-500/5 p-4 rounded-lg border border-blue-500/10">
+                  <div className="flex items-center gap-2 text-blue-500 mb-2">
+                    <MergeCellsOutlined />
+                    <span className="text-sm font-bold">合并交易组</span>
+                  </div>
+                  <div className="text-xs text-blue-400/80 leading-relaxed">
+                    包含 {editingTrade.mergeStats?.tradeCount} 笔子交易。
+                    <br/>
+                    保存复盘将同步更新组内所有记录。
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 右侧：复盘内容 (文档风格) */}
+            <div className="flex-1 flex flex-col bg-bg-primary h-full overflow-hidden">
+              <div className="p-8 border-b border-border-primary flex justify-between items-start flex-shrink-0">
+                <Input.TextArea
+                  value={reviewTitle}
+                  onChange={(e) => setReviewTitle(e.target.value)}
+                  placeholder="在此输入复盘标题..."
+                  className="text-3xl font-bold bg-transparent border-none focus:shadow-none p-0 resize-none !text-primary placeholder:text-tertiary/30"
+                  autoSize
+                  maxLength={100}
+                />
+                <div className="flex gap-3 ml-8">
+                  <Button size="large" onClick={() => setReviewModalVisible(false)}>取消</Button>
+                  <Button size="large" type="primary" onClick={handleSaveReview} loading={savingReview} className="bg-brand text-bg-primary font-semibold px-8">保存档案</Button>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8">
+                <div className="max-w-3xl mx-auto">
+                  <RichEditor
+                    value={reviewContent}
+                    onChange={setReviewContent}
+                    placeholder="开始撰写复盘..."
+                    minHeight={500}
+                    className="border-none"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
-      </Modal>
+      </Drawer>
 
       <style jsx global>{`
         .archive-table .ant-table-thead > tr > th {
