@@ -162,6 +162,25 @@ const Toolbar = ({ editor, onImageUpload, uploading }) => {
           H2
         </Button>
       </Tooltip>
+      <Tooltip title="标题3">
+        <Button
+          type="text"
+          size="small"
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          style={{
+            color: editor.isActive('heading', { level: 3 }) ? 'var(--color-brand)' : 'var(--text-secondary)',
+            backgroundColor: editor.isActive('heading', { level: 3 }) ? 'var(--bg-tertiary)' : 'transparent',
+            border: 'none',
+            borderRadius: 4,
+            fontSize: 12,
+            fontWeight: 700,
+            padding: '0 8px',
+            height: 28,
+          }}
+        >
+          H3
+        </Button>
+      </Tooltip>
 
       <Divider type="vertical" style={{ margin: '0 4px', borderColor: 'var(--border-primary)' }} />
 
