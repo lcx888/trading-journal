@@ -1219,16 +1219,31 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const handleEditSave = async () => {
     try {
       const vals = form.getFieldsValue();
-      // 合并表单值、标题和富文本内容
-      await StorageService.updateTrade(editingTrade.id, {
+      const updateData = {
         ...vals,
         reviewTitle: reviewTitle,
         reviewContent: reviewContent,
-      });
-      message.success('保存成功');
+      };
+      
+      // 如果是合并交易组，需要更新所有子交易
+      if (editingTrade.isMergedGroup && editingTrade.mergeStats?.trades) {
+        const subTrades = editingTrade.mergeStats.trades;
+        for (const subTrade of subTrades) {
+          await StorageService.updateTrade(subTrade.id, updateData);
+        }
+        message.success(`已为 ${subTrades.length} 笔交易保存复盘`);
+      } else {
+        // 普通单笔交易
+        await StorageService.updateTrade(editingTrade.id, updateData);
+        message.success('保存成功');
+      }
+      
       setEditModalVisible(false);
       loadData();
-    } catch (e) { message.error('保存失败'); }
+    } catch (e) { 
+      console.error('保存失败:', e);
+      message.error('保存失败'); 
+    }
   };
 
   // 打开保存为策略对话框
