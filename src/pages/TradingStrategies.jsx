@@ -21,6 +21,8 @@ import {
   RiseOutlined,
   FallOutlined,
   CalendarOutlined,
+  FolderOpenOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -44,6 +46,24 @@ const STRATEGY_CATEGORIES = [
   { value: '实验', label: '实验策略', icon: <ExperimentOutlined /> },
   { value: '通用', label: '通用策略', icon: <BookOutlined /> },
 ];
+
+// 统计指标组件
+const StatItem = ({ label, value, subValue, valueColor, prefix, suffix }) => (
+  <div className="flex flex-col justify-between h-full hover:translate-y-[-2px] transition-transform duration-200">
+    <div className="text-xs text-secondary uppercase tracking-wider mb-1">{label}</div>
+    <div className="flex items-baseline gap-1">
+      {prefix && <span className="text-lg text-secondary font-mono">{prefix}</span>}
+      <div 
+        className="text-2xl font-light font-mono tracking-tight"
+        style={{ color: valueColor || 'var(--text-primary)' }}
+      >
+        {value}
+      </div>
+      {suffix && <span className="text-sm text-secondary font-mono ml-1">{suffix}</span>}
+    </div>
+    {subValue && <div className="mt-1 text-xs text-tertiary">{subValue}</div>}
+  </div>
+);
 
 const TradingStrategies = ({ onNavigate }) => {
   const [strategies, setStrategies] = useState([]);
@@ -74,7 +94,7 @@ const TradingStrategies = ({ onNavigate }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
+  
   useEffect(() => {
     loadStrategies();
     loadInstruments();
@@ -234,114 +254,86 @@ const TradingStrategies = ({ onNavigate }) => {
 
   const columns = [
     {
-      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>策略模型</span>,
+      title: '策略档案',
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="flex items-center gap-3">
           <div 
-            style={{ 
-              width: 40, 
-              height: 40, 
-              borderRadius: 8, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              backgroundColor: record.color,
-              color: '#fff'
-            }}
+            className="w-8 h-8 rounded flex items-center justify-center text-white"
+            style={{ backgroundColor: record.color }}
           >
             {getCategoryIcon(record.category)}
           </div>
           <div>
-            <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>{name}</div>
-            <div style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>
-              {record.category} 系统
-            </div>
+            <div className="font-medium text-primary text-sm">{name}</div>
+            <div className="text-xs text-tertiary mt-0.5">{record.category}</div>
           </div>
         </div>
       ),
     },
     {
-      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>标签预览</span>,
-      dataIndex: 'color',
-      key: 'preview',
-      width: 140,
-      render: (color, record) => (
-        <Tag 
-          style={{ 
-            backgroundColor: color, 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: 12, 
-            padding: '2px 12px',
-            fontSize: 11,
-            fontWeight: 600
-          }}
-        >
-          {record.name}
-        </Tag>
-      ),
-    },
-    {
-      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>描述</span>,
+      title: '描述',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (desc) => (
-        <Tooltip title={desc}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-            {desc || '--'}
-          </span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>使用次数</span>,
-      dataIndex: 'usageCount',
-      key: 'usageCount',
-      width: 100,
-      align: 'center',
-      sorter: (a, b) => (a.usageCount || 0) - (b.usageCount || 0),
-      render: (count) => (
-        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
-          {count || 0}
+        <span className="text-secondary text-xs">
+          {desc || <span className="text-tertiary italic">无描述</span>}
         </span>
       ),
     },
     {
-      title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>操作</span>,
+      title: '使用情况',
+      dataIndex: 'usageCount',
+      key: 'usageCount',
+      width: 120,
+      align: 'right',
+      sorter: (a, b) => (a.usageCount || 0) - (b.usageCount || 0),
+      render: (count) => (
+        <div className="text-right">
+          <span className="font-mono font-bold text-primary">{count || 0}</span>
+          <span className="text-xs text-tertiary ml-1">次</span>
+        </div>
+      ),
+    },
+    {
+      title: '操作',
       key: 'actions',
-      width: 140,
+      width: 120,
       align: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="查看关联订单">
+          <Tooltip title="查看档案">
             <Button 
               type="text" 
               size="small"
-              style={{ color: 'var(--color-brand)' }}
-              icon={<EyeOutlined />} 
+              icon={<FolderOpenOutlined />} 
               onClick={() => handleViewTrades(record)}
+              className="text-secondary hover:text-brand"
             />
           </Tooltip>
           <Button 
             type="text" 
             size="small"
-            style={{ color: 'var(--text-tertiary)' }}
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
+            className="text-secondary hover:text-primary"
           />
           <Popconfirm
-            title={<span style={{ color: 'var(--text-primary)' }}>删除策略？</span>}
-            description={<span style={{ color: 'var(--text-secondary)' }}>使用该策略的交易将移除标签。</span>}
+            title="删除策略？"
+            description="关联交易将保留，但移除此策略标签。"
             onConfirm={() => handleDelete(record.id)}
             okText="删除"
             cancelText="取消"
             okButtonProps={{ danger: true, size: 'small' }}
-            cancelButtonProps={{ size: 'small' }}
           >
-            <Button type="text" size="small" icon={<DeleteOutlined />} style={{ color: 'var(--color-loss)', opacity: 0.6 }} />
+            <Button 
+              type="text" 
+              size="small" 
+              icon={<DeleteOutlined />} 
+              className="text-secondary hover:text-loss"
+            />
           </Popconfirm>
         </Space>
       ),
@@ -353,160 +345,92 @@ const TradingStrategies = ({ onNavigate }) => {
   const totalUsage = strategies.reduce((sum, s) => sum + (s.usageCount || 0), 0);
   const mostUsed = strategies.reduce((max, s) => (s.usageCount || 0) > (max?.usageCount || 0) ? s : max, null);
 
-  // 统计卡片组件
-  const StatCard = ({ label, value, icon, color, subLabel }) => (
-    <div style={{
-      background: 'var(--bg-secondary)',
-      border: '1px solid var(--border-primary)',
-      borderRadius: 6,
-      padding: 16,
-    }}>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
-      <div style={{ 
-        fontSize: 24, 
-        fontWeight: 700, 
-        fontFamily: 'var(--font-mono)', 
-        color: color || 'var(--text-primary)',
-        letterSpacing: '-0.5px'
-      }}>
-        {value}
-      </div>
-      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 500 }}>
-        {icon}
-        <span>{subLabel}</span>
-      </div>
-    </div>
-  );
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 顶部统计区 */}
-      <Row gutter={16}>
-        <Col xs={24} sm={8}>
-          <StatCard 
-            label="策略总数" 
-            value={totalStrategies} 
-            icon={<BulbOutlined style={{ color: 'var(--color-brand)' }} />}
-            subLabel="活跃库"
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <StatCard 
-            label="累计使用" 
-            value={totalUsage}
-            icon={<BarChartOutlined style={{ color: 'var(--color-profit)' }} />}
-            subLabel="数据样本"
-            color="var(--color-profit)"
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <StatCard 
-            label="最常用" 
-            value={mostUsed?.name || '暂无'}
-            icon={<FireOutlined style={{ color: 'var(--color-brand)' }} />}
-            subLabel="使用最高"
-            color="var(--color-brand)"
-          />
-        </Col>
-      </Row>
-
-      {/* 列表控制栏 */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: isMobile ? '10px 12px' : '12px 16px',
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border-primary)',
-        borderRadius: 6
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-          {!isMobile && (
-            <div style={{ 
-              width: 32, 
-              height: 32, 
-              borderRadius: 4, 
-              background: 'var(--color-brand-bg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <ThunderboltOutlined style={{ color: 'var(--color-brand)' }} />
-            </div>
-          )}
-          <span style={{ fontWeight: 600, fontSize: isMobile ? 13 : 14, color: 'var(--text-primary)' }}>策略库</span>
-          <span style={{ 
-            fontSize: isMobile ? 9 : 10, 
-            color: 'var(--text-tertiary)', 
-            background: 'var(--bg-tertiary)', 
-            padding: '2px 8px', 
-            borderRadius: 2 
-          }}>
-            {totalStrategies} 个
-          </span>
+    <div className="max-w-[1600px] mx-auto p-6 space-y-8 min-h-screen">
+      {/* 头部 */}
+      <div className="flex items-end justify-between border-b border-border-primary pb-4">
+        <div>
+          <h1 className="text-3xl font-light text-primary m-0 tracking-tight mb-2">
+            策略库
+          </h1>
+          <div className="text-sm text-secondary font-mono flex gap-6">
+            <span>总计: <span className="text-primary">{totalStrategies}</span></span>
+            <span>累计执行: <span className="text-brand">{totalUsage}</span> 次</span>
+          </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreate}
-          size={isMobile ? 'small' : 'middle'}
-          style={{ 
-            background: 'var(--color-brand)', 
-            borderColor: 'var(--color-brand)', 
-            color: 'var(--bg-primary)', 
-            fontWeight: 600, 
-            fontSize: isMobile ? 11 : 12,
-            borderRadius: 4,
-            height: isMobile ? 28 : 32
-          }}
-        >
-          {isMobile ? '新建' : '新建策略'}
-        </Button>
+        
+        <div className="flex gap-3">
+          <Button 
+            type="text"
+            icon={<ReloadOutlined />} 
+            onClick={loadStrategies}
+            className="text-secondary hover:text-primary"
+          >
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreate}
+            className="bg-brand text-bg-primary font-semibold border-none hover:opacity-90"
+          >
+            新建策略
+          </Button>
+        </div>
       </div>
 
-      {/* 列表主体 */}
-      <div style={{ 
-        background: 'var(--bg-secondary)', 
-        border: '1px solid var(--border-primary)', 
-        borderRadius: 6,
-        overflow: 'hidden'
-      }}>
+      {/* 统计概览 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-4 rounded bg-bg-secondary/50 border-l-2 border-brand">
+          <StatItem 
+            label="策略模型总数" 
+            value={totalStrategies} 
+            suffix="个"
+            subValue="活跃使用的交易系统"
+          />
+        </div>
+        <div className="p-4 rounded bg-bg-secondary/50 border-l-2 border-profit">
+          <StatItem 
+            label="累计执行次数" 
+            value={totalUsage}
+            suffix="次"
+            valueColor="var(--color-profit)"
+            subValue="所有策略的历史交易总和"
+          />
+        </div>
+        <div className="p-4 rounded bg-bg-secondary/50 border-l-2 border-purple-500">
+          <StatItem 
+            label="最常用策略" 
+            value={mostUsed?.name || '暂无'}
+            valueColor="#a855f7"
+            subValue={`已执行 ${mostUsed?.usageCount || 0} 次`}
+          />
+        </div>
+      </div>
+
+      {/* 策略列表 */}
+      <div className="bg-bg-secondary rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-border-primary flex justify-between items-center">
+          <div className="font-medium text-primary">策略档案列表</div>
+          <div className="text-xs text-tertiary">按使用频率排序</div>
+        </div>
         <Table
           columns={columns}
           dataSource={strategies}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 8, hideOnSinglePage: true }}
-          className="binance-table"
+          pagination={{ pageSize: 10, hideOnSinglePage: true, className: "p-4" }}
+          className="archive-table"
+          rowClassName="archive-row hover:bg-bg-tertiary transition-colors"
           locale={{
             emptyText: (
-              <div style={{ padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ 
-                  width: 64, 
-                  height: 64, 
-                  background: 'var(--bg-tertiary)', 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  marginBottom: 16
-                }}>
-                  <BulbOutlined style={{ fontSize: 24, color: 'var(--text-tertiary)' }} />
+              <div className="py-12 flex flex-col items-center">
+                <div className="w-16 h-16 bg-bg-tertiary rounded-full flex items-center justify-center mb-4">
+                  <BulbOutlined className="text-2xl text-tertiary" />
                 </div>
-                <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 16, marginBottom: 8 }}>暂无策略</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 24 }}>创建第一个策略模型</div>
-                <Button 
-                  type="primary" 
-                  onClick={handleCreate} 
-                  icon={<PlusOutlined />}
-                  style={{ 
-                    background: 'var(--color-brand)', 
-                    borderColor: 'var(--color-brand)', 
-                    color: 'var(--bg-primary)', 
-                    fontWeight: 600,
-                    borderRadius: 4
-                  }}
-                >
+                <div className="text-primary font-medium mb-2">暂无策略模型</div>
+                <div className="text-secondary text-xs mb-6">建立你的第一个交易系统档案</div>
+                <Button type="primary" onClick={handleCreate} className="bg-brand text-bg-primary border-none">
                   立即创建
                 </Button>
               </div>
@@ -515,48 +439,13 @@ const TradingStrategies = ({ onNavigate }) => {
         />
       </div>
 
-      {/* 策略分类展示 */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : 'repeat(8, 1fr)', 
-        gap: isMobile ? 8 : 12 
-      }}>
-        {STRATEGY_CATEGORIES.map(cat => (
-          <div 
-            key={cat.value} 
-            style={{ 
-              background: 'var(--bg-secondary)', 
-              border: '1px solid var(--border-primary)', 
-              borderRadius: 6, 
-              padding: isMobile ? 8 : 12, 
-              textAlign: 'center',
-              transition: 'all 0.2s',
-              cursor: 'default'
-            }}
-          >
-            <div style={{ color: 'var(--color-brand)', fontSize: isMobile ? 14 : 18, marginBottom: isMobile ? 2 : 4 }}>{cat.icon}</div>
-            <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat.label}</div>
-          </div>
-        ))}
-      </div>
-
       {/* 策略表单弹窗 */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand-bg)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <ThunderboltOutlined style={{ color: 'var(--color-brand)', fontSize: 16 }} />
-            </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {editingStrategy ? '更新策略' : '新建策略模型'}
+          <div className="flex items-center gap-3 py-2">
+            <span className="text-xl">⚡</span>
+            <span className="font-medium text-lg text-primary">
+              {editingStrategy ? '编辑策略档案' : '新建策略档案'}
             </span>
           </div>
         }
@@ -564,156 +453,69 @@ const TradingStrategies = ({ onNavigate }) => {
         onCancel={() => setModalVisible(false)}
         onOk={handleSave}
         confirmLoading={loading}
-        width={isMobile ? '100vw' : 480}
-        style={isMobile ? { top: 0, paddingBottom: 0, maxWidth: '100vw' } : undefined}
+        width={500}
         destroyOnClose
-        okText="保存"
+        okText="保存档案"
         cancelText="取消"
-        okButtonProps={{
-          style: {
-            background: 'var(--color-brand)',
-            borderColor: 'var(--color-brand)',
-            color: 'var(--bg-primary)',
-            fontWeight: 600,
-            borderRadius: 4
-          }
-        }}
-        cancelButtonProps={{
-          style: {
-            borderColor: 'var(--border-primary)',
-            color: 'var(--text-secondary)',
-            borderRadius: 4
-          }
-        }}
+        className="modern-modal"
       >
-        <Form form={form} layout="vertical" style={{ marginTop: isMobile ? 16 : 24 }}>
-          <Row gutter={isMobile ? 8 : 16}>
-            <Col span={isMobile ? 24 : 16}>
-              <Form.Item
-                name="name"
-                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略名称</span>}
-                rules={[{ required: true, message: '必填' }]}
-              >
-                <Input 
-                  placeholder="例如：趋势跟随" 
-                  maxLength={20} 
-                  style={{ 
-                    background: 'var(--bg-tertiary)', 
-                    borderColor: 'var(--border-primary)', 
-                    color: 'var(--text-primary)',
-                    borderRadius: 4
-                  }} 
-                />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 8}>
-              <Form.Item
-                name="category"
-                label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>策略类型</span>}
-              >
-                <Select>
-                  {STRATEGY_CATEGORIES.map(cat => (
-                    <Select.Option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
+        <Form form={form} layout="vertical" className="mt-6">
           <Form.Item
-            name="color"
-            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>颜色标识</span>}
+            name="name"
+            label="策略名称"
+            rules={[{ required: true, message: '请输入策略名称' }]}
           >
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: isMobile ? 'column' : 'row',
-              alignItems: isMobile ? 'flex-start' : 'center', 
-              gap: isMobile ? 8 : 16, 
-              background: 'var(--bg-tertiary)', 
-              padding: isMobile ? 10 : 12, 
-              borderRadius: 6 
-            }}>
-              <ColorPicker presets={[{ label: '调色板', colors: PRESET_COLORS }]} />
-              <div style={{ fontSize: isMobile ? 10 : 11, color: 'var(--text-secondary)' }}>选择独特颜色，以便在交易记录中识别该策略。</div>
-            </div>
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>执行规则/逻辑</span>}
-          >
-            <Input.TextArea 
-              rows={4} 
-              placeholder="描述入场条件、出场规则与风控..."
-              maxLength={500}
-              showCount
-              style={{ 
-                background: 'var(--bg-tertiary)', 
-                borderColor: 'var(--border-primary)', 
-                color: 'var(--text-primary)',
-                borderRadius: 4,
-                fontSize: 13
-              }}
+            <Input 
+              placeholder="例如：趋势跟随系统" 
+              maxLength={20} 
+              className="bg-bg-tertiary border-border-primary text-primary"
             />
           </Form.Item>
 
-          <div style={{ 
-            marginTop: 24, 
-            padding: 16, 
-            background: 'var(--color-brand-bg)', 
-            borderRadius: 8, 
-            border: '1px solid var(--border-primary)' 
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>实时预览</div>
-            <Form.Item noStyle shouldUpdate>
-              {() => {
-                const name = form.getFieldValue('name') || '策略名称';
-                const color = form.getFieldValue('color');
-                const colorValue = typeof color === 'string' ? color : color?.toHexString?.() || '#eab308';
-                return (
-                  <Tag style={{ 
-                    backgroundColor: colorValue, 
-                    color: '#fff', 
-                    border: 'none', 
-                    borderRadius: 12, 
-                    padding: '4px 16px',
-                    fontSize: 12,
-                    fontWeight: 600
-                  }}>
-                    {name}
-                  </Tag>
-                );
-              }}
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item name="category" label="策略类型">
+              <Select className="bg-bg-tertiary">
+                {STRATEGY_CATEGORIES.map(cat => (
+                  <Select.Option key={cat.value} value={cat.value}>
+                    <div className="flex items-center gap-2">
+                      {cat.icon}
+                      <span>{cat.label}</span>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            
+            <Form.Item name="color" label="标识颜色">
+              <div className="flex items-center gap-3 bg-bg-tertiary p-2 rounded border border-border-primary">
+                <ColorPicker presets={[{ label: '推荐', colors: PRESET_COLORS }]} />
+                <span className="text-xs text-secondary">用于图表区分</span>
+              </div>
             </Form.Item>
           </div>
+
+          <Form.Item name="description" label="执行逻辑 / 规则">
+            <Input.TextArea 
+              rows={4} 
+              placeholder="描述入场条件、出场规则与风控要求..."
+              maxLength={500}
+              showCount
+              className="bg-bg-tertiary border-border-primary text-primary"
+            />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* 关联订单抽屉 */}
       <Drawer
         title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {selectedStrategy && (
-                <Tag 
-                  style={{ 
-                    backgroundColor: selectedStrategy.color, 
-                    color: '#fff', 
-                    border: 'none', 
-                    borderRadius: 12, 
-                    padding: '2px 12px',
-                    fontSize: 11,
-                    fontWeight: 600
-                  }}
-                >
-                  {selectedStrategy.name}
-                </Tag>
-              )}
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                ({strategyTrades.length})
-              </span>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              <FolderOpenOutlined className="text-brand text-lg" />
+              <div>
+                <div className="font-medium text-primary">{selectedStrategy?.name}</div>
+                <div className="text-xs text-secondary font-normal">关联交易档案 ({strategyTrades.length})</div>
+              </div>
             </div>
             {strategyTrades.length > 0 && (
               <Button
@@ -723,206 +525,88 @@ const TradingStrategies = ({ onNavigate }) => {
                   setDrawerVisible(false);
                   onNavigate && onNavigate('strategy-review', { strategyId: selectedStrategy?.id });
                 }}
+                className="bg-brand text-bg-primary border-none"
               >
-                全部复盘
+                进入复盘中心
               </Button>
             )}
           </div>
         }
         placement="right"
-        width={isMobile ? '100%' : 480}
+        width={isMobile ? '100%' : 500}
         open={drawerVisible}
         onClose={() => setDrawerVisible(false)}
-        bodyStyle={{ padding: 0, background: 'var(--bg-primary)' }}
-        headerStyle={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' }}
+        className="archive-drawer"
       >
         {tradesLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+          <div className="flex justify-center items-center h-64">
             <Spin />
           </div>
         ) : strategyTrades.length === 0 ? (
-          <div style={{ padding: 48 }}>
-            <Empty 
-              description={
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  暂无使用该策略的订单
-                </span>
-              } 
-            />
+          <div className="flex flex-col items-center justify-center h-64 text-secondary">
+            <FileTextOutlined className="text-4xl mb-4 opacity-20" />
+            <div>暂无关联交易记录</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="flex flex-col h-full">
             {/* 统计摘要 */}
-            <div style={{ 
-              padding: 16, 
-              background: 'var(--bg-secondary)', 
-              borderBottom: '1px solid var(--border-primary)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 12
-            }}>
+            <div className="grid grid-cols-3 gap-4 p-4 bg-bg-secondary border-b border-border-primary">
               <div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>总盈亏</div>
-                <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 700, 
-                  fontFamily: 'var(--font-mono)',
-                  color: strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                }}>
+                <div className="text-xs text-tertiary mb-1">总盈亏</div>
+                <div className={`font-mono font-bold ${strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) >= 0 ? 'text-profit' : 'text-loss'}`}>
                   {strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) >= 0 ? '+' : ''}
                   ${strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0).toFixed(2)}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>胜率</div>
-                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                <div className="text-xs text-tertiary mb-1">胜率</div>
+                <div className="font-mono font-bold text-primary">
                   {strategyTrades.length > 0 
                     ? ((strategyTrades.filter(t => getNetPnL(t) > 0).length / strategyTrades.length) * 100).toFixed(0) 
                     : 0}%
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>平均盈亏</div>
-                <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 700, 
-                  fontFamily: 'var(--font-mono)',
-                  color: (strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) / strategyTrades.length) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                }}>
+                <div className="text-xs text-tertiary mb-1">平均盈亏</div>
+                <div className={`font-mono font-bold ${(strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) / strategyTrades.length) >= 0 ? 'text-profit' : 'text-loss'}`}>
                   ${(strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) / strategyTrades.length).toFixed(2)}
                 </div>
               </div>
             </div>
 
             {/* 订单列表 */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {strategyTrades.map((trade, index) => {
                 const netPnL = getNetPnL(trade);
                 const isProfit = netPnL >= 0;
-                const hasTitle = trade.reviewTitle && trade.reviewTitle.trim() !== '';
-                const hasContent = trade.reviewContent && trade.reviewContent !== '<p></p>';
-                const hasReview = hasTitle || hasContent;
+                const hasReview = (trade.reviewTitle && trade.reviewTitle.trim()) || (trade.reviewContent && trade.reviewContent !== '<p></p>');
                 
                 return (
                   <div 
                     key={trade.id || index}
-                    style={{ 
-                      margin: '8px 12px',
-                      padding: '12px 16px',
-                      background: 'var(--bg-secondary)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border-primary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
+                    className="p-3 bg-bg-secondary rounded border border-border-primary hover:border-brand transition-colors cursor-pointer group"
                     onClick={() => handleOpenReview(trade)}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--color-brand)';
-                      e.currentTarget.style.transform = 'translateX(4px)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'var(--border-primary)';
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }}
                   >
-                    {/* 头部：基本信息 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: hasReview ? 12 : 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ 
-                          width: 32, 
-                          height: 32, 
-                          borderRadius: 6, 
-                          background: isProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          {isProfit ? (
-                            <RiseOutlined style={{ color: 'var(--color-profit)', fontSize: 14 }} />
-                          ) : (
-                            <FallOutlined style={{ color: 'var(--color-loss)', fontSize: 14 }} />
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>
-                              {trade.instrumentCode}
-                            </span>
-                            <Tag style={{ 
-                              fontSize: 9, 
-                              padding: '0 5px', 
-                              borderRadius: 2,
-                              background: trade.direction === 'LONG' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                              color: trade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)',
-                              border: 'none',
-                              margin: 0
-                            }}>
-                              {trade.direction === 'LONG' ? '多' : '空'}
-                            </Tag>
-                          </div>
-                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
-                            {dayjs(trade.openTime).format('YYYY-MM-DD HH:mm')}
-                          </div>
-                        </div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${trade.direction === 'LONG' ? 'bg-profit-bg text-profit' : 'bg-loss-bg text-loss'}`}>
+                          {trade.direction === 'LONG' ? '多' : '空'}
+                        </span>
+                        <span className="font-mono font-bold text-primary">{trade.instrumentCode}</span>
+                        <span className="text-xs text-tertiary font-mono">{dayjs(trade.openTime).format('MM-DD HH:mm')}</span>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ 
-                          fontSize: 15, 
-                          fontWeight: 700, 
-                          fontFamily: 'var(--font-mono)',
-                          color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)'
-                        }}>
-                          {isProfit ? '+' : ''}${netPnL.toFixed(2)}
-                        </div>
-                        <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                          <CalendarOutlined /> 查看复盘
-                        </div>
+                      <div className={`font-mono font-bold ${isProfit ? 'text-profit' : 'text-loss'}`}>
+                        {isProfit ? '+' : ''}${netPnL.toFixed(2)}
                       </div>
                     </div>
                     
-                    {/* 复盘内容 */}
-                    {hasReview && (
-                      <div 
-                        style={{ 
-                          background: 'var(--bg-tertiary)', 
-                          borderRadius: 6, 
-                          padding: '10px 12px',
-                          maxHeight: 100,
-                          overflow: 'hidden'
-                        }}
-                      >
-                        {hasTitle && (
-                          <div style={{ 
-                            fontSize: 13, 
-                            fontWeight: 600, 
-                            color: 'var(--text-primary)',
-                            marginBottom: hasContent ? 6 : 0
-                          }}>
-                            {trade.reviewTitle}
-                          </div>
-                        )}
-                        {hasContent && (
-                          <div 
-                            style={{ 
-                              fontSize: 12,
-                              color: 'var(--text-secondary)',
-                              lineHeight: 1.6
-                            }}
-                            dangerouslySetInnerHTML={{ __html: trade.reviewContent }}
-                          />
-                        )}
+                    {hasReview ? (
+                      <div className="text-xs text-secondary truncate pl-2 border-l-2 border-brand/30">
+                        {trade.reviewTitle || '无标题复盘'}
                       </div>
-                    )}
-                    
-                    {/* 无复盘提示 */}
-                    {!hasReview && (
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: 'var(--text-tertiary)', 
-                        fontStyle: 'italic',
-                        marginTop: 8 
-                      }}>
-                        暂无复盘记录，点击添加
+                    ) : (
+                      <div className="text-xs text-tertiary italic pl-2 border-l-2 border-transparent group-hover:border-tertiary/30">
+                        点击添加复盘...
                       </div>
                     )}
                   </div>
@@ -933,19 +617,9 @@ const TradingStrategies = ({ onNavigate }) => {
         )}
       </Drawer>
 
-      {/* 复盘编辑弹窗 */}
+      {/* 复盘编辑弹窗 (简化版) */}
       <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 16 }}>📝</span>
-            <span>编辑复盘</span>
-            {editingTrade && (
-              <Tag color={getNetPnL(editingTrade) >= 0 ? 'success' : 'error'}>
-                {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
-              </Tag>
-            )}
-          </div>
-        }
+        title="快速编辑复盘"
         open={reviewModalVisible}
         onCancel={() => setReviewModalVisible(false)}
         onOk={handleSaveReview}
@@ -955,71 +629,42 @@ const TradingStrategies = ({ onNavigate }) => {
         cancelText="取消"
       >
         {editingTrade && (
-          <div>
-            {/* 交易基本信息 */}
-            <div style={{ 
-              padding: 12, 
-              background: 'var(--bg-secondary)', 
-              borderRadius: 8, 
-              marginBottom: 16,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 12,
-              fontSize: 12
-            }}>
-              <div>
-                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>品种</div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{editingTrade.instrument}</div>
-              </div>
-              <div>
-                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>方向</div>
-                <div style={{ 
-                  fontWeight: 600, 
-                  color: editingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' 
-                }}>
-                  {editingTrade.direction === 'LONG' ? '做多' : '做空'}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>时间</div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {dayjs(editingTrade.openTime).format('MM/DD HH:mm')}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>盈亏</div>
-                <div style={{ 
-                  fontWeight: 600, 
-                  color: getNetPnL(editingTrade) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' 
-                }}>
-                  {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
-                </div>
-              </div>
-            </div>
-
+          <div className="mt-4 space-y-4">
             <Input
               value={reviewTitle}
               onChange={(e) => setReviewTitle(e.target.value)}
               placeholder="复盘标题"
-              style={{ 
-                marginBottom: 12,
-                fontSize: 16,
-                fontWeight: 600,
-              }}
-              maxLength={50}
-              showCount
+              className="font-medium"
             />
-            
             <RichEditor
               value={reviewContent}
               onChange={setReviewContent}
               placeholder="记录你的交易复盘..."
-              minHeight={180}
-              maxHeight={300}
+              minHeight={200}
             />
           </div>
         )}
       </Modal>
+
+      <style jsx global>{`
+        .archive-table .ant-table-thead > tr > th {
+          background: transparent !important;
+          border-bottom: 1px solid var(--border-primary) !important;
+          color: var(--text-tertiary) !important;
+          font-weight: 400 !important;
+          font-size: 12px !important;
+        }
+        .archive-table .ant-table-tbody > tr > td {
+          border-bottom: 1px solid var(--border-primary) !important;
+          padding: 16px 16px !important;
+        }
+        .archive-table .ant-table-tbody > tr:last-child > td {
+          border-bottom: none !important;
+        }
+        .archive-row:hover > td {
+          background: var(--bg-tertiary) !important;
+        }
+      `}</style>
     </div>
   );
 };
