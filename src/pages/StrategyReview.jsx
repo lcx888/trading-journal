@@ -51,6 +51,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [reviewTitle, setReviewTitle] = useState('');
   const [reviewContent, setReviewContent] = useState('');
   
   // 批量编辑
@@ -122,11 +123,11 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     // 复盘状态筛选
     if (filters.reviewStatus === 'reviewed') {
       result = result.filter(trade => 
-        trade.reviewContent && trade.reviewContent !== '<p></p>'
+        (trade.reviewTitle && trade.reviewTitle.trim()) || (trade.reviewContent && trade.reviewContent !== '<p></p>')
       );
     } else if (filters.reviewStatus === 'pending') {
       result = result.filter(trade => 
-        !trade.reviewContent || trade.reviewContent === '<p></p>'
+        (!trade.reviewTitle || !trade.reviewTitle.trim()) && (!trade.reviewContent || trade.reviewContent === '<p></p>')
       );
     }
     
@@ -135,6 +136,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       const text = filters.searchText.toLowerCase();
       result = result.filter(trade => 
         (trade.instrument || '').toLowerCase().includes(text) ||
+        (trade.reviewTitle || '').toLowerCase().includes(text) ||
         (trade.reviewContent || '').toLowerCase().includes(text)
       );
     }
@@ -146,7 +148,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   const stats = useMemo(() => {
     const totalTrades = trades.length;
     const reviewedTrades = trades.filter(t => 
-      t.reviewContent && t.reviewContent !== '<p></p>'
+      (t.reviewTitle && t.reviewTitle.trim()) || (t.reviewContent && t.reviewContent !== '<p></p>')
     ).length;
     const totalPnL = trades.reduce((sum, t) => sum + getNetPnL(t), 0);
     const winTrades = trades.filter(t => getNetPnL(t) > 0).length;
@@ -165,6 +167,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   // 打开复盘编辑
   const handleEdit = (trade) => {
     setEditingTrade(trade);
+    setReviewTitle(trade.reviewTitle || '');
     setReviewContent(trade.reviewContent || '');
     setEditModalVisible(true);
   };
@@ -174,12 +177,12 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     if (!editingTrade) return;
     setSaving(true);
     try {
-      await StorageService.updateTrade(editingTrade.id, { reviewContent });
+      await StorageService.updateTrade(editingTrade.id, { reviewTitle, reviewContent });
       message.success('复盘保存成功');
       setEditModalVisible(false);
       // 更新本地状态
       setTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, reviewContent } : t
+        t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
       ));
     } catch (error) {
       console.error('保存失败:', error);
@@ -259,17 +262,29 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         { text: '待复盘', value: 'pending' },
       ],
       onFilter: (value, record) => {
-        const hasReview = record.reviewContent && record.reviewContent !== '<p></p>';
+        const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
         return value === 'reviewed' ? hasReview : !hasReview;
       },
       render: (_, record) => {
-        const hasReview = record.reviewContent && record.reviewContent !== '<p></p>';
+        const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
         return hasReview ? (
           <Tag color="success" icon={<CheckCircleOutlined />}>已复盘</Tag>
         ) : (
           <Tag color="warning" icon={<ClockCircleOutlined />}>待复盘</Tag>
         );
       },
+    },
+    {
+      title: '复盘标题',
+      dataIndex: 'reviewTitle',
+      key: 'reviewTitle',
+      width: 180,
+      ellipsis: true,
+      render: (text) => text && text.trim() ? (
+        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{text}</span>
+      ) : (
+        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+      ),
     },
     {
       title: '复盘内容',
@@ -592,12 +607,25 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
               </div>
             </div>
 
+            <Input
+              value={reviewTitle}
+              onChange={(e) => setReviewTitle(e.target.value)}
+              placeholder="复盘标题（例如：突破做多案例）"
+              style={{ 
+                marginBottom: 12,
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+              maxLength={50}
+              showCount
+            />
+            
             <RichEditor
               value={reviewContent}
               onChange={setReviewContent}
               placeholder="记录你的交易复盘..."
-              minHeight={280}
-              maxHeight={400}
+              minHeight={250}
+              maxHeight={350}
             />
           </div>
         )}

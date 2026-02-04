@@ -516,8 +516,10 @@ const hasMergeReviewData = (tradeId) => {
 // 检查单笔交易是否有复盘数据（数据库字段）
 const hasTradeReviewData = (trade) => {
   if (!trade) return false;
-  // 检查 reviewContent 字段是否有内容
-  return trade.reviewContent && trade.reviewContent !== '<p></p>' && trade.reviewContent.trim() !== '';
+  // 检查 reviewTitle 或 reviewContent 字段是否有内容
+  const hasTitle = trade.reviewTitle && trade.reviewTitle.trim() !== '';
+  const hasContent = trade.reviewContent && trade.reviewContent !== '<p></p>' && trade.reviewContent.trim() !== '';
+  return hasTitle || hasContent;
 };
 
 const PositionChart = ({ trades, overallDirection, dayjs, onStartReview, reviewNotes }) => {
@@ -857,6 +859,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [form] = Form.useForm();
+  const [reviewTitle, setReviewTitle] = useState(''); // 复盘标题
   const [reviewContent, setReviewContent] = useState(''); // 富文本复盘内容
   
   // MAE/MFE 内联编辑状态
@@ -1207,7 +1210,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       expectedTrend: trade.expectedTrend,
       strategyIds: trade.strategyIds || [],
     });
-    // 设置富文本复盘内容
+    // 设置复盘标题和内容
+    setReviewTitle(trade.reviewTitle || '');
     setReviewContent(trade.reviewContent || '');
     setEditModalVisible(true);
   };
@@ -1215,9 +1219,10 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const handleEditSave = async () => {
     try {
       const vals = form.getFieldsValue();
-      // 合并表单值和富文本内容
+      // 合并表单值、标题和富文本内容
       await StorageService.updateTrade(editingTrade.id, {
         ...vals,
+        reviewTitle: reviewTitle,
         reviewContent: reviewContent,
       });
       message.success('保存成功');
@@ -3854,12 +3859,26 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             复盘记录
           </div>
           
+          <Input
+            value={reviewTitle}
+            onChange={(e) => setReviewTitle(e.target.value)}
+            placeholder="复盘标题（例如：突破做多成功案例）"
+            style={{ 
+              marginBottom: 12,
+              fontSize: 16,
+              fontWeight: 600,
+              borderColor: 'var(--border-primary)',
+            }}
+            maxLength={50}
+            showCount
+          />
+          
           <RichEditor
             value={reviewContent}
             onChange={setReviewContent}
-            placeholder="记录你的交易复盘...&#10;&#10;💡 提示：&#10;- 入场理由、市场分析&#10;- 止损止盈设置&#10;- 执行情况回顾&#10;- 经验总结"
-            minHeight={250}
-            maxHeight={400}
+            placeholder="记录你的交易复盘..."
+            minHeight={220}
+            maxHeight={350}
           />
         </Form>
       </Drawer>

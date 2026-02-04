@@ -62,6 +62,7 @@ const TradingStrategies = ({ onNavigate }) => {
   // 复盘编辑弹窗
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
+  const [reviewTitle, setReviewTitle] = useState('');
   const [reviewContent, setReviewContent] = useState('');
   const [savingReview, setSavingReview] = useState(false);
   
@@ -125,6 +126,7 @@ const TradingStrategies = ({ onNavigate }) => {
   // 打开复盘编辑弹窗
   const handleOpenReview = (trade) => {
     setEditingTrade(trade);
+    setReviewTitle(trade.reviewTitle || '');
     setReviewContent(trade.reviewContent || '');
     setReviewModalVisible(true);
   };
@@ -134,12 +136,12 @@ const TradingStrategies = ({ onNavigate }) => {
     if (!editingTrade) return;
     setSavingReview(true);
     try {
-      await StorageService.updateTrade(editingTrade.id, { reviewContent });
+      await StorageService.updateTrade(editingTrade.id, { reviewTitle, reviewContent });
       message.success('复盘保存成功');
       setReviewModalVisible(false);
       // 更新本地状态
       setStrategyTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, reviewContent } : t
+        t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
       ));
     } catch (error) {
       console.error('保存复盘失败:', error);
@@ -797,7 +799,9 @@ const TradingStrategies = ({ onNavigate }) => {
               {strategyTrades.map((trade, index) => {
                 const netPnL = getNetPnL(trade);
                 const isProfit = netPnL >= 0;
-                const hasReview = trade.reviewContent && trade.reviewContent !== '<p></p>';
+                const hasTitle = trade.reviewTitle && trade.reviewTitle.trim() !== '';
+                const hasContent = trade.reviewContent && trade.reviewContent !== '<p></p>';
+                const hasReview = hasTitle || hasContent;
                 
                 return (
                   <div 
@@ -883,14 +887,31 @@ const TradingStrategies = ({ onNavigate }) => {
                           background: 'var(--bg-tertiary)', 
                           borderRadius: 6, 
                           padding: '10px 12px',
-                          fontSize: 12,
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.6,
                           maxHeight: 100,
                           overflow: 'hidden'
                         }}
-                        dangerouslySetInnerHTML={{ __html: trade.reviewContent }}
-                      />
+                      >
+                        {hasTitle && (
+                          <div style={{ 
+                            fontSize: 13, 
+                            fontWeight: 600, 
+                            color: 'var(--text-primary)',
+                            marginBottom: hasContent ? 6 : 0
+                          }}>
+                            {trade.reviewTitle}
+                          </div>
+                        )}
+                        {hasContent && (
+                          <div 
+                            style={{ 
+                              fontSize: 12,
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.6
+                            }}
+                            dangerouslySetInnerHTML={{ __html: trade.reviewContent }}
+                          />
+                        )}
+                      </div>
                     )}
                     
                     {/* 无复盘提示 */}
@@ -976,12 +997,25 @@ const TradingStrategies = ({ onNavigate }) => {
               </div>
             </div>
 
+            <Input
+              value={reviewTitle}
+              onChange={(e) => setReviewTitle(e.target.value)}
+              placeholder="复盘标题"
+              style={{ 
+                marginBottom: 12,
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+              maxLength={50}
+              showCount
+            />
+            
             <RichEditor
               value={reviewContent}
               onChange={setReviewContent}
               placeholder="记录你的交易复盘..."
-              minHeight={200}
-              maxHeight={350}
+              minHeight={180}
+              maxHeight={300}
             />
           </div>
         )}
