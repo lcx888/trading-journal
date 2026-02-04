@@ -7,11 +7,13 @@ import {
 import { 
   ArrowLeftOutlined, SearchOutlined, FilterOutlined, EditOutlined,
   CheckCircleOutlined, ClockCircleOutlined, TrophyOutlined,
-  ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined
+  ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined, 
+  MergeCellsOutlined, UnorderedListOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import RichEditor from '../components/RichEditor';
+import { processTradesWithMerge, formatDuration } from '../services/tradeMerge';
 
 const { RangePicker } = DatePicker;
 
@@ -58,6 +60,9 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [batchReviewContent, setBatchReviewContent] = useState('');
+  
+  // 合并交易显示
+  const [mergeEnabled, setMergeEnabled] = useState(true);
 
   // 加载策略和关联订单
   useEffect(() => {
@@ -85,6 +90,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         // 按时间降序排序
         strategyTrades.sort((a, b) => new Date(b.openTime) - new Date(a.openTime));
         
+        // 保存原始交易数据（用于合并计算）
         setTrades(strategyTrades);
         setPagination(prev => ({ ...prev, total: strategyTrades.length }));
       } catch (error) {
@@ -141,8 +147,15 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       );
     }
     
+    // 应用合并逻辑
+    if (mergeEnabled) {
+      result = processTradesWithMerge(result, instruments);
+    } else {
+      result = result.map(t => ({ ...t, isMergedGroup: false }));
+    }
+    
     return result;
-  }, [trades, filters]);
+  }, [trades, filters, mergeEnabled, instruments]);
 
   // 统计数据
   const stats = useMemo(() => {
@@ -167,8 +180,18 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   // 打开复盘编辑
   const handleEdit = (trade) => {
     setEditingTrade(trade);
-    setReviewTitle(trade.reviewTitle || '');
-    setReviewContent(trade.reviewContent || '');
+    
+    // 如果是合并交易，取第一笔有复盘的子交易内容
+    if (trade.isMergedGroup && trade.mergeStats?.trades) {
+      const firstReviewedTitle = trade.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
+      const firstReviewedContent = trade.mergeStats.trades.find(t => t.reviewContent && t.reviewContent !== '<p></p>');
+      setReviewTitle(firstReviewedTitle?.reviewTitle || '');
+      setReviewContent(firstReviewedContent?.reviewContent || '');
+    } else {
+      setReviewTitle(trade.reviewTitle || '');
+      setReviewContent(trade.reviewContent || '');
+    }
+    
     setEditModalVisible(true);
   };
 
@@ -177,13 +200,30 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     if (!editingTrade) return;
     setSaving(true);
     try {
-      await StorageService.updateTrade(editingTrade.id, { reviewTitle, reviewContent });
-      message.success('复盘保存成功');
+      const updateData = { reviewTitle, reviewContent };
+      
+      // 如果是合并交易组，更新所有子交易
+      if (editingTrade.isMergedGroup && editingTrade.mergeStats?.trades) {
+        const subTrades = editingTrade.mergeStats.trades;
+        for (const subTrade of subTrades) {
+          await StorageService.updateTrade(subTrade.id, updateData);
+        }
+        message.success(`已为 ${subTrades.length} 笔交易保存复盘`);
+        // 更新本地状态
+        const subTradeIds = subTrades.map(t => t.id);
+        setTrades(prev => prev.map(t => 
+          subTradeIds.includes(t.id) ? { ...t, reviewTitle, reviewContent } : t
+        ));
+      } else {
+        // 单笔交易
+        await StorageService.updateTrade(editingTrade.id, updateData);
+        message.success('复盘保存成功');
+        setTrades(prev => prev.map(t => 
+          t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
+        ));
+      }
+      
       setEditModalVisible(false);
-      // 更新本地状态
-      setTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, reviewTitle, reviewContent } : t
-      ));
     } catch (error) {
       console.error('保存失败:', error);
       message.error('保存失败');
@@ -199,48 +239,116 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       title: '时间',
       dataIndex: 'openTime',
       key: 'openTime',
-      width: 140,
+      width: 160,
       fixed: 'left',
-      render: (time) => (
-        <div>
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-            {dayjs(time).format('YYYY-MM-DD')}
+      render: (time, record) => {
+        if (record.isMergedGroup && record.mergeStats) {
+          const stats = record.mergeStats;
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <MergeCellsOutlined style={{ color: 'var(--color-brand)', fontSize: 12 }} />
+                <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>
+                  合并 {stats.tradeCount} 笔
+                </Tag>
+              </div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
+                {dayjs(stats.firstOpenTime).format('MM-DD HH:mm')}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                至 {dayjs(stats.lastCloseTime).format('MM-DD HH:mm')}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {dayjs(time).format('YYYY-MM-DD')}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              {dayjs(time).format('HH:mm:ss')}
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            {dayjs(time).format('HH:mm:ss')}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: '品种',
       dataIndex: 'instrument',
       key: 'instrument',
       width: 80,
-      render: (instrument) => (
-        <Tag style={{ margin: 0 }}>{instrument}</Tag>
-      ),
+      render: (instrument, record) => {
+        const code = record.isMergedGroup ? record.mergeStats?.instrumentCode : (instrument || record.instrumentCode);
+        return <Tag style={{ margin: 0 }}>{code}</Tag>;
+      },
     },
     {
       title: '方向',
       dataIndex: 'direction',
       key: 'direction',
       width: 70,
-      render: (direction) => (
-        <Tag 
-          color={direction === 'LONG' ? 'success' : 'error'}
-          icon={direction === 'LONG' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-        >
-          {direction === 'LONG' ? '多' : '空'}
-        </Tag>
-      ),
+      render: (direction, record) => {
+        const dir = record.isMergedGroup ? record.mergeStats?.direction : direction;
+        return (
+          <Tag 
+            color={dir === 'LONG' ? 'success' : 'error'}
+            icon={dir === 'LONG' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+          >
+            {dir === 'LONG' ? '多' : '空'}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: '数量',
+      key: 'quantity',
+      width: 70,
+      render: (_, record) => {
+        if (record.isMergedGroup && record.mergeStats) {
+          return (
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                {record.mergeStats.totalQuantity}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                峰值: {record.mergeStats.maxConcurrentQty}
+              </div>
+            </div>
+          );
+        }
+        return <span>{record.openQuantity || 1}</span>;
+      },
     },
     {
       title: '盈亏',
       key: 'pnl',
-      width: 100,
-      sorter: (a, b) => getNetPnL(a) - getNetPnL(b),
+      width: 110,
+      sorter: (a, b) => {
+        const pnlA = a.isMergedGroup ? (a.mergeStats?.totalPnL || 0) : getNetPnL(a);
+        const pnlB = b.isMergedGroup ? (b.mergeStats?.totalPnL || 0) : getNetPnL(b);
+        return pnlA - pnlB;
+      },
       render: (_, record) => {
+        if (record.isMergedGroup && record.mergeStats) {
+          const stats = record.mergeStats;
+          const totalPnL = stats.totalPnL || 0;
+          return (
+            <div>
+              <div style={{ 
+                fontWeight: 700, 
+                fontFamily: 'var(--font-mono)',
+                fontSize: 14,
+                color: totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+              }}>
+                {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                均: ${stats.avgPnL?.toFixed(2)}
+              </div>
+            </div>
+          );
+        }
         const pnl = getNetPnL(record);
         return (
           <span style={{ 
@@ -262,10 +370,29 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         { text: '待复盘', value: 'pending' },
       ],
       onFilter: (value, record) => {
+        if (record.isMergedGroup && record.mergeStats?.trades) {
+          const reviewedCount = record.mergeStats.trades.filter(t => 
+            (t.reviewTitle && t.reviewTitle.trim()) || (t.reviewContent && t.reviewContent !== '<p></p>')
+          ).length;
+          const hasReview = reviewedCount > 0;
+          return value === 'reviewed' ? hasReview : !hasReview;
+        }
         const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
         return value === 'reviewed' ? hasReview : !hasReview;
       },
       render: (_, record) => {
+        if (record.isMergedGroup && record.mergeStats?.trades) {
+          const subTrades = record.mergeStats.trades;
+          const reviewedCount = subTrades.filter(t => 
+            (t.reviewTitle && t.reviewTitle.trim()) || (t.reviewContent && t.reviewContent !== '<p></p>')
+          ).length;
+          if (reviewedCount === subTrades.length) {
+            return <Tag color="success" icon={<CheckCircleOutlined />}>已复盘</Tag>;
+          } else if (reviewedCount > 0) {
+            return <Tag color="processing">{reviewedCount}/{subTrades.length}</Tag>;
+          }
+          return <Tag color="warning" icon={<ClockCircleOutlined />}>待复盘</Tag>;
+        }
         const hasReview = (record.reviewTitle && record.reviewTitle.trim()) || (record.reviewContent && record.reviewContent !== '<p></p>');
         return hasReview ? (
           <Tag color="success" icon={<CheckCircleOutlined />}>已复盘</Tag>
@@ -280,25 +407,52 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       key: 'reviewTitle',
       width: 180,
       ellipsis: true,
-      render: (text) => text && text.trim() ? (
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{text}</span>
-      ) : (
-        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
-      ),
+      render: (text, record) => {
+        // 合并交易取第一笔有复盘标题的子交易
+        if (record.isMergedGroup && record.mergeStats?.trades) {
+          const firstReviewed = record.mergeStats.trades.find(t => t.reviewTitle && t.reviewTitle.trim());
+          const title = firstReviewed?.reviewTitle;
+          return title ? (
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+          ) : (
+            <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+          );
+        }
+        return text && text.trim() ? (
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{text}</span>
+        ) : (
+          <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+        );
+      },
     },
     {
       title: '复盘内容',
       dataIndex: 'reviewContent',
       key: 'reviewContent',
       ellipsis: true,
-      render: (text) => text && text !== '<p></p>' ? (
-        <div 
-          style={{ maxHeight: 40, overflow: 'hidden', fontSize: 12 }}
-          dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>/g, ' ').substring(0, 100) }}
-        />
-      ) : (
-        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
-      ),
+      render: (text, record) => {
+        // 合并交易取第一笔有复盘内容的子交易
+        if (record.isMergedGroup && record.mergeStats?.trades) {
+          const firstReviewed = record.mergeStats.trades.find(t => t.reviewContent && t.reviewContent !== '<p></p>');
+          const content = firstReviewed?.reviewContent;
+          return content ? (
+            <div 
+              style={{ maxHeight: 40, overflow: 'hidden', fontSize: 12 }}
+              dangerouslySetInnerHTML={{ __html: content.replace(/<[^>]*>/g, ' ').substring(0, 100) }}
+            />
+          ) : (
+            <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+          );
+        }
+        return text && text !== '<p></p>' ? (
+          <div 
+            style={{ maxHeight: 40, overflow: 'hidden', fontSize: 12 }}
+            dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>/g, ' ').substring(0, 100) }}
+          />
+        ) : (
+          <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+        );
+      },
     },
     {
       title: '操作',
@@ -453,6 +607,16 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         style={{ background: 'var(--bg-secondary)', marginBottom: 16 }}
       >
         <Space wrap>
+          {/* 合并显示开关 */}
+          <Tooltip title={mergeEnabled ? '点击显示单笔交易' : '点击合并加减仓'}>
+            <Button
+              icon={mergeEnabled ? <MergeCellsOutlined /> : <UnorderedListOutlined />}
+              onClick={() => setMergeEnabled(!mergeEnabled)}
+              type={mergeEnabled ? 'primary' : 'default'}
+            >
+              {mergeEnabled ? '合并显示' : '逐笔显示'}
+            </Button>
+          </Tooltip>
           <RangePicker 
             placeholder={['开始日期', '结束日期']}
             value={filters.dateRange}
@@ -545,9 +709,27 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
             <span>交易复盘</span>
             {editingTrade && (
               <>
-                <Tag>{editingTrade.instrument}</Tag>
-                <Tag color={getNetPnL(editingTrade) >= 0 ? 'success' : 'error'}>
-                  {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
+                {editingTrade.isMergedGroup && (
+                  <Tag color="blue" icon={<MergeCellsOutlined />}>
+                    合并 {editingTrade.mergeStats?.tradeCount} 笔
+                  </Tag>
+                )}
+                <Tag>
+                  {editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.instrumentCode 
+                    : (editingTrade.instrument || editingTrade.instrumentCode)}
+                </Tag>
+                <Tag color={
+                  (editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade)) >= 0 ? 'success' : 'error'
+                }>
+                  {(editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
+                  ${(editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade))?.toFixed(2)}
                 </Tag>
               </>
             )}
@@ -558,11 +740,30 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         onOk={handleSave}
         confirmLoading={saving}
         width={700}
-        okText="保存复盘"
+        okText={editingTrade?.isMergedGroup ? `保存 ${editingTrade.mergeStats?.tradeCount} 笔复盘` : '保存复盘'}
         cancelText="取消"
       >
         {editingTrade && (
           <div>
+            {/* 合并交易提示 */}
+            {editingTrade.isMergedGroup && (
+              <div style={{ 
+                padding: 12, 
+                background: 'rgba(59, 130, 246, 0.1)', 
+                borderRadius: 8, 
+                marginBottom: 16,
+                border: '1px solid rgba(59, 130, 246, 0.3)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#3b82f6' }}>
+                  <MergeCellsOutlined />
+                  <span style={{ fontWeight: 600 }}>合并交易组</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
+                  此复盘将同时应用于组内 {editingTrade.mergeStats?.tradeCount} 笔子交易
+                </div>
+              </div>
+            )}
+            
             {/* 交易详情 */}
             <div style={{ 
               padding: 16, 
@@ -576,34 +777,59 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>品种</div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>
-                  {editingTrade.instrument}
+                  {editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.instrumentCode 
+                    : (editingTrade.instrument || editingTrade.instrumentCode)}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>方向</div>
                 <Tag 
-                  color={editingTrade.direction === 'LONG' ? 'success' : 'error'}
+                  color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
                   style={{ marginTop: 4 }}
                 >
-                  {editingTrade.direction === 'LONG' ? '做多 ↑' : '做空 ↓'}
+                  {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多 ↑' : '做空 ↓'}
                 </Tag>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>开仓时间</div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {dayjs(editingTrade.openTime).format('MM/DD HH:mm:ss')}
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+                  {editingTrade.isMergedGroup ? '时间范围' : '开仓时间'}
                 </div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {editingTrade.isMergedGroup 
+                    ? `${dayjs(editingTrade.mergeStats?.firstOpenTime).format('MM/DD HH:mm')}`
+                    : dayjs(editingTrade.openTime).format('MM/DD HH:mm:ss')}
+                </div>
+                {editingTrade.isMergedGroup && (
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    至 {dayjs(editingTrade.mergeStats?.lastCloseTime).format('MM/DD HH:mm')}
+                  </div>
+                )}
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>盈亏</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+                  {editingTrade.isMergedGroup ? '总盈亏' : '盈亏'}
+                </div>
                 <div style={{ 
                   fontWeight: 700, 
                   fontSize: 18,
                   fontFamily: 'var(--font-mono)',
-                  color: getNetPnL(editingTrade) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                  color: (editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade)) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
                 }}>
-                  {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
+                  {(editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade)) >= 0 ? '+' : ''}
+                  ${(editingTrade.isMergedGroup 
+                    ? editingTrade.mergeStats?.totalPnL 
+                    : getNetPnL(editingTrade))?.toFixed(2)}
                 </div>
+                {editingTrade.isMergedGroup && (
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    总手: {editingTrade.mergeStats?.totalQuantity}
+                  </div>
+                )}
               </div>
             </div>
 
