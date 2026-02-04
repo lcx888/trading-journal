@@ -1148,20 +1148,60 @@ const TradeList = ({ activeRecordId = 'all' }) => {
 
   const getStrategyById = (id) => strategies.find(s => s.id === id);
 
-  const handleAddStrategy = async (tradeId, strategyId) => {
+  const handleAddStrategy = async (trade, strategyId) => {
     try {
-      await StorageService.addStrategyToTrade(tradeId, strategyId);
-      setTrades(prev => prev.map(t => t.id === tradeId ? { ...t, strategyIds: [...(t.strategyIds || []), strategyId] } : t));
-      message.success('标签已添加');
-    } catch (e) { message.error('操作失败'); }
+      // 如果是合并交易组，需要给所有子交易添加策略
+      if (trade.isMergedGroup && trade.mergeStats?.trades) {
+        const subTrades = trade.mergeStats.trades;
+        for (const subTrade of subTrades) {
+          await StorageService.addStrategyToTrade(subTrade.id, strategyId);
+        }
+        // 更新本地状态：更新所有子交易的策略
+        const subTradeIds = subTrades.map(t => t.id);
+        setTrades(prev => prev.map(t => 
+          subTradeIds.includes(t.id) 
+            ? { ...t, strategyIds: [...(t.strategyIds || []), strategyId] } 
+            : t
+        ));
+        message.success(`已为 ${subTrades.length} 笔交易添加标签`);
+      } else {
+        // 普通单笔交易
+        await StorageService.addStrategyToTrade(trade.id, strategyId);
+        setTrades(prev => prev.map(t => t.id === trade.id ? { ...t, strategyIds: [...(t.strategyIds || []), strategyId] } : t));
+        message.success('标签已添加');
+      }
+    } catch (e) { 
+      console.error('添加策略失败:', e);
+      message.error('操作失败'); 
+    }
   };
 
-  const handleRemoveStrategy = async (tradeId, strategyId) => {
+  const handleRemoveStrategy = async (trade, strategyId) => {
     try {
-      await StorageService.removeStrategyFromTrade(tradeId, strategyId);
-      setTrades(prev => prev.map(t => t.id === tradeId ? { ...t, strategyIds: (t.strategyIds || []).filter(id => id !== strategyId) } : t));
-      message.success('标签已移除');
-    } catch (e) { message.error('操作失败'); }
+      // 如果是合并交易组，需要从所有子交易移除策略
+      if (trade.isMergedGroup && trade.mergeStats?.trades) {
+        const subTrades = trade.mergeStats.trades;
+        for (const subTrade of subTrades) {
+          await StorageService.removeStrategyFromTrade(subTrade.id, strategyId);
+        }
+        // 更新本地状态
+        const subTradeIds = subTrades.map(t => t.id);
+        setTrades(prev => prev.map(t => 
+          subTradeIds.includes(t.id) 
+            ? { ...t, strategyIds: (t.strategyIds || []).filter(id => id !== strategyId) } 
+            : t
+        ));
+        message.success(`已从 ${subTrades.length} 笔交易移除标签`);
+      } else {
+        // 普通单笔交易
+        await StorageService.removeStrategyFromTrade(trade.id, strategyId);
+        setTrades(prev => prev.map(t => t.id === trade.id ? { ...t, strategyIds: (t.strategyIds || []).filter(id => id !== strategyId) } : t));
+        message.success('标签已移除');
+      }
+    } catch (e) { 
+      console.error('移除策略失败:', e);
+      message.error('操作失败'); 
+    }
   };
 
   const handleEdit = (trade) => {
@@ -2243,7 +2283,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                 key={s.id} 
                 className="text-xs px-2 py-0.5 rounded cursor-pointer"
                 style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
-                onClick={() => handleRemoveStrategy(r.id, s.id)}
+                onClick={() => handleRemoveStrategy(r, s.id)}
               >
                 {s.name}
               </span>
@@ -2254,7 +2294,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
                   items: available.map(s => ({ 
                     key: s.id, 
                     label: s.name, 
-                    onClick: () => handleAddStrategy(r.id, s.id) 
+                    onClick: () => handleAddStrategy(r, s.id) 
                   })) 
                 }} 
                 trigger={['click']}

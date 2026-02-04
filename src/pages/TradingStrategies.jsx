@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Modal, Form, Input, Select, Tag, Space,
-  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Spin, Empty
+  Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin
 } from 'antd';
 import {
   PlusOutlined,
@@ -17,12 +17,10 @@ import {
   ExperimentOutlined,
   ReloadOutlined,
   BarChartOutlined,
-  RightOutlined,
-  CloseOutlined,
-  SaveOutlined,
-  FileTextOutlined,
+  EyeOutlined,
   RiseOutlined,
   FallOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -48,20 +46,25 @@ const STRATEGY_CATEGORIES = [
   { value: '通用', label: '通用策略', icon: <BookOutlined /> },
 ];
 
-const TradingStrategies = () => {
+const TradingStrategies = ({ onNavigate }) => {
   const [strategies, setStrategies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [form] = Form.useForm();
   
-  // 策略详情抽屉状态
+  // 关联订单抽屉
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [strategyTrades, setStrategyTrades] = useState([]);
   const [tradesLoading, setTradesLoading] = useState(false);
-  const [editingReflection, setEditingReflection] = useState(null); // { tradeId, text }
-  const [savingReflection, setSavingReflection] = useState(false);
+  const [instruments, setInstruments] = useState([]);
+  
+  // 复盘编辑弹窗
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [editingTrade, setEditingTrade] = useState(null);
+  const [reviewForm] = Form.useForm();
+  const [savingReview, setSavingReview] = useState(false);
   
   // 移动端检测
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -74,63 +77,94 @@ const TradingStrategies = () => {
 
   useEffect(() => {
     loadStrategies();
+    loadInstruments();
   }, []);
   
-  // 打开策略详情
-  const openStrategyDetail = async (strategy) => {
+  const loadInstruments = async () => {
+    try {
+      const data = await StorageService.getInstruments();
+      setInstruments(data || []);
+    } catch (error) {
+      console.error('加载品种配置失败:', error);
+      setInstruments([]);
+    }
+  };
+  
+  // 计算净盈亏
+  const getNetPnL = (trade) => {
+    const pnl = trade.pnl || 0;
+    const instrument = instruments.find(i => i.code === trade.instrumentCode);
+    const feeRate = instrument?.feeRate || 0;
+    const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
+    const fee = feeRate * quantity * 2;
+    return pnl - fee;
+  };
+  
+  // 查看策略关联的订单
+  const handleViewTrades = async (strategy) => {
     setSelectedStrategy(strategy);
     setDrawerVisible(true);
     setTradesLoading(true);
+    
     try {
-      const trades = await StorageService.getStrategyTrades(strategy.id);
-      setStrategyTrades(trades);
+      const allTrades = await StorageService.getAllTrades();
+      // 筛选使用该策略的交易（strategyIds 是数组）
+      const filtered = allTrades.filter(t => 
+        t.strategyIds && Array.isArray(t.strategyIds) && t.strategyIds.includes(strategy.id)
+      );
+      // 按时间倒序
+      filtered.sort((a, b) => new Date(b.openTime) - new Date(a.openTime));
+      setStrategyTrades(filtered);
     } catch (error) {
-      console.error('加载策略交易失败:', error);
-      message.error('加载交易列表失败');
+      console.error('加载交易失败:', error);
+      message.error('加载交易失败');
     } finally {
       setTradesLoading(false);
     }
   };
   
-  // 保存交易反思
-  const saveReflection = async () => {
-    if (!editingReflection) return;
-    setSavingReflection(true);
-    try {
-      await StorageService.updateTradeReflection(editingReflection.tradeId, editingReflection.text);
-      // 更新本地状态
-      setStrategyTrades(prev => prev.map(t => 
-        t.id === editingReflection.tradeId 
-          ? { ...t, reflection: editingReflection.text } 
-          : t
-      ));
-      message.success('反思已保存');
-      setEditingReflection(null);
-    } catch (error) {
-      console.error('保存反思失败:', error);
-      message.error('保存失败');
-    } finally {
-      setSavingReflection(false);
-    }
+  // 打开复盘编辑弹窗
+  const handleOpenReview = (trade) => {
+    setEditingTrade(trade);
+    reviewForm.setFieldsValue({
+      entryReason: trade.entryReason || '',
+      stopLossReason: trade.stopLossReason || '',
+      takeProfitReason: trade.takeProfitReason || '',
+      notes: trade.notes || '',
+    });
+    setReviewModalVisible(true);
   };
   
-  // 计算策略统计
-  const strategyStats = strategyTrades.length > 0 ? {
-    totalTrades: strategyTrades.length,
-    totalPnL: strategyTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
-    winCount: strategyTrades.filter(t => (t.pnl || 0) > 0).length,
-    winRate: (strategyTrades.filter(t => (t.pnl || 0) > 0).length / strategyTrades.length * 100).toFixed(0),
-    reflectionCount: strategyTrades.filter(t => t.reflection).length,
-  } : null;
+  // 保存复盘
+  const handleSaveReview = async () => {
+    if (!editingTrade) return;
+    setSavingReview(true);
+    try {
+      const values = reviewForm.getFieldsValue();
+      await StorageService.updateTrade(editingTrade.id, values);
+      message.success('复盘保存成功');
+      setReviewModalVisible(false);
+      // 更新本地状态
+      setStrategyTrades(prev => prev.map(t => 
+        t.id === editingTrade.id ? { ...t, ...values } : t
+      ));
+    } catch (error) {
+      console.error('保存复盘失败:', error);
+      message.error('保存失败');
+    } finally {
+      setSavingReview(false);
+    }
+  };
 
   const loadStrategies = async () => {
     setLoading(true);
     try {
       const updatedStrategies = await StorageService.refreshStrategyUsageCounts();
-      setStrategies(updatedStrategies);
+      setStrategies(updatedStrategies || []);
     } catch (error) {
       console.error('加载策略失败:', error);
       message.error('加载策略失败');
+      setStrategies([]);
     } finally {
       setLoading(false);
     }
@@ -209,10 +243,7 @@ const TradingStrategies = () => {
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
-        <div 
-          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-          onClick={() => openStrategyDetail(record)}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div 
             style={{ 
               width: 40, 
@@ -227,13 +258,12 @@ const TradingStrategies = () => {
           >
             {getCategoryIcon(record.category)}
           </div>
-          <div style={{ flex: 1 }}>
+          <div>
             <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>{name}</div>
             <div style={{ color: 'var(--text-tertiary)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>
               {record.category} 系统
             </div>
           </div>
-          <RightOutlined style={{ color: 'var(--text-tertiary)', fontSize: 10 }} />
         </div>
       ),
     },
@@ -287,10 +317,19 @@ const TradingStrategies = () => {
     {
       title: <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>操作</span>,
       key: 'actions',
-      width: 100,
+      width: 140,
       align: 'right',
       render: (_, record) => (
         <Space size="small">
+          <Tooltip title="查看关联订单">
+            <Button 
+              type="text" 
+              size="small"
+              style={{ color: 'var(--color-brand)' }}
+              icon={<EyeOutlined />} 
+              onClick={() => handleViewTrades(record)}
+            />
+          </Tooltip>
           <Button 
             type="text" 
             size="small"
@@ -656,318 +695,359 @@ const TradingStrategies = () => {
           </div>
         </Form>
       </Modal>
-      
-      {/* 策略详情抽屉 */}
+
+      {/* 关联订单抽屉 */}
       <Drawer
-        title={null}
-        placement="right"
-        open={drawerVisible}
-        onClose={() => {
-          setDrawerVisible(false);
-          setSelectedStrategy(null);
-          setStrategyTrades([]);
-          setEditingReflection(null);
-        }}
-        width={isMobile ? '100%' : 560}
-        closable={false}
-        styles={{ body: { padding: 0, background: 'var(--bg-primary)' } }}
-      >
-        {selectedStrategy && (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* 抽屉头部 */}
-            <div style={{ 
-              padding: '20px 24px', 
-              borderBottom: '1px solid var(--border-primary)',
-              background: 'var(--bg-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ 
-                  width: 44, 
-                  height: 44, 
-                  borderRadius: 10, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  backgroundColor: selectedStrategy.color,
-                  color: '#fff',
-                  fontSize: 18
-                }}>
-                  {getCategoryIcon(selectedStrategy.category)}
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18 }}>
-                    {selectedStrategy.name}
-                  </div>
-                  <div style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 2 }}>
-                    {selectedStrategy.category} 系统 · {selectedStrategy.usageCount || 0} 笔交易
-                  </div>
-                </div>
-              </div>
-              <Button 
-                type="text" 
-                icon={<CloseOutlined />} 
-                onClick={() => setDrawerVisible(false)}
-                style={{ color: 'var(--text-tertiary)' }}
-              />
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {selectedStrategy && (
+                <Tag 
+                  style={{ 
+                    backgroundColor: selectedStrategy.color, 
+                    color: '#fff', 
+                    border: 'none', 
+                    borderRadius: 12, 
+                    padding: '2px 12px',
+                    fontSize: 11,
+                    fontWeight: 600
+                  }}
+                >
+                  {selectedStrategy.name}
+                </Tag>
+              )}
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                ({strategyTrades.length})
+              </span>
             </div>
-            
-            {/* 策略描述 */}
-            {selectedStrategy.description && (
-              <div style={{ 
-                padding: '16px 24px', 
-                background: 'var(--bg-tertiary)',
-                borderBottom: '1px solid var(--border-primary)',
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-                lineHeight: 1.6
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>
-                  策略规则
-                </div>
-                {selectedStrategy.description}
-              </div>
+            {strategyTrades.length > 0 && (
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => {
+                  setDrawerVisible(false);
+                  onNavigate && onNavigate('strategy-review', { strategyId: selectedStrategy?.id });
+                }}
+              >
+                全部复盘
+              </Button>
             )}
-            
-            {/* 统计卡片 */}
-            {strategyStats && (
-              <div style={{ 
-                padding: '16px 24px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 12,
-                borderBottom: '1px solid var(--border-primary)'
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>总盈亏</div>
-                  <div style={{ 
-                    fontSize: 16, 
-                    fontWeight: 700, 
-                    fontFamily: 'var(--font-mono)',
-                    color: strategyStats.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                  }}>
-                    {strategyStats.totalPnL >= 0 ? '+' : ''}{strategyStats.totalPnL.toFixed(0)}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>胜率</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {strategyStats.winRate}%
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>交易数</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                    {strategyStats.totalTrades}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>已反思</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-brand)' }}>
-                    {strategyStats.reflectionCount}
-                  </div>
+          </div>
+        }
+        placement="right"
+        width={isMobile ? '100%' : 480}
+        open={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        bodyStyle={{ padding: 0, background: 'var(--bg-primary)' }}
+        headerStyle={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' }}
+      >
+        {tradesLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+            <Spin />
+          </div>
+        ) : strategyTrades.length === 0 ? (
+          <div style={{ padding: 48 }}>
+            <Empty 
+              description={
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  暂无使用该策略的订单
+                </span>
+              } 
+            />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* 统计摘要 */}
+            <div style={{ 
+              padding: 16, 
+              background: 'var(--bg-secondary)', 
+              borderBottom: '1px solid var(--border-primary)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 12
+            }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>总盈亏</div>
+                <div style={{ 
+                  fontSize: 16, 
+                  fontWeight: 700, 
+                  fontFamily: 'var(--font-mono)',
+                  color: strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                }}>
+                  {strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) >= 0 ? '+' : ''}
+                  ${strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0).toFixed(2)}
                 </div>
               </div>
-            )}
-            
-            {/* 交易列表 */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
-              <div style={{ 
-                padding: '12px 24px', 
-                fontSize: 10, 
-                fontWeight: 600, 
-                color: 'var(--text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                borderBottom: '1px solid var(--border-primary)',
-                position: 'sticky',
-                top: 0,
-                background: 'var(--bg-primary)',
-                zIndex: 1
-              }}>
-                关联交易 · 点击添加反思
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>胜率</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                  {strategyTrades.length > 0 
+                    ? ((strategyTrades.filter(t => getNetPnL(t) > 0).length / strategyTrades.length) * 100).toFixed(0) 
+                    : 0}%
+                </div>
               </div>
-              
-              {tradesLoading ? (
-                <div style={{ padding: 40, textAlign: 'center' }}>
-                  <Spin />
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 4 }}>平均盈亏</div>
+                <div style={{ 
+                  fontSize: 16, 
+                  fontWeight: 700, 
+                  fontFamily: 'var(--font-mono)',
+                  color: (strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) / strategyTrades.length) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
+                }}>
+                  ${(strategyTrades.reduce((sum, t) => sum + getNetPnL(t), 0) / strategyTrades.length).toFixed(2)}
                 </div>
-              ) : strategyTrades.length === 0 ? (
-                <div style={{ padding: 40 }}>
-                  <Empty description="暂无使用此策略的交易" />
-                </div>
-              ) : (
-                <div>
-                  {strategyTrades.map((trade, index) => (
-                    <div 
-                      key={trade.id}
-                      style={{ 
-                        padding: '16px 24px',
-                        borderBottom: '1px solid var(--border-primary)',
-                        background: editingReflection?.tradeId === trade.id ? 'var(--bg-secondary)' : 'transparent',
-                        transition: 'background 0.2s'
-                      }}
-                    >
-                      {/* 交易信息行 */}
-                      <div 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => {
-                          if (editingReflection?.tradeId === trade.id) {
-                            setEditingReflection(null);
-                          } else {
-                            setEditingReflection({ tradeId: trade.id, text: trade.reflection || '' });
-                          }
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ 
-                            width: 36, 
-                            height: 36, 
-                            borderRadius: 8, 
-                            background: (trade.pnl || 0) >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            {(trade.pnl || 0) >= 0 
-                              ? <RiseOutlined style={{ color: 'var(--color-profit)' }} />
-                              : <FallOutlined style={{ color: 'var(--color-loss)' }} />
-                            }
-                          </div>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>
-                                {trade.instrumentCode || 'N/A'}
-                              </span>
-                              <span style={{ 
-                                fontSize: 10, 
-                                padding: '1px 6px', 
-                                borderRadius: 4,
-                                background: trade.direction === 'LONG' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                                color: trade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)',
-                                fontWeight: 600
-                              }}>
-                                {trade.direction === 'LONG' ? '多' : '空'}
-                              </span>
-                              {trade.reflection && (
-                                <FileTextOutlined style={{ color: 'var(--color-brand)', fontSize: 12 }} />
-                              )}
-                            </div>
-                            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                              {trade.openTime ? dayjs(trade.openTime).format('MM-DD HH:mm') : '--'}
-                            </div>
-                          </div>
+              </div>
+            </div>
+
+            {/* 订单列表 */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+              {strategyTrades.map((trade, index) => {
+                const netPnL = getNetPnL(trade);
+                const isProfit = netPnL >= 0;
+                const hasReview = trade.notes || trade.entryReason || trade.stopLossReason || trade.takeProfitReason;
+                
+                return (
+                  <div 
+                    key={trade.id || index}
+                    style={{ 
+                      margin: '8px 12px',
+                      padding: '12px 16px',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onClick={() => handleOpenReview(trade)}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'var(--color-brand)';
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'var(--border-primary)';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    {/* 头部：基本信息 */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: hasReview ? 12 : 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: 6, 
+                          background: isProfit ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {isProfit ? (
+                            <RiseOutlined style={{ color: 'var(--color-profit)', fontSize: 14 }} />
+                          ) : (
+                            <FallOutlined style={{ color: 'var(--color-loss)', fontSize: 14 }} />
+                          )}
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ 
-                            fontFamily: 'var(--font-mono)', 
-                            fontWeight: 700, 
-                            fontSize: 14,
-                            color: (trade.pnl || 0) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                          }}>
-                            {(trade.pnl || 0) >= 0 ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>
+                              {trade.instrumentCode}
+                            </span>
+                            <Tag style={{ 
+                              fontSize: 9, 
+                              padding: '0 5px', 
+                              borderRadius: 2,
+                              background: trade.direction === 'LONG' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                              color: trade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)',
+                              border: 'none',
+                              margin: 0
+                            }}>
+                              {trade.direction === 'LONG' ? '多' : '空'}
+                            </Tag>
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+                            {dayjs(trade.openTime).format('YYYY-MM-DD HH:mm')}
                           </div>
                         </div>
                       </div>
-                      
-                      {/* 反思编辑区域 */}
-                      {editingReflection?.tradeId === trade.id && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed var(--border-primary)' }}>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-brand)', marginBottom: 8, textTransform: 'uppercase' }}>
-                            交易反思
-                          </div>
-                          <Input.TextArea
-                            value={editingReflection.text}
-                            onChange={e => setEditingReflection({ ...editingReflection, text: e.target.value })}
-                            placeholder="记录这笔交易的入场逻辑、执行情况、经验教训..."
-                            autoSize={{ minRows: 3, maxRows: 6 }}
-                            style={{ 
-                              background: 'var(--bg-tertiary)', 
-                              borderColor: 'var(--border-primary)',
-                              borderRadius: 8,
-                              fontSize: 13
-                            }}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-                            <Button 
-                              size="small" 
-                              onClick={() => setEditingReflection(null)}
-                              style={{ fontSize: 11 }}
-                            >
-                              取消
-                            </Button>
-                            <Button 
-                              type="primary" 
-                              size="small"
-                              icon={<SaveOutlined />}
-                              loading={savingReflection}
-                              onClick={saveReflection}
-                              style={{ 
-                                background: 'var(--color-brand)', 
-                                borderColor: 'var(--color-brand)',
-                                color: '#000',
-                                fontWeight: 600,
-                                fontSize: 11
-                              }}
-                            >
-                              保存
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* 已保存的反思预览（非编辑状态） */}
-                      {trade.reflection && editingReflection?.tradeId !== trade.id && (
+                      <div style={{ textAlign: 'right' }}>
                         <div style={{ 
-                          marginTop: 10, 
-                          padding: '10px 12px', 
-                          background: 'rgba(212, 175, 55, 0.05)',
-                          borderRadius: 6,
-                          borderLeft: '3px solid var(--color-brand)',
-                          fontSize: 12,
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.5
+                          fontSize: 15, 
+                          fontWeight: 700, 
+                          fontFamily: 'var(--font-mono)',
+                          color: isProfit ? 'var(--color-profit)' : 'var(--color-loss)'
                         }}>
-                          {trade.reflection}
+                          {isProfit ? '+' : ''}${netPnL.toFixed(2)}
                         </div>
-                      )}
+                        <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                          <CalendarOutlined /> 查看复盘
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    
+                    {/* 复盘内容 */}
+                    {hasReview && (
+                      <div style={{ 
+                        background: 'var(--bg-tertiary)', 
+                        borderRadius: 6, 
+                        padding: '10px 12px',
+                        fontSize: 12,
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.6
+                      }}>
+                        {trade.entryReason && (
+                          <div style={{ marginBottom: 6 }}>
+                            <span style={{ color: 'var(--color-profit)', fontWeight: 600, fontSize: 10 }}>入场原因：</span>
+                            <span>{trade.entryReason}</span>
+                          </div>
+                        )}
+                        {trade.stopLossReason && (
+                          <div style={{ marginBottom: 6 }}>
+                            <span style={{ color: 'var(--color-loss)', fontWeight: 600, fontSize: 10 }}>止损原因：</span>
+                            <span>{trade.stopLossReason}</span>
+                          </div>
+                        )}
+                        {trade.takeProfitReason && (
+                          <div style={{ marginBottom: 6 }}>
+                            <span style={{ color: 'var(--color-brand)', fontWeight: 600, fontSize: 10 }}>止盈原因：</span>
+                            <span>{trade.takeProfitReason}</span>
+                          </div>
+                        )}
+                        {trade.notes && (
+                          <div>
+                            <span style={{ color: 'var(--text-tertiary)', fontWeight: 600, fontSize: 10 }}>笔记：</span>
+                            <span>{trade.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 无复盘提示 */}
+                    {!hasReview && (
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: 'var(--text-tertiary)', 
+                        fontStyle: 'italic',
+                        marginTop: 8 
+                      }}>
+                        暂无复盘记录，点击添加
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            
-            {/* 策略反思汇总 */}
-            {strategyStats && strategyStats.reflectionCount > 0 && (
-              <div style={{ 
-                padding: '16px 24px',
-                borderTop: '1px solid var(--border-primary)',
-                background: 'var(--bg-secondary)'
-              }}>
-                <div style={{ 
-                  fontSize: 10, 
-                  fontWeight: 600, 
-                  color: 'var(--color-brand)', 
-                  marginBottom: 8,
-                  textTransform: 'uppercase'
-                }}>
-                  策略知识库 · {strategyStats.reflectionCount} 条反思
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  点击上方交易查看或编辑反思内容
-                </div>
-              </div>
-            )}
           </div>
         )}
       </Drawer>
+
+      {/* 复盘编辑弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 16 }}>📝</span>
+            <span>编辑复盘</span>
+            {editingTrade && (
+              <Tag color={getNetPnL(editingTrade) >= 0 ? 'success' : 'error'}>
+                {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
+              </Tag>
+            )}
+          </div>
+        }
+        open={reviewModalVisible}
+        onCancel={() => setReviewModalVisible(false)}
+        onOk={handleSaveReview}
+        confirmLoading={savingReview}
+        width={600}
+        okText="保存"
+        cancelText="取消"
+      >
+        {editingTrade && (
+          <div>
+            {/* 交易基本信息 */}
+            <div style={{ 
+              padding: 12, 
+              background: 'var(--bg-secondary)', 
+              borderRadius: 8, 
+              marginBottom: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 12,
+              fontSize: 12
+            }}>
+              <div>
+                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>品种</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{editingTrade.instrument}</div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>方向</div>
+                <div style={{ 
+                  fontWeight: 600, 
+                  color: editingTrade.direction === 'LONG' ? 'var(--color-profit)' : 'var(--color-loss)' 
+                }}>
+                  {editingTrade.direction === 'LONG' ? '做多' : '做空'}
+                </div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>时间</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {dayjs(editingTrade.openTime).format('MM/DD HH:mm')}
+                </div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--text-tertiary)', marginBottom: 4 }}>盈亏</div>
+                <div style={{ 
+                  fontWeight: 600, 
+                  color: getNetPnL(editingTrade) >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' 
+                }}>
+                  {getNetPnL(editingTrade) >= 0 ? '+' : ''}${getNetPnL(editingTrade).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <Form form={reviewForm} layout="vertical">
+              <Form.Item 
+                name="entryReason" 
+                label={<span style={{ fontWeight: 600 }}>入场理由</span>}
+              >
+                <Input.TextArea 
+                  rows={2} 
+                  placeholder="描述你的入场理由和市场分析..."
+                  style={{ resize: 'none' }}
+                />
+              </Form.Item>
+              <Form.Item 
+                name="stopLossReason" 
+                label={<span style={{ fontWeight: 600 }}>止损设置理由</span>}
+              >
+                <Input.TextArea 
+                  rows={2} 
+                  placeholder="止损位置选择的依据..."
+                  style={{ resize: 'none' }}
+                />
+              </Form.Item>
+              <Form.Item 
+                name="takeProfitReason" 
+                label={<span style={{ fontWeight: 600 }}>止盈/出场理由</span>}
+              >
+                <Input.TextArea 
+                  rows={2} 
+                  placeholder="止盈目标或出场原因..."
+                  style={{ resize: 'none' }}
+                />
+              </Form.Item>
+              <Form.Item 
+                name="notes" 
+                label={<span style={{ fontWeight: 600 }}>复盘总结</span>}
+              >
+                <Input.TextArea 
+                  rows={3} 
+                  placeholder="对这笔交易的整体回顾和经验总结..."
+                  style={{ resize: 'none' }}
+                />
+              </Form.Item>
+            </Form>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

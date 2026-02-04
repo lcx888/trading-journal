@@ -42,6 +42,7 @@ const AIAnalysis = lazy(() => import('./pages/AIAnalysis'));
 const TradeCalendar = lazy(() => import('./pages/TradeCalendar'));
 const TradingRecords = lazy(() => import('./pages/TradingRecords'));
 const TradingStrategies = lazy(() => import('./pages/TradingStrategies'));
+const StrategyReview = lazy(() => import('./pages/StrategyReview'));
 const RiskControl = lazy(() => import('./pages/RiskControl'));
 const Auth = lazy(() => import('./pages/Auth'));
 const Admin = lazy(() => import('./pages/Admin'));
@@ -145,6 +146,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedRecordId, setSelectedRecordId] = useState(null);
+  const [selectedStrategyId, setSelectedStrategyId] = useState(null);
   const [activeRecordId, setActiveRecordId] = useState('all');
   const [records, setRecords] = useState([]);
   const [authUser, setAuthUser] = useState(null);
@@ -327,7 +329,9 @@ function App() {
         case 'trades': 
           return <div key={pageKey} className={pageClass}><TradeList key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
         case 'strategies': 
-          return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} /></div>;
+          return <div key={pageKey} className={pageClass}><TradingStrategies key={refreshKey} onNavigate={(page, params) => { if (params?.strategyId) setSelectedStrategyId(params.strategyId); startTransition(() => setCurrentPage(page)); }} /></div>;
+        case 'strategy-review':
+          return <div key={pageKey} className={pageClass}><StrategyReview key={`${refreshKey}-${selectedStrategyId}`} strategyId={selectedStrategyId} onNavigate={(page) => startTransition(() => setCurrentPage(page))} /></div>;
         case 'ai-analysis': 
           return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} subscription={subscription} onShowUpgrade={goToPricing} /></div>;
         case 'risk-control':
