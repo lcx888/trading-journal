@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Table, Button, Tag, Input, DatePicker, Space, 
-  Modal, Spin, Tooltip, Progress, message, Segmented, Divider
+  Drawer, Spin, Tooltip, Progress, message, Segmented, Divider, Grid
 } from 'antd';
 import { 
   ArrowLeftOutlined, SearchOutlined, EditOutlined,
   CheckCircleOutlined, ClockCircleOutlined,
   ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined, 
   MergeCellsOutlined, UnorderedListOutlined,
-  FileTextOutlined, CalendarOutlined, NumberOutlined
+  FileTextOutlined, CalendarOutlined, NumberOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -16,6 +17,7 @@ import RichEditor from '../components/RichEditor';
 import { processTradesWithMerge } from '../services/tradeMerge';
 
 const { RangePicker } = DatePicker;
+const { useBreakpoint } = Grid;
 
 // 计算净盈亏（扣除手续费）
 const getNetPnL = (trade) => {
@@ -29,6 +31,7 @@ const getNetPnL = (trade) => {
 };
 
 const StrategyReview = ({ onNavigate, strategyId }) => {
+  const screens = useBreakpoint();
   const [strategy, setStrategy] = useState(null);
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -459,54 +462,55 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         })}
       />
 
-      {/* 复盘编辑弹窗 */}
-      <Modal
+      {/* 复盘编辑抽屉 */}
+      <Drawer
         title={null}
         footer={null}
         open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        width={900}
-        className="archive-modal"
-        styles={{ content: { padding: 0, overflow: 'hidden' } }}
+        onClose={() => setEditModalVisible(false)}
+        width={screens.md ? '85%' : '100%'}
+        placement="right"
+        className="archive-drawer"
+        styles={{ body: { padding: 0, overflow: 'hidden' } }}
         closeIcon={null}
+        maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
       >
         {editingTrade && (
-          <div className="flex h-[80vh]">
+          <div className="flex h-full">
             {/* 左侧：交易数据 (侧边栏风格) */}
-            <div className="w-64 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6">
+            <div className="w-80 bg-bg-secondary border-r border-border-primary p-6 flex flex-col gap-6 overflow-y-auto">
               <div>
-                <div className="text-xs text-tertiary uppercase tracking-wider mb-2">交易档案</div>
-                <div className="font-mono text-xl font-bold text-primary mb-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-xs text-tertiary uppercase tracking-wider">交易档案</div>
+                  <Button 
+                    type="text" 
+                    icon={<CloseOutlined />} 
+                    onClick={() => setEditModalVisible(false)}
+                    className="text-tertiary hover:text-primary"
+                  />
+                </div>
+                <div className="font-mono text-2xl font-bold text-primary mb-2">
                   {editingTrade.isMergedGroup 
                     ? editingTrade.mergeStats?.instrumentCode 
                     : (editingTrade.instrument || editingTrade.instrumentCode)}
                 </div>
                 <div className="flex items-center gap-2">
                   <Tag 
-                    className="border-none px-0 m-0 bg-transparent font-bold"
+                    className="border-none px-2 py-0.5 m-0 font-bold text-sm"
                     color={(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? 'success' : 'error'}
                   >
                     {(editingTrade.isMergedGroup ? editingTrade.mergeStats?.direction : editingTrade.direction) === 'LONG' ? '做多' : '做空'}
                   </Tag>
-                  <span className="text-secondary text-sm">
+                  <span className="text-secondary text-sm font-mono bg-bg-tertiary px-2 py-0.5 rounded">
                     {editingTrade.isMergedGroup ? editingTrade.mergeStats?.totalQuantity : (editingTrade.openQuantity || 1)}手
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <div className="text-xs text-tertiary mb-1">时间</div>
-                  <div className="font-mono text-sm text-secondary">
-                    {editingTrade.isMergedGroup 
-                      ? dayjs(editingTrade.mergeStats?.firstOpenTime).format('MM-DD HH:mm')
-                      : dayjs(editingTrade.openTime).format('MM-DD HH:mm')}
-                  </div>
-                </div>
-                
-                <div>
+              <div className="space-y-6">
+                <div className="p-4 bg-bg-tertiary rounded-lg border border-border-primary">
                   <div className="text-xs text-tertiary mb-1">盈亏结果</div>
-                  <div className={`font-mono text-xl font-bold ${(editingTrade.isMergedGroup 
+                  <div className={`font-mono text-3xl font-bold ${(editingTrade.isMergedGroup 
                       ? editingTrade.mergeStats?.totalPnL 
                       : getNetPnL(editingTrade)) >= 0 ? 'text-profit' : 'text-loss'}`}>
                     {(editingTrade.isMergedGroup 
@@ -517,51 +521,69 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
                       : getNetPnL(editingTrade))?.toFixed(2)}
                   </div>
                 </div>
+
+                <div>
+                  <div className="text-xs text-tertiary mb-1">时间</div>
+                  <div className="font-mono text-base text-primary">
+                    {editingTrade.isMergedGroup 
+                      ? dayjs(editingTrade.mergeStats?.firstOpenTime).format('YYYY-MM-DD')
+                      : dayjs(editingTrade.openTime).format('YYYY-MM-DD')}
+                  </div>
+                  <div className="font-mono text-sm text-secondary">
+                    {editingTrade.isMergedGroup 
+                      ? `${dayjs(editingTrade.mergeStats?.firstOpenTime).format('HH:mm')} - ${dayjs(editingTrade.mergeStats?.lastCloseTime).format('HH:mm')}`
+                      : dayjs(editingTrade.openTime).format('HH:mm:ss')}
+                  </div>
+                </div>
               </div>
 
               {editingTrade.isMergedGroup && (
-                <div className="mt-auto bg-blue-500/5 p-3 rounded border border-blue-500/10">
-                  <div className="flex items-center gap-2 text-blue-500 mb-1">
+                <div className="mt-auto bg-blue-500/5 p-4 rounded-lg border border-blue-500/10">
+                  <div className="flex items-center gap-2 text-blue-500 mb-2">
                     <MergeCellsOutlined />
-                    <span className="text-xs font-bold">合并交易组</span>
+                    <span className="text-sm font-bold">合并交易组</span>
                   </div>
-                  <div className="text-[10px] text-blue-400/80 leading-relaxed">
-                    包含 {editingTrade.mergeStats?.tradeCount} 笔子交易。保存复盘将同步更新组内所有记录。
+                  <div className="text-xs text-blue-400/80 leading-relaxed">
+                    包含 {editingTrade.mergeStats?.tradeCount} 笔子交易。
+                    <br/>
+                    保存复盘将同步更新组内所有记录。
                   </div>
                 </div>
               )}
             </div>
 
             {/* 右侧：复盘内容 (文档风格) */}
-            <div className="flex-1 flex flex-col bg-bg-primary">
-              <div className="p-6 border-b border-border-primary flex justify-between items-start">
+            <div className="flex-1 flex flex-col bg-bg-primary h-full overflow-hidden">
+              <div className="p-8 border-b border-border-primary flex justify-between items-start flex-shrink-0">
                 <Input.TextArea
                   value={reviewTitle}
                   onChange={(e) => setReviewTitle(e.target.value)}
                   placeholder="在此输入复盘标题..."
-                  className="text-2xl font-bold bg-transparent border-none focus:shadow-none p-0 resize-none !text-primary placeholder:text-tertiary/50"
+                  className="text-3xl font-bold bg-transparent border-none focus:shadow-none p-0 resize-none !text-primary placeholder:text-tertiary/30"
                   autoSize
                   maxLength={100}
                 />
-                <div className="flex gap-2 ml-4">
-                  <Button onClick={() => setEditModalVisible(false)}>取消</Button>
-                  <Button type="primary" onClick={handleSave} loading={saving} className="bg-brand text-bg-primary">保存</Button>
+                <div className="flex gap-3 ml-8">
+                  <Button size="large" onClick={() => setEditModalVisible(false)}>取消</Button>
+                  <Button size="large" type="primary" onClick={handleSave} loading={saving} className="bg-brand text-bg-primary font-semibold px-8">保存档案</Button>
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-6">
-                <RichEditor
-                  value={reviewContent}
-                  onChange={setReviewContent}
-                  placeholder="开始撰写复盘..."
-                  minHeight={400}
-                  className="border-none"
-                />
+              <div className="flex-1 overflow-y-auto p-8">
+                <div className="max-w-3xl mx-auto">
+                  <RichEditor
+                    value={reviewContent}
+                    onChange={setReviewContent}
+                    placeholder="开始撰写复盘..."
+                    minHeight={500}
+                    className="border-none"
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
-      </Modal>
+      </Drawer>
 
       <style jsx global>{`
         .archive-table .ant-table-thead > tr > th {
