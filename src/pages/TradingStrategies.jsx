@@ -644,7 +644,7 @@ const TradingStrategies = ({ onNavigate }) => {
             name="description"
             label={<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>执行规则/逻辑</span>}
           >
-            <TextArea 
+            <Input.TextArea 
               rows={4} 
               placeholder="描述入场条件、出场规则与风控..."
               maxLength={500}
