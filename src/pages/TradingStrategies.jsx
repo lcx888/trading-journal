@@ -22,7 +22,13 @@ import {
   FallOutlined,
   CalendarOutlined,
   FolderOpenOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  RetweetOutlined,
+  ColumnWidthOutlined,
+  FieldTimeOutlined,
+  SwapOutlined,
+  AppstoreOutlined,
+  StockOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
@@ -35,16 +41,16 @@ const PRESET_COLORS = [
   '#14B8A6', '#EAB308', '#EF4444', '#3B82F6', '#A855F7'
 ];
 
-// 策略分类
+// 策略分类配置
 const STRATEGY_CATEGORIES = [
-  { value: '趋势', label: '趋势策略', icon: <RocketOutlined /> },
-  { value: '突破', label: '突破策略', icon: <ThunderboltOutlined /> },
-  { value: '反转', label: '反转策略', icon: <ReloadOutlined /> },
-  { value: '区间', label: '区间策略', icon: <AimOutlined /> },
-  { value: '剥头皮', label: '剥头皮策略', icon: <FireOutlined /> },
-  { value: '套利', label: '套利策略', icon: <SafetyOutlined /> },
-  { value: '实验', label: '实验策略', icon: <ExperimentOutlined /> },
-  { value: '通用', label: '通用策略', icon: <BookOutlined /> },
+  { value: '趋势', label: '趋势策略', icon: <StockOutlined />, color: '#10b981', desc: '跟随市场方向' },
+  { value: '突破', label: '突破策略', icon: <ThunderboltOutlined />, color: '#f59e0b', desc: '捕捉关键位破位' },
+  { value: '反转', label: '反转策略', icon: <RetweetOutlined />, color: '#3b82f6', desc: '寻找趋势拐点' },
+  { value: '区间', label: '区间策略', icon: <ColumnWidthOutlined />, color: '#8b5cf6', desc: '震荡行情套利' },
+  { value: '剥头皮', label: '剥头皮', icon: <FieldTimeOutlined />, color: '#ef4444', desc: '高频微利交易' },
+  { value: '套利', label: '套利策略', icon: <SwapOutlined />, color: '#06b6d4', desc: '价差回归交易' },
+  { value: '实验', label: '实验策略', icon: <ExperimentOutlined />, color: '#ec4899', desc: '测试中的系统' },
+  { value: '通用', label: '通用策略', icon: <AppstoreOutlined />, color: '#6b7280', desc: '其他交易模式' },
 ];
 
 // 统计指标组件
@@ -267,7 +273,10 @@ const TradingStrategies = ({ onNavigate }) => {
           </div>
           <div>
             <div className="font-medium text-primary text-sm">{name}</div>
-            <div className="text-xs text-tertiary mt-0.5">{record.category}</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STRATEGY_CATEGORIES.find(c => c.value === record.category)?.color }}></span>
+              <span className="text-xs text-tertiary">{record.category}</span>
+            </div>
           </div>
         </div>
       ),
@@ -408,6 +417,25 @@ const TradingStrategies = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* 策略类型矩阵 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        {STRATEGY_CATEGORIES.map(cat => (
+          <div 
+            key={cat.value} 
+            className="flex flex-col items-center justify-center p-3 rounded-lg bg-bg-secondary border border-border-primary hover:border-brand/50 transition-colors group cursor-default"
+          >
+            <div 
+              className="w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-transform group-hover:scale-110"
+              style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+            >
+              {cat.icon}
+            </div>
+            <div className="text-xs font-semibold text-primary">{cat.label}</div>
+            <div className="text-[10px] text-tertiary mt-1 scale-90">{cat.desc}</div>
+          </div>
+        ))}
+      </div>
+
       {/* 策略列表 */}
       <div className="bg-bg-secondary rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-border-primary flex justify-between items-center">
@@ -492,7 +520,7 @@ const TradingStrategies = ({ onNavigate }) => {
                 {STRATEGY_CATEGORIES.map(cat => (
                   <Select.Option key={cat.value} value={cat.value}>
                     <div className="flex items-center gap-2">
-                      {cat.icon}
+                      <span style={{ color: cat.color }}>{cat.icon}</span>
                       <span>{cat.label}</span>
                     </div>
                   </Select.Option>
