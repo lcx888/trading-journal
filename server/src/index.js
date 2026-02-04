@@ -16,6 +16,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { execSync } from 'child_process';
 import fs from 'fs';
+import multer from 'multer';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
@@ -68,6 +69,58 @@ app.use(morgan('dev'));
 
 // 安装向导路由（必须在静态文件之前）
 setupInstallRoutes(app);
+
+// 配置图片上传 (multer)
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `image-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只能上传图片文件'));
+    }
+  }
+});
+
+// 静态文件服务（上传的图片）
+app.use('/uploads', express.static(uploadsDir));
+
+// 图片上传接口
+app.post('/upload/image', authRequired, upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '没有上传文件' });
+    }
+    
+    // 返回图片 URL
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    
+    res.json({ url: imageUrl, filename: req.file.filename });
+  } catch (error) {
+    console.error('图片上传失败:', error);
+    res.status(500).json({ error: '图片上传失败' });
+  }
+});
 
 const signToken = (user, rememberMe = false) => jwt.sign(
   { id: user.id, email: user.email, role: user.role },

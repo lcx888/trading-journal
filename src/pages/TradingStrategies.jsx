@@ -24,8 +24,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
-
-const { TextArea } = Input;
+import RichEditor from '../components/RichEditor';
 
 // 预设颜色（币安风格调色板）
 const PRESET_COLORS = [
@@ -63,7 +62,7 @@ const TradingStrategies = ({ onNavigate }) => {
   // 复盘编辑弹窗
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
-  const [reviewForm] = Form.useForm();
+  const [reviewContent, setReviewContent] = useState('');
   const [savingReview, setSavingReview] = useState(false);
   
   // 移动端检测
@@ -126,12 +125,7 @@ const TradingStrategies = ({ onNavigate }) => {
   // 打开复盘编辑弹窗
   const handleOpenReview = (trade) => {
     setEditingTrade(trade);
-    reviewForm.setFieldsValue({
-      entryReason: trade.entryReason || '',
-      stopLossReason: trade.stopLossReason || '',
-      takeProfitReason: trade.takeProfitReason || '',
-      notes: trade.notes || '',
-    });
+    setReviewContent(trade.reviewContent || '');
     setReviewModalVisible(true);
   };
   
@@ -140,13 +134,12 @@ const TradingStrategies = ({ onNavigate }) => {
     if (!editingTrade) return;
     setSavingReview(true);
     try {
-      const values = reviewForm.getFieldsValue();
-      await StorageService.updateTrade(editingTrade.id, values);
+      await StorageService.updateTrade(editingTrade.id, { reviewContent });
       message.success('复盘保存成功');
       setReviewModalVisible(false);
       // 更新本地状态
       setStrategyTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, ...values } : t
+        t.id === editingTrade.id ? { ...t, reviewContent } : t
       ));
     } catch (error) {
       console.error('保存复盘失败:', error);
@@ -804,7 +797,7 @@ const TradingStrategies = ({ onNavigate }) => {
               {strategyTrades.map((trade, index) => {
                 const netPnL = getNetPnL(trade);
                 const isProfit = netPnL >= 0;
-                const hasReview = trade.notes || trade.entryReason || trade.stopLossReason || trade.takeProfitReason;
+                const hasReview = trade.reviewContent && trade.reviewContent !== '<p></p>';
                 
                 return (
                   <div 
@@ -885,39 +878,19 @@ const TradingStrategies = ({ onNavigate }) => {
                     
                     {/* 复盘内容 */}
                     {hasReview && (
-                      <div style={{ 
-                        background: 'var(--bg-tertiary)', 
-                        borderRadius: 6, 
-                        padding: '10px 12px',
-                        fontSize: 12,
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.6
-                      }}>
-                        {trade.entryReason && (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ color: 'var(--color-profit)', fontWeight: 600, fontSize: 10 }}>入场原因：</span>
-                            <span>{trade.entryReason}</span>
-                          </div>
-                        )}
-                        {trade.stopLossReason && (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ color: 'var(--color-loss)', fontWeight: 600, fontSize: 10 }}>止损原因：</span>
-                            <span>{trade.stopLossReason}</span>
-                          </div>
-                        )}
-                        {trade.takeProfitReason && (
-                          <div style={{ marginBottom: 6 }}>
-                            <span style={{ color: 'var(--color-brand)', fontWeight: 600, fontSize: 10 }}>止盈原因：</span>
-                            <span>{trade.takeProfitReason}</span>
-                          </div>
-                        )}
-                        {trade.notes && (
-                          <div>
-                            <span style={{ color: 'var(--text-tertiary)', fontWeight: 600, fontSize: 10 }}>笔记：</span>
-                            <span>{trade.notes}</span>
-                          </div>
-                        )}
-                      </div>
+                      <div 
+                        style={{ 
+                          background: 'var(--bg-tertiary)', 
+                          borderRadius: 6, 
+                          padding: '10px 12px',
+                          fontSize: 12,
+                          color: 'var(--text-secondary)',
+                          lineHeight: 1.6,
+                          maxHeight: 100,
+                          overflow: 'hidden'
+                        }}
+                        dangerouslySetInnerHTML={{ __html: trade.reviewContent }}
+                      />
                     )}
                     
                     {/* 无复盘提示 */}
@@ -1003,48 +976,13 @@ const TradingStrategies = ({ onNavigate }) => {
               </div>
             </div>
 
-            <Form form={reviewForm} layout="vertical">
-              <Form.Item 
-                name="entryReason" 
-                label={<span style={{ fontWeight: 600 }}>入场理由</span>}
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="描述你的入场理由和市场分析..."
-                  style={{ resize: 'none' }}
-                />
-              </Form.Item>
-              <Form.Item 
-                name="stopLossReason" 
-                label={<span style={{ fontWeight: 600 }}>止损设置理由</span>}
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="止损位置选择的依据..."
-                  style={{ resize: 'none' }}
-                />
-              </Form.Item>
-              <Form.Item 
-                name="takeProfitReason" 
-                label={<span style={{ fontWeight: 600 }}>止盈/出场理由</span>}
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="止盈目标或出场原因..."
-                  style={{ resize: 'none' }}
-                />
-              </Form.Item>
-              <Form.Item 
-                name="notes" 
-                label={<span style={{ fontWeight: 600 }}>复盘总结</span>}
-              >
-                <Input.TextArea 
-                  rows={3} 
-                  placeholder="对这笔交易的整体回顾和经验总结..."
-                  style={{ resize: 'none' }}
-                />
-              </Form.Item>
-            </Form>
+            <RichEditor
+              value={reviewContent}
+              onChange={setReviewContent}
+              placeholder="记录你的交易复盘..."
+              minHeight={200}
+              maxHeight={350}
+            />
           </div>
         )}
       </Modal>

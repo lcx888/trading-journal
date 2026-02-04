@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
+import RichEditor from '../components/RichEditor';
 
 const { RangePicker } = DatePicker;
 
@@ -50,12 +51,12 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [form] = Form.useForm();
+  const [reviewContent, setReviewContent] = useState('');
   
   // 批量编辑
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
-  const [batchForm] = Form.useForm();
+  const [batchReviewContent, setBatchReviewContent] = useState('');
 
   // 加载策略和关联订单
   useEffect(() => {
@@ -121,11 +122,11 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     // 复盘状态筛选
     if (filters.reviewStatus === 'reviewed') {
       result = result.filter(trade => 
-        trade.notes || trade.entryReason || trade.stopLossReason || trade.takeProfitReason
+        trade.reviewContent && trade.reviewContent !== '<p></p>'
       );
     } else if (filters.reviewStatus === 'pending') {
       result = result.filter(trade => 
-        !trade.notes && !trade.entryReason && !trade.stopLossReason && !trade.takeProfitReason
+        !trade.reviewContent || trade.reviewContent === '<p></p>'
       );
     }
     
@@ -134,8 +135,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       const text = filters.searchText.toLowerCase();
       result = result.filter(trade => 
         (trade.instrument || '').toLowerCase().includes(text) ||
-        (trade.notes || '').toLowerCase().includes(text) ||
-        (trade.entryReason || '').toLowerCase().includes(text)
+        (trade.reviewContent || '').toLowerCase().includes(text)
       );
     }
     
@@ -146,7 +146,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   const stats = useMemo(() => {
     const totalTrades = trades.length;
     const reviewedTrades = trades.filter(t => 
-      t.notes || t.entryReason || t.stopLossReason || t.takeProfitReason
+      t.reviewContent && t.reviewContent !== '<p></p>'
     ).length;
     const totalPnL = trades.reduce((sum, t) => sum + getNetPnL(t), 0);
     const winTrades = trades.filter(t => getNetPnL(t) > 0).length;
@@ -165,12 +165,7 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
   // 打开复盘编辑
   const handleEdit = (trade) => {
     setEditingTrade(trade);
-    form.setFieldsValue({
-      entryReason: trade.entryReason || '',
-      stopLossReason: trade.stopLossReason || '',
-      takeProfitReason: trade.takeProfitReason || '',
-      notes: trade.notes || '',
-    });
+    setReviewContent(trade.reviewContent || '');
     setEditModalVisible(true);
   };
 
@@ -179,13 +174,12 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     if (!editingTrade) return;
     setSaving(true);
     try {
-      const values = form.getFieldsValue();
-      await StorageService.updateTrade(editingTrade.id, values);
+      await StorageService.updateTrade(editingTrade.id, { reviewContent });
       message.success('复盘保存成功');
       setEditModalVisible(false);
       // 更新本地状态
       setTrades(prev => prev.map(t => 
-        t.id === editingTrade.id ? { ...t, ...values } : t
+        t.id === editingTrade.id ? { ...t, reviewContent } : t
       ));
     } catch (error) {
       console.error('保存失败:', error);
@@ -195,29 +189,6 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
     }
   };
 
-  // 快速填充模板
-  const quickTemplates = {
-    entryReason: [
-      '突破关键阻力/支撑位',
-      '趋势回调到位',
-      'VWAP 反弹/回落',
-      'Order Flow 信号确认',
-      'Delta 背离',
-    ],
-    stopLossReason: [
-      '前低/前高位置',
-      '关键结构点下方/上方',
-      'ATR 1.5倍距离',
-      'VWAP 失守',
-    ],
-    takeProfitReason: [
-      '到达目标位',
-      '动量衰减',
-      '出现反向信号',
-      '保护利润',
-      '到达支撑/阻力区',
-    ],
-  };
 
   // 表格列定义
   const columns = [
@@ -288,11 +259,11 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         { text: '待复盘', value: 'pending' },
       ],
       onFilter: (value, record) => {
-        const hasReview = record.notes || record.entryReason || record.stopLossReason || record.takeProfitReason;
+        const hasReview = record.reviewContent && record.reviewContent !== '<p></p>';
         return value === 'reviewed' ? hasReview : !hasReview;
       },
       render: (_, record) => {
-        const hasReview = record.notes || record.entryReason || record.stopLossReason || record.takeProfitReason;
+        const hasReview = record.reviewContent && record.reviewContent !== '<p></p>';
         return hasReview ? (
           <Tag color="success" icon={<CheckCircleOutlined />}>已复盘</Tag>
         ) : (
@@ -301,19 +272,18 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
       },
     },
     {
-      title: '入场理由',
-      dataIndex: 'entryReason',
-      key: 'entryReason',
-      width: 200,
+      title: '复盘内容',
+      dataIndex: 'reviewContent',
+      key: 'reviewContent',
       ellipsis: true,
-      render: (text) => text || <span style={{ color: 'var(--text-tertiary)' }}>-</span>,
-    },
-    {
-      title: '复盘总结',
-      dataIndex: 'notes',
-      key: 'notes',
-      ellipsis: true,
-      render: (text) => text || <span style={{ color: 'var(--text-tertiary)' }}>-</span>,
+      render: (text) => text && text !== '<p></p>' ? (
+        <div 
+          style={{ maxHeight: 40, overflow: 'hidden', fontSize: 12 }}
+          dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>/g, ' ').substring(0, 100) }}
+        />
+      ) : (
+        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+      ),
     },
     {
       title: '操作',
@@ -622,114 +592,13 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
               </div>
             </div>
 
-            <Form form={form} layout="vertical">
-              <Form.Item 
-                name="entryReason" 
-                label={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600 }}>🎯 入场理由</span>
-                    <Dropdown
-                      menu={{
-                        items: quickTemplates.entryReason.map((t, i) => ({
-                          key: i,
-                          label: t,
-                          onClick: () => {
-                            const current = form.getFieldValue('entryReason') || '';
-                            form.setFieldsValue({ 
-                              entryReason: current ? `${current}\n${t}` : t 
-                            });
-                          }
-                        }))
-                      }}
-                      trigger={['click']}
-                    >
-                      <Button size="small" type="link">快速填充</Button>
-                    </Dropdown>
-                  </div>
-                }
-              >
-                <Input.TextArea 
-                  rows={3} 
-                  placeholder="描述你的入场理由：市场结构、信号确认、风险评估..."
-                  style={{ resize: 'vertical' }}
-                />
-              </Form.Item>
-              
-              <Form.Item 
-                name="stopLossReason" 
-                label={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600 }}>🛡️ 止损设置理由</span>
-                    <Dropdown
-                      menu={{
-                        items: quickTemplates.stopLossReason.map((t, i) => ({
-                          key: i,
-                          label: t,
-                          onClick: () => {
-                            const current = form.getFieldValue('stopLossReason') || '';
-                            form.setFieldsValue({ 
-                              stopLossReason: current ? `${current}\n${t}` : t 
-                            });
-                          }
-                        }))
-                      }}
-                      trigger={['click']}
-                    >
-                      <Button size="small" type="link">快速填充</Button>
-                    </Dropdown>
-                  </div>
-                }
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="止损位置选择的依据..."
-                  style={{ resize: 'vertical' }}
-                />
-              </Form.Item>
-              
-              <Form.Item 
-                name="takeProfitReason" 
-                label={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600 }}>💰 止盈/出场理由</span>
-                    <Dropdown
-                      menu={{
-                        items: quickTemplates.takeProfitReason.map((t, i) => ({
-                          key: i,
-                          label: t,
-                          onClick: () => {
-                            const current = form.getFieldValue('takeProfitReason') || '';
-                            form.setFieldsValue({ 
-                              takeProfitReason: current ? `${current}\n${t}` : t 
-                            });
-                          }
-                        }))
-                      }}
-                      trigger={['click']}
-                    >
-                      <Button size="small" type="link">快速填充</Button>
-                    </Dropdown>
-                  </div>
-                }
-              >
-                <Input.TextArea 
-                  rows={2} 
-                  placeholder="止盈目标或实际出场的原因..."
-                  style={{ resize: 'vertical' }}
-                />
-              </Form.Item>
-              
-              <Form.Item 
-                name="notes" 
-                label={<span style={{ fontWeight: 600 }}>📋 复盘总结</span>}
-              >
-                <Input.TextArea 
-                  rows={4} 
-                  placeholder="对这笔交易的整体回顾：&#10;- 执行情况如何？&#10;- 有什么可以改进的地方？&#10;- 学到了什么经验教训？"
-                  style={{ resize: 'vertical' }}
-                />
-              </Form.Item>
-            </Form>
+            <RichEditor
+              value={reviewContent}
+              onChange={setReviewContent}
+              placeholder="记录你的交易复盘..."
+              minHeight={280}
+              maxHeight={400}
+            />
           </div>
         )}
       </Modal>
@@ -740,28 +609,23 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         open={batchModalVisible}
         onCancel={() => setBatchModalVisible(false)}
         onOk={async () => {
-          const values = batchForm.getFieldsValue();
-          const updates = {};
-          if (values.notes) updates.notes = values.notes;
-          if (values.entryReason) updates.entryReason = values.entryReason;
-          
-          if (Object.keys(updates).length === 0) {
-            message.warning('请至少填写一项内容');
+          if (!batchReviewContent || batchReviewContent === '<p></p>') {
+            message.warning('请填写复盘内容');
             return;
           }
           
           try {
             for (const id of selectedRowKeys) {
-              await StorageService.updateTrade(id, updates);
+              await StorageService.updateTrade(id, { reviewContent: batchReviewContent });
             }
             message.success(`已更新 ${selectedRowKeys.length} 笔交易`);
             setBatchModalVisible(false);
             setSelectedRowKeys([]);
+            setBatchReviewContent('');
             // 刷新数据
             setTrades(prev => prev.map(t => 
-              selectedRowKeys.includes(t.id) ? { ...t, ...updates } : t
+              selectedRowKeys.includes(t.id) ? { ...t, reviewContent: batchReviewContent } : t
             ));
-            batchForm.resetFields();
           } catch (error) {
             console.error('批量更新失败:', error);
             message.error('批量更新失败');
@@ -769,27 +633,15 @@ const StrategyReview = ({ onNavigate, strategyId }) => {
         }}
         okText="批量更新"
         cancelText="取消"
+        width={700}
       >
-        <Form form={batchForm} layout="vertical">
-          <Form.Item 
-            name="entryReason" 
-            label="入场理由（追加到已有内容）"
-          >
-            <Input.TextArea 
-              rows={2} 
-              placeholder="统一的入场理由..."
-            />
-          </Form.Item>
-          <Form.Item 
-            name="notes" 
-            label="复盘总结（追加到已有内容）"
-          >
-            <Input.TextArea 
-              rows={3} 
-              placeholder="统一的复盘总结..."
-            />
-          </Form.Item>
-        </Form>
+        <RichEditor
+          value={batchReviewContent}
+          onChange={setBatchReviewContent}
+          placeholder="统一的复盘内容..."
+          minHeight={200}
+          maxHeight={300}
+        />
       </Modal>
     </div>
   );

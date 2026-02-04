@@ -38,9 +38,9 @@ import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import StorageService from '../services/storage';
 import { processTradesWithMerge } from '../services/tradeMerge';
+import RichEditor from '../components/RichEditor';
 
 const { RangePicker } = DatePicker;
-const { TextArea } = Input;
 
 // 格式化持仓时间
 const formatHoldingTime = (seconds) => {
@@ -516,9 +516,8 @@ const hasMergeReviewData = (tradeId) => {
 // 检查单笔交易是否有复盘数据（数据库字段）
 const hasTradeReviewData = (trade) => {
   if (!trade) return false;
-  // 检查复盘相关字段是否有内容
-  const reviewFields = ['notes', 'entryReason', 'stopLossReason', 'takeProfitReason', 'expectedTrend'];
-  return reviewFields.some(field => trade[field] && String(trade[field]).trim() !== '');
+  // 检查 reviewContent 字段是否有内容
+  return trade.reviewContent && trade.reviewContent !== '<p></p>' && trade.reviewContent.trim() !== '';
 };
 
 const PositionChart = ({ trades, overallDirection, dayjs, onStartReview, reviewNotes }) => {
@@ -858,6 +857,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [form] = Form.useForm();
+  const [reviewContent, setReviewContent] = useState(''); // 富文本复盘内容
   
   // MAE/MFE 内联编辑状态
   const [editingMaeMfe, setEditingMaeMfe] = useState({ tradeId: null, field: null, trade: null });
@@ -1064,10 +1064,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       const kw = filters.keyword.toLowerCase();
       result = result.filter(t => 
         t.instrumentCode?.toLowerCase().includes(kw) ||
-        t.entryReason?.toLowerCase().includes(kw) ||
-        t.stopLossReason?.toLowerCase().includes(kw) ||
-        t.takeProfitReason?.toLowerCase().includes(kw) ||
-        t.notes?.toLowerCase().includes(kw)
+        t.reviewContent?.toLowerCase().includes(kw)
       );
     }
     if (filters.strategy !== 'ALL') {
@@ -1209,18 +1206,20 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     form.setFieldsValue({
       expectedTrend: trade.expectedTrend,
       strategyIds: trade.strategyIds || [],
-      entryReason: trade.entryReason || '',
-      stopLossReason: trade.stopLossReason || '',
-      takeProfitReason: trade.takeProfitReason || '',
-      notes: trade.notes || '',
     });
+    // 设置富文本复盘内容
+    setReviewContent(trade.reviewContent || '');
     setEditModalVisible(true);
   };
 
   const handleEditSave = async () => {
     try {
       const vals = form.getFieldsValue();
-      await StorageService.updateTrade(editingTrade.id, vals);
+      // 合并表单值和富文本内容
+      await StorageService.updateTrade(editingTrade.id, {
+        ...vals,
+        reviewContent: reviewContent,
+      });
       message.success('保存成功');
       setEditModalVisible(false);
       loadData();
@@ -1229,9 +1228,8 @@ const TradeList = ({ activeRecordId = 'all' }) => {
 
   // 打开保存为策略对话框
   const handleOpenSaveStrategy = () => {
-    const vals = form.getFieldsValue();
-    // 检查是否有内容可保存
-    if (!vals.entryReason && !vals.stopLossReason && !vals.takeProfitReason && !vals.notes) {
+    // 检查是否有复盘内容可保存
+    if (!reviewContent || reviewContent === '<p></p>') {
       message.warning('请先填写复盘内容再保存为策略');
       return;
     }
@@ -3856,46 +3854,13 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             复盘记录
           </div>
           
-          <Form.Item 
-            name="entryReason" 
-            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>入场理由</span>}
-          >
-            <TextArea 
-              rows={2} 
-              placeholder="为什么在这个点位入场？看到了什么信号？" 
-              style={{ resize: 'none' }}
-            />
-          </Form.Item>
-          <Form.Item 
-            name="stopLossReason" 
-            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>止损理由</span>}
-          >
-            <TextArea 
-              rows={2} 
-              placeholder="止损位设置的依据是什么？" 
-              style={{ resize: 'none' }}
-            />
-          </Form.Item>
-          <Form.Item 
-            name="takeProfitReason" 
-            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>止盈理由</span>}
-          >
-            <TextArea 
-              rows={2} 
-              placeholder="止盈目标是如何确定的？" 
-              style={{ resize: 'none' }}
-            />
-          </Form.Item>
-          <Form.Item 
-            name="notes" 
-            label={<span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>其他备注</span>}
-          >
-            <TextArea 
-              rows={2} 
-              placeholder="心态、失误、可改进之处..." 
-              style={{ resize: 'none' }}
-            />
-          </Form.Item>
+          <RichEditor
+            value={reviewContent}
+            onChange={setReviewContent}
+            placeholder="记录你的交易复盘...&#10;&#10;💡 提示：&#10;- 入场理由、市场分析&#10;- 止损止盈设置&#10;- 执行情况回顾&#10;- 经验总结"
+            minHeight={250}
+            maxHeight={400}
+          />
         </Form>
       </Drawer>
 
