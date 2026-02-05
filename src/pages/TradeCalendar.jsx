@@ -441,6 +441,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
       // 构建复盘数据
       const reviewData = {
         date: selectedDate,
+        type: 'review',
         ...reviewForm,
         savedAt: new Date().toISOString()
       };
@@ -729,20 +730,18 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
           )}
         </div>
 
-        {/* 三栏布局：统计摘要 + 交易列表 + 复盘表单 */}
+        {/* 上方：统计摘要 + 交易明细（横向排列） */}
         <div style={{ 
           display: isMobile ? 'flex' : 'grid', 
           flexDirection: 'column',
-          gridTemplateColumns: isMobile ? '1fr' : '280px 380px 1fr', 
+          gridTemplateColumns: isMobile ? '1fr' : '280px 1fr', 
           gap: isMobile ? 16 : 24, 
           alignItems: 'start',
-          height: isMobile ? 'auto' : 'calc(100vh - 180px)',
-          overflow: isMobile ? 'visible' : 'hidden',
-          padding: isMobile ? '0 12px 24px' : 0
+          padding: isMobile ? '0 12px' : 0
         }}>
           
-          {/* 第一栏：核心指标卡片 */}
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: isMobile ? 12 : 20, maxHeight: isMobile ? 'auto' : '100%', overflowY: isMobile ? 'visible' : 'auto', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          {/* 左侧：核心指标卡片 */}
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: isMobile ? 12 : 20, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             {/* 盈亏大卡片 */}
             <div style={{ 
               background: isProfit 
@@ -790,7 +789,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               )}
             </div>
 
-            {/* 交易分布卡片 - 移动端简化为数字显示 */}
+            {/* 交易分布卡片 */}
             <div style={{ 
               background: 'var(--bg-secondary)', 
               border: '1px solid var(--border-primary)', 
@@ -821,7 +820,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                       background: 'var(--color-profit)' 
                     }} />
                   </div>
-                  
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                     <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>亏损交易</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-loss)' }}>{reviewStats.lossCount}</span>
@@ -838,14 +836,14 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
             </div>
           </div>
 
-          {/* 第二栏：交易明细列表 */}
+          {/* 右侧：交易明细列表 */}
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
             borderRadius: isMobile ? 12 : 16,
             display: 'flex',
             flexDirection: 'column',
-            maxHeight: isMobile ? '300px' : '100%',
+            maxHeight: isMobile ? '300px' : '360px',
             overflow: 'hidden'
           }}>
             <div style={{ 
@@ -861,12 +859,11 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               </Tag>
             </div>
             
-            {/* 手续费汇总 - 根据品种配置自动计算 */}
+            {/* 手续费汇总 */}
             {(() => {
               const totalFee = dayData?.trades.reduce((sum, t) => sum + calculateTradeFee(t), 0) || 0;
-              const grossPnL = reviewStats.totalPnL + totalFee; // 毛盈亏 = 净盈亏 + 手续费
+              const grossPnL = reviewStats.totalPnL + totalFee;
               const feeRatio = grossPnL !== 0 ? Math.abs(totalFee / grossPnL * 100) : 0;
-              
               return (
                 <div style={{ 
                   padding: '12px 20px', 
@@ -896,7 +893,6 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               {dayData?.trades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime)).map((trade, i) => {
                 const fee = calculateTradeFee(trade);
                 const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-                
                 return (
                   <div 
                     key={i} 
@@ -904,7 +900,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'space-between',
-                      padding: '12px 20px',
+                      padding: '10px 20px',
                       transition: 'all 0.2s',
                       cursor: 'default',
                       borderBottom: i === dayData.trades.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.02)'
@@ -914,15 +910,10 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 8, 
+                        width: 32, height: 32, borderRadius: 8, 
                         background: trade.pnl >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 10,
-                        fontWeight: 800,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 800,
                         color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
                       }}>
                         {trade.direction === 'LONG' ? 'BUY' : 'SEL'}
@@ -930,11 +921,7 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                           {trade.instrumentCode}
-                          {quantity > 1 && (
-                            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 4 }}>
-                              ×{quantity}
-                            </span>
-                          )}
+                          {quantity > 1 && <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 4 }}>×{quantity}</span>}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
                           {dayjs(trade.openTime).format('HH:mm:ss')}
@@ -942,18 +929,11 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ 
-                        fontSize: 14, 
-                        fontWeight: 700, 
-                        fontFamily: 'var(--font-mono)',
-                        color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'
-                      }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: trade.pnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>
                         {trade.pnl >= 0 ? '+' : '-'}${Math.abs(trade.pnl).toFixed(2)}
                       </div>
                       {fee > 0 && (
-                        <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                          费 ${fee.toFixed(2)}
-                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>费 ${fee.toFixed(2)}</div>
                       )}
                     </div>
                   </div>
@@ -961,159 +941,133 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               })}
             </div>
           </div>
+        </div>
 
-          {/* 第三栏：复盘表单 */}
+        {/* 下方：复盘表单（全宽） */}
+        <div style={{ 
+          background: 'var(--bg-secondary)', 
+          border: '1px solid var(--border-primary)', 
+          borderRadius: isMobile ? 12 : 16,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+          padding: isMobile ? '0 12px 24px' : 0
+        }}>
           <div style={{ 
-            background: 'var(--bg-secondary)', 
-            border: '1px solid var(--border-primary)', 
-            borderRadius: isMobile ? 12 : 16,
+            padding: '16px 24px', 
+            borderBottom: '1px solid var(--border-primary)',
             display: 'flex',
-            flexDirection: 'column',
-            boxShadow: isMobile ? 'none' : '0 8px 32px rgba(0,0,0,0.2)',
-            maxHeight: isMobile ? 'auto' : '100%',
-            overflowY: isMobile ? 'visible' : 'auto'
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            <div style={{ 
-              padding: '16px 24px', 
-              borderBottom: '1px solid var(--border-primary)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <EditOutlined style={{ color: 'var(--color-brand)' }} />
-                <div style={{ fontSize: 14, fontWeight: 700 }}>手动复盘</div>
-              </div>
-              {savedReviews[selectedDate] && (
-                <Tag icon={<CheckCircleOutlined />} color="success" style={{ borderRadius: 4, fontSize: 10, margin: 0 }}>
-                  已保存
-                </Tag>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <EditOutlined style={{ color: 'var(--color-brand)' }} />
+              <div style={{ fontSize: 14, fontWeight: 700 }}>手动复盘</div>
             </div>
-            
-            <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
-              {/* 计划执行状态 - 视觉优化 */}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>执行纪律</div>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(3, 1fr)', 
-                  gap: 12,
-                  background: 'rgba(255,255,255,0.02)',
-                  padding: 4,
-                  borderRadius: 10
-                }}>
-                  {[
-                    { value: 'yes', label: '完全执行', color: 'var(--color-profit)' },
-                    { value: 'partial', label: '部分执行', color: 'var(--color-brand)' },
-                    { value: 'no', label: '偏离计划', color: 'var(--color-loss)' }
-                  ].map(opt => (
-                    <div
-                      key={opt.value}
-                      onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
-                      style={{
-                        padding: '10px 0',
-                        textAlign: 'center',
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        background: reviewForm.followedPlan === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
-                        color: reviewForm.followedPlan === opt.value ? opt.color : 'var(--text-tertiary)',
-                        border: reviewForm.followedPlan === opt.value ? `1px solid ${opt.color}44` : '1px solid transparent'
-                      }}
-                    >
-                      {opt.label}
-                    </div>
-                  ))}
-                </div>
+            {savedReviews[selectedDate] && (
+              <Tag icon={<CheckCircleOutlined />} color="success" style={{ borderRadius: 4, fontSize: 10, margin: 0 }}>
+                已保存
+              </Tag>
+            )}
+          </div>
+          
+          <div style={{ padding: isMobile ? 16 : 24, display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {/* 执行纪律 */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>执行纪律</div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: 12,
+                background: 'rgba(255,255,255,0.02)',
+                padding: 4,
+                borderRadius: 10,
+                maxWidth: 360
+              }}>
+                {[
+                  { value: 'yes', label: '完全执行', color: 'var(--color-profit)' },
+                  { value: 'partial', label: '部分执行', color: 'var(--color-brand)' },
+                  { value: 'no', label: '偏离计划', color: 'var(--color-loss)' }
+                ].map(opt => (
+                  <div
+                    key={opt.value}
+                    onClick={() => setReviewForm({...reviewForm, followedPlan: opt.value})}
+                    style={{
+                      padding: '10px 0',
+                      textAlign: 'center',
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      background: reviewForm.followedPlan === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      color: reviewForm.followedPlan === opt.value ? opt.color : 'var(--text-tertiary)',
+                      border: reviewForm.followedPlan === opt.value ? `1px solid ${opt.color}44` : '1px solid transparent'
+                    }}
+                  >
+                    {opt.label}
+                  </div>
+                ))}
               </div>
+            </div>
 
-              {/* 市场与决策 */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>市场环境</div>
-                  <Input.TextArea
-                    placeholder="今日行情特征、波动率、关键位置..."
-                    value={reviewForm.marketCondition}
-                    onChange={e => setReviewForm({...reviewForm, marketCondition: e.target.value})}
-                    autoSize={{ minRows: 4, maxRows: 8 }} // 增加最小行数
-                    style={{ 
-                      background: 'rgba(255,255,255,0.02)', 
-                      borderColor: 'var(--border-primary)', 
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 13
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>经验教训</div>
-                  <Input.TextArea
-                    placeholder="今日核心感悟、需要警惕的信号..."
-                    value={reviewForm.lessonsLearned}
-                    onChange={e => setReviewForm({...reviewForm, lessonsLearned: e.target.value})}
-                    autoSize={{ minRows: 4, maxRows: 8 }} // 增加最小行数
-                    style={{ 
-                      background: 'rgba(255,255,255,0.02)', 
-                      borderColor: 'var(--border-primary)', 
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 13
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 决策分析 */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-profit)', opacity: 0.8 }}>最佳决策 (Keep)</div>
-                  <Input.TextArea
-                    placeholder="哪些操作符合预期且值得坚持..."
-                    value={reviewForm.bestDecision}
-                    onChange={e => setReviewForm({...reviewForm, bestDecision: e.target.value})}
-                    autoSize={{ minRows: 4, maxRows: 6 }} // 增加最小行数
-                    style={{ 
-                      background: 'rgba(16, 185, 129, 0.02)', 
-                      borderColor: 'rgba(16, 185, 129, 0.1)', 
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 13
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-loss)', opacity: 0.8 }}>最差决策 (Change)</div>
-                  <Input.TextArea
-                    placeholder="哪些操作属于失误或情绪化交易..."
-                    value={reviewForm.worstDecision}
-                    onChange={e => setReviewForm({...reviewForm, worstDecision: e.target.value})}
-                    autoSize={{ minRows: 4, maxRows: 6 }} // 增加最小行数
-                    style={{ 
-                      background: 'rgba(244, 63, 94, 0.02)', 
-                      borderColor: 'rgba(244, 63, 94, 0.1)', 
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 13
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 改进计划 */}
+            {/* 市场环境 + 经验教训 - 双栏 */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 20 : 24 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-brand)' }}>明日行动指南</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>市场环境</div>
                 <RichEditor
-                  placeholder="具体、可量化的改进措施..."
-                  value={reviewForm.improvementPlan}
-                  onChange={value => setReviewForm({...reviewForm, improvementPlan: value})}
-                  minHeight={150}
+                  placeholder="今日行情特征、波动率、关键位置..."
+                  value={reviewForm.marketCondition}
+                  onChange={value => setReviewForm({...reviewForm, marketCondition: value})}
+                  minHeight={140}
+                  maxHeight={300}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>经验教训</div>
+                <RichEditor
+                  placeholder="今日核心感悟、需要警惕的信号..."
+                  value={reviewForm.lessonsLearned}
+                  onChange={value => setReviewForm({...reviewForm, lessonsLearned: value})}
+                  minHeight={140}
+                  maxHeight={300}
                 />
               </div>
             </div>
 
+            {/* 最佳决策 + 最差决策 - 双栏 */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 20 : 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-profit)', opacity: 0.9 }}>最佳决策 (Keep)</div>
+                <RichEditor
+                  placeholder="哪些操作符合预期且值得坚持..."
+                  value={reviewForm.bestDecision}
+                  onChange={value => setReviewForm({...reviewForm, bestDecision: value})}
+                  minHeight={140}
+                  maxHeight={300}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-loss)', opacity: 0.9 }}>最差决策 (Change)</div>
+                <RichEditor
+                  placeholder="哪些操作属于失误或情绪化交易..."
+                  value={reviewForm.worstDecision}
+                  onChange={value => setReviewForm({...reviewForm, worstDecision: value})}
+                  minHeight={140}
+                  maxHeight={300}
+                />
+              </div>
+            </div>
+
+            {/* 明日行动指南 - 全宽 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-brand)' }}>明日行动指南</div>
+              <RichEditor
+                placeholder="具体、可量化的改进措施..."
+                value={reviewForm.improvementPlan}
+                onChange={value => setReviewForm({...reviewForm, improvementPlan: value})}
+                minHeight={160}
+                maxHeight={400}
+              />
+            </div>
           </div>
         </div>
       </div>
