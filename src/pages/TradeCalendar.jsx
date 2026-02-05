@@ -25,6 +25,7 @@ import {
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import StorageService from '../services/storage';
+import RichEditor from '../components/RichEditor';
 
 dayjs.extend(isoWeek);
 
@@ -1104,19 +1105,11 @@ const TradeCalendar = ({ activeRecordId = 'all' }) => {
               {/* 改进计划 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-brand)' }}>明日行动指南</div>
-                <Input.TextArea
+                <RichEditor
                   placeholder="具体、可量化的改进措施..."
                   value={reviewForm.improvementPlan}
-                  onChange={e => setReviewForm({...reviewForm, improvementPlan: e.target.value})}
-                  autoSize={{ minRows: 3, maxRows: 6 }} // 增加最小行数
-                  style={{ 
-                    background: 'rgba(212, 175, 55, 0.02)', 
-                    borderColor: 'rgba(212, 175, 55, 0.1)', 
-                    borderRadius: 12,
-                    padding: 12,
-                    fontSize: 13,
-                    fontWeight: 500
-                  }}
+                  onChange={value => setReviewForm({...reviewForm, improvementPlan: value})}
+                  minHeight={150}
                 />
               </div>
             </div>

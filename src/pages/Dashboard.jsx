@@ -63,15 +63,15 @@ const TICK_VALUES = {
   'ZB': 31.25, 'ZN': 15.625, '6E': 12.5, 'M2K': 0.5, 'MES': 1.25, 'MNQ': 0.5, 'MGC': 1,
 };
 
-// 交易员等级定义（基于复盘笔数）
+// 交易员等级定义（基于交易笔数）
 const TRADER_LEVELS = [
   { level: 1, name: '新手交易员', icon: 'L1', minTrades: 0 },
-  { level: 2, name: '初级交易员', icon: 'L2', minTrades: 100 },
-  { level: 3, name: '进阶交易员', icon: 'L3', minTrades: 500 },
-  { level: 4, name: '专业交易员', icon: 'L4', minTrades: 1000 },
-  { level: 5, name: '资深交易员', icon: 'L5', minTrades: 2500 },
-  { level: 6, name: '精英交易员', icon: 'L6', minTrades: 5000 },
-  { level: 7, name: '传奇交易员', icon: 'L7', minTrades: 10000 },
+  { level: 2, name: '初级交易员', icon: 'L2', minTrades: 1 },
+  { level: 3, name: '进阶交易员', icon: 'L3', minTrades: 1 },
+  { level: 4, name: '专业交易员', icon: 'L4', minTrades: 1 },
+  { level: 5, name: '资深交易员', icon: 'L5', minTrades: 2 },
+  { level: 6, name: '精英交易员', icon: 'L6', minTrades: 3 },
+  { level: 7, name: '传奇交易员', icon: 'L7', minTrades: 10 },
 ];
 
 const getTickValue = (instrumentCode, instruments) => {

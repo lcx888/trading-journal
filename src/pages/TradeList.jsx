@@ -1168,7 +1168,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         // 普通单笔交易
         await StorageService.addStrategyToTrade(trade.id, strategyId);
         setTrades(prev => prev.map(t => t.id === trade.id ? { ...t, strategyIds: [...(t.strategyIds || []), strategyId] } : t));
-        message.success('标签已添加');
+      message.success('标签已添加');
       }
     } catch (e) { 
       console.error('添加策略失败:', e);
@@ -1196,7 +1196,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
         // 普通单笔交易
         await StorageService.removeStrategyFromTrade(trade.id, strategyId);
         setTrades(prev => prev.map(t => t.id === trade.id ? { ...t, strategyIds: (t.strategyIds || []).filter(id => id !== strategyId) } : t));
-        message.success('标签已移除');
+      message.success('标签已移除');
       }
     } catch (e) { 
       console.error('移除策略失败:', e);
@@ -1235,7 +1235,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       } else {
         // 普通单笔交易
         await StorageService.updateTrade(editingTrade.id, updateData);
-        message.success('保存成功');
+      message.success('保存成功');
       }
       
       setEditModalVisible(false);
@@ -3894,7 +3894,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
             placeholder="记录你的交易复盘..."
             minHeight={220}
             maxHeight={350}
-          />
+            />
         </Form>
       </Drawer>
 

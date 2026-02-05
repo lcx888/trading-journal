@@ -95,7 +95,7 @@ const TradingStrategies = ({ onNavigate }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
+
   useEffect(() => {
     loadStrategies();
     loadInstruments();
@@ -281,7 +281,7 @@ const TradingStrategies = ({ onNavigate }) => {
       render: (desc) => (
         <span className="text-secondary text-xs">
           {desc || <span className="text-tertiary italic">无描述</span>}
-        </span>
+          </span>
       ),
     },
     {
@@ -377,7 +377,7 @@ const TradingStrategies = ({ onNavigate }) => {
           >
             新建策略
           </Button>
-        </div>
+      </div>
       </div>
 
       {/* 统计概览 */}
@@ -472,48 +472,48 @@ const TradingStrategies = ({ onNavigate }) => {
         }
       >
         <Form form={form} layout="vertical" className="mt-2">
-          <Form.Item
-            name="name"
+              <Form.Item
+                name="name"
             label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">策略名称</span>}
             rules={[{ required: true, message: '请输入策略名称' }]}
-          >
-            <Input 
+              >
+                <Input 
               placeholder="例如：趋势跟随系统" 
-              maxLength={20} 
+                  maxLength={20} 
               className="bg-bg-tertiary border-border-primary text-primary"
-            />
-          </Form.Item>
+                />
+              </Form.Item>
 
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item 
-              name="category" 
+              <Form.Item
+                name="category"
               label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">策略类型</span>}
-            >
+              >
               <Select className="bg-bg-tertiary">
-                {STRATEGY_CATEGORIES.map(cat => (
-                  <Select.Option key={cat.value} value={cat.value}>
+                  {STRATEGY_CATEGORIES.map(cat => (
+                    <Select.Option key={cat.value} value={cat.value}>
                     <div className="flex items-center gap-2">
                       {cat.icon}
                       <span>{cat.label}</span>
                     </div>
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            
-            <Form.Item 
-              name="color" 
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+          <Form.Item
+            name="color"
               label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">标识颜色</span>}
-            >
+          >
               <div className="flex items-center gap-3 bg-bg-tertiary p-2 rounded border border-border-primary h-[32px]">
                 <ColorPicker presets={[{ label: '推荐', colors: PRESET_COLORS }]} size="small" />
                 <span className="text-xs text-secondary">用于图表区分</span>
-              </div>
-            </Form.Item>
+            </div>
+          </Form.Item>
           </div>
 
-          <Form.Item 
-            name="description" 
+          <Form.Item
+            name="description"
             label={<span className="text-secondary text-xs uppercase tracking-wider font-semibold">执行逻辑 / 规则</span>}
           >
             <Input.TextArea 
