@@ -17,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import multer from 'multer';
+import fetch from 'node-fetch';
 import { prisma } from './db.js';
 import { DEFAULT_INSTRUMENTS } from './defaults.js';
 import { authRequired, adminRequired } from './middleware/auth.js';
