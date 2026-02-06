@@ -53,7 +53,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import dayjs from 'dayjs';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../components/Chart';
 import ReactMarkdown from 'react-markdown';
 import StorageService from '../services/storage';
 import { generateAIAnalysis } from '../services/aiAnalysis';
@@ -1077,9 +1077,8 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
 
   useEffect(() => {
-    loadInstruments();
-    loadRecords();
-    loadHistory();
+    // 并行加载所有初始数据
+    Promise.all([loadInstruments(), loadRecords(), loadHistory()]);
     setAnalysis(null);
     // 同步外部传入的 activeRecordId 到 filters
     setFilters(prev => ({ ...prev, recordId: activeRecordId || 'all' }));
@@ -1502,12 +1501,127 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
     </div>
   );
 
+  // 当前活跃 Tab
+  const [activeTab, setActiveTab] = useState('chat');
+
   return (
     <div className="max-w-[1600px] mx-auto">
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-full">
+      {/* ========== 顶部 Tab 导航 ========== */}
+      <div style={{ 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 20, borderBottom: '1px solid var(--border-primary)', paddingBottom: 0 
+      }}>
+        <div style={{ display: 'flex', gap: 0 }}>
+          {[
+            { key: 'chat', label: '💬 AI 对话', desc: '提问交易问题' },
+            { key: 'diagnosis', label: '📊 交易诊断', desc: '分析交易数据' },
+            { key: 'history', label: '📁 分析历史', desc: `${historyList.length} 条` },
+          ].map(tab => (
+            <div
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: '12px 24px',
+                cursor: 'pointer',
+                borderBottom: activeTab === tab.key ? '2px solid var(--color-brand)' : '2px solid transparent',
+                color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                fontWeight: activeTab === tab.key ? 700 : 500,
+                fontSize: 14,
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab.label}
+            </div>
+          ))}
+        </div>
+      </div>
 
-      {/* ========== 左侧历史记录面板（重新设计）========== */}
-      <div className="w-full lg:w-72 flex-shrink-0 order-2 lg:order-1">
+      {/* ========== Tab 1: AI 对话 ========== */}
+      {activeTab === 'chat' && (
+        <div style={{ 
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', 
+          borderRadius: 12, overflow: 'hidden', 
+          display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)' 
+        }}>
+          {/* 对话区 */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+            {chatMessages.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 20 }}>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bot size={32} style={{ color: 'var(--text-secondary)' }} />
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>你好！我是你的 AI 交易教练</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-tertiary)', maxWidth: 400 }}>可以分析你的交易数据、诊断交易问题、或者回答任何交易相关的问题</div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 500 }}>
+                  {['分析我本周的交易表现', '我最大的交易弱点是什么？', '如何优化止损策略？', '不同品种的盈亏对比', '情绪化交易怎么控制？', '帮我制定明日交易计划'].map(q => (
+                    <div key={q} onClick={() => { setChatInput(q); }}
+                      style={{ padding: '8px 16px', borderRadius: 20, fontSize: 12, cursor: 'pointer', background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-secondary)', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.color = 'var(--color-brand)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-primary)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                    >{q}</div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ 
+                      maxWidth: '70%', borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      padding: '12px 16px', fontSize: 14, lineHeight: 1.7,
+                      background: msg.role === 'user' ? 'var(--color-brand)' : 'var(--bg-tertiary)',
+                      color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
+                    }}>
+                      {msg.role === 'assistant' ? (
+                        <ReactMarkdown components={{ p: ({children}) => <p style={{ margin: '0 0 8px' }}>{children}</p>, strong: ({children}) => <strong style={{ fontWeight: 700 }}>{children}</strong> }}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      ) : msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{ padding: '12px 16px', borderRadius: 16, background: 'var(--bg-tertiary)', display: 'flex', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-brand)', animation: 'pulse 1s infinite' }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-brand)', animation: 'pulse 1s infinite 0.2s' }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-brand)', animation: 'pulse 1s infinite 0.4s' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {/* 输入区 */}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-primary)', background: 'var(--bg-tertiary)', display: 'flex', gap: 12 }}>
+            <Input
+              placeholder="输入你的交易问题..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onPressEnter={handleChatSubmit}
+              disabled={chatLoading}
+              size="large"
+              style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 8 }}
+            />
+            <Button type="primary" icon={<Send size={14} />} onClick={handleChatSubmit} loading={chatLoading} size="large"
+              style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: '#000', borderRadius: 8, fontWeight: 600, padding: '0 24px' }}>
+              发送
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== Tab 2: 交易诊断 ========== */}
+      {activeTab === 'diagnosis' && (
+      <>
+      <div className="min-h-full">
+      <div style={{ display: 'none' }}>
+
+      {/* 原有的诊断内容保持不变，但移除左侧历史面板 */}
+      {/* 以下是原始内容的包装 */}
+      <div className="w-full"> {/* 隐藏原左侧面板 */}
         <div 
           className="rounded-lg sticky top-4" 
           style={{ 
@@ -1699,8 +1813,9 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
         </div>
       </div>
 
-      {/* ========== 右侧主内容区 ========== */}
-      <div className="flex-1 space-y-4 lg:space-y-6 min-w-0 order-1 lg:order-2">
+      </div> {/* 关闭隐藏的左侧面板 */}
+      {/* ========== 诊断主内容区 ========== */}
+      <div className="space-y-4 lg:space-y-6">
 
         {/* 查看历史分析 */}
         {viewingHistory && (
@@ -3175,27 +3290,69 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
           </div>
         )}
       </Modal>
+      </div>
+      </>
+      )}
 
-      {/* ========== AI 问答对话框 ========== */}
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <div style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 6, 
-              background: 'var(--color-brand)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}>
-              <Bot size={16} style={{ color: 'var(--bg-primary)' }} />
+      {/* ========== Tab 3: 分析历史 ========== */}
+      {activeTab === 'history' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>分析历史</div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>{historyList.length} 条诊断记录</div>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>TradeWhy.AI 交易助手</span>
+            <Button type="primary" onClick={() => { setViewingHistory(null); setAnalysis(null); setActiveTab('diagnosis'); }}
+              style={{ background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: '#000', fontWeight: 600 }}>
+              新建诊断
+            </Button>
           </div>
-        }
-        open={chatVisible}
-        onCancel={() => setChatVisible(false)}
+          {historyLoading ? (
+            <div style={{ padding: 60, textAlign: 'center' }}><Spin size="large" /></div>
+          ) : historyList.length === 0 ? (
+            <div style={{ padding: 80, textAlign: 'center' }}>
+              <Bot size={40} style={{ color: 'var(--text-tertiary)', marginBottom: 12 }} />
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>暂无分析记录</div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>去「交易诊断」Tab 开始你的第一次 AI 分析</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {historyList.map(item => (
+                <div key={item.id} onClick={() => { viewHistoryDetail(item.id); setActiveTab('diagnosis'); }}
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-primary)'; e.currentTarget.style.transform = 'none'; }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1, marginRight: 8 }}>{item.title}</div>
+                    {item.overallScore && (
+                      <div style={{ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        background: item.overallScore >= 60 ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)',
+                        color: item.overallScore >= 60 ? 'var(--color-profit)' : 'var(--color-loss)' }}>{item.overallScore}分</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                    <span>{item.totalTrades} 笔</span>
+                    <span style={{ color: item.totalPnL >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}>{item.totalPnL >= 0 ? '+' : ''}${item.totalPnL?.toLocaleString()}</span>
+                    <span>胜率 {item.winRate?.toFixed(0)}%</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}</div>
+                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Popconfirm title="确认删除？" onConfirm={e => { e.stopPropagation(); handleDeleteHistory(item.id); }} okText="删除" cancelText="取消">
+                      <Button type="text" size="small" danger icon={<Trash2 size={12} />} onClick={e => e.stopPropagation()} />
+                    </Popconfirm>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== AI 问答对话框（已由 Tab 替代，隐藏） ========== */}
+      <Modal
+        title={null}
+        open={false}
         footer={null}
         width={700}
       >
@@ -3388,7 +3545,6 @@ const AIAnalysis = ({ activeRecordId = 'all', subscription, onShowUpgrade }) => 
           if (onShowUpgrade) onShowUpgrade();
         }}
       />
-      </div>
     </div>
   );
 };

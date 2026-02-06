@@ -2,7 +2,12 @@
  * Jigsaw RTP-Positions 文件解析服务
  * 解析 Jigsaw 交易平台导出的 RTP-Positions.xls 文件
  */
-import * as XLSX from 'xlsx';
+// XLSX 动态导入 - 仅在解析文件时按需加载 (~400KB)
+let XLSX = null;
+const ensureXLSX = async () => {
+  if (!XLSX) XLSX = await import('xlsx');
+  return XLSX;
+};
 import { StorageService } from './storage';
 import { getMarketSession } from '../utils/timezone';
 
@@ -231,6 +236,7 @@ export const parseJigsawFile = async (file) => {
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target.result);
+        await ensureXLSX();
         const workbook = XLSX.read(data, { type: 'array', cellDates: false }); // 不自动解析日期
         
         const instruments = await StorageService.getInstruments();
@@ -476,9 +482,10 @@ export const detectFileType = async (file) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target.result);
+        await ensureXLSX();
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];

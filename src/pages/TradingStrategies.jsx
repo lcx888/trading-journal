@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Table, Button, Modal, Form, Input, Select, Tag, Space,
   Popconfirm, message, Row, Col, ColorPicker, Tooltip, Drawer, Empty, Spin
@@ -644,7 +644,7 @@ const TradingStrategies = ({ onNavigate }) => {
         footer={null}
         open={reviewModalVisible}
         onClose={() => setReviewModalVisible(false)}
-        width={isMobile ? '100%' : 'calc(100vw - 240px)'}
+        width={'calc(100vw - 240px)'}
         placement="right"
         className="review-fullscreen-drawer"
         styles={{ body: { padding: 0, overflow: 'hidden' } }}

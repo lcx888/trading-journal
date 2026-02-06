@@ -56,21 +56,25 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
   });
 
   useEffect(() => {
-    loadData();
-    loadInstruments();
+    loadAll();
   }, [activeRecordId]);
 
-  const loadData = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      let allTrades = await StorageService.getAllTrades();
+      const [allTrades, instrumentData] = await Promise.all([
+        StorageService.getAllTrades(),
+        StorageService.getInstruments(),
+      ]);
+      let filtered = allTrades;
       if (activeRecordId && activeRecordId !== 'all') {
-        allTrades = allTrades.filter(t => t.recordId === activeRecordId);
+        filtered = allTrades.filter(t => t.recordId === activeRecordId);
       }
-      allTrades.sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
-      setTrades(allTrades);
+      filtered.sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
+      setTrades(filtered);
+      setInstruments(instrumentData || []);
     } catch (error) {
-      console.error('Failed to load trades:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
@@ -83,15 +87,6 @@ const RiskControl = ({ activeRecordId = 'all' }) => {
       return mae === undefined || mae === null || mae === 0;
     });
   }, [trades]);
-
-  const loadInstruments = async () => {
-    try {
-      const data = await StorageService.getInstruments();
-      setInstruments(data || []);
-    } catch (error) {
-      console.error('Failed to load instruments:', error);
-    }
-  };
 
   // 保存配置
   const saveConfig = (values) => {

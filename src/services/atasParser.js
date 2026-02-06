@@ -2,7 +2,12 @@
  * ATAS 文件解析服务
  * 解析 ATAS_statistics_realtime_*.xlsx 文件
  */
-import * as XLSX from 'xlsx';
+// XLSX 动态导入 - 仅在解析文件时按需加载 (~400KB)
+let XLSX = null;
+const ensureXLSX = async () => {
+  if (!XLSX) XLSX = await import('xlsx');
+  return XLSX;
+};
 import { StorageService } from './storage';
 import { getMarketSession } from '../utils/timezone';
 
@@ -409,6 +414,7 @@ export const parseATASFile = async (file) => {
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target.result);
+        await ensureXLSX();
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
         const instruments = await StorageService.getInstruments();

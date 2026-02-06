@@ -18,12 +18,14 @@ import {
   ReloadOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from '../components/Chart';
 import dayjs from 'dayjs';
 import StorageService from '../services/storage';
 import AnimatedNumber from '../components/AnimatedNumber';
 import EmptyState from '../components/EmptyState';
 import RiskStatusBar from '../components/RiskStatusBar';
+import { calculateTradeFee, getNetPnL, ticksToUSD } from '../utils/tradeCalc';
+import { apiRequest } from '../services/api';
 
 const { RangePicker } = DatePicker;
 
@@ -57,51 +59,20 @@ const COLORS = {
   border: 'rgba(255, 255, 255, 0.05)',
 };
 
-// 品种 tick 价值映射（美元/tick）
-const TICK_VALUES = {
-  'GC': 10, 'ES': 12.5, 'NQ': 5, 'RTY': 5, 'CL': 10, 'SI': 25, 'YM': 5,
-  'ZB': 31.25, 'ZN': 15.625, '6E': 12.5, 'M2K': 0.5, 'MES': 1.25, 'MNQ': 0.5, 'MGC': 1,
-};
-
-// 交易员等级定义（基于交易笔数）
+// 交易员成长路径（基于知识库文档数量，5000 篇满级）
 const TRADER_LEVELS = [
-  { level: 1, name: '新手交易员', icon: 'L1', minTrades: 0 },
-  { level: 2, name: '初级交易员', icon: 'L2', minTrades: 1 },
-  { level: 3, name: '进阶交易员', icon: 'L3', minTrades: 1 },
-  { level: 4, name: '专业交易员', icon: 'L4', minTrades: 1 },
-  { level: 5, name: '资深交易员', icon: 'L5', minTrades: 2 },
-  { level: 6, name: '精英交易员', icon: 'L6', minTrades: 3 },
-  { level: 7, name: '传奇交易员', icon: 'L7', minTrades: 10 },
+  { level: 1, name: '交易新手',   icon: 'LV.1', minDocs: 0 },
+  { level: 2, name: '数据记录者', icon: 'LV.2', minDocs: 50 },
+  { level: 3, name: '复盘学徒',   icon: 'LV.3', minDocs: 150 },
+  { level: 4, name: '模式识别者', icon: 'LV.4', minDocs: 350 },
+  { level: 5, name: '策略构建师', icon: 'LV.5', minDocs: 650 },
+  { level: 6, name: '交易分析师', icon: 'LV.6', minDocs: 1000 },
+  { level: 7, name: '风险管理者', icon: 'LV.7', minDocs: 1500 },
+  { level: 8, name: '系统交易员', icon: 'LV.8', minDocs: 2100 },
+  { level: 9, name: '资深导师',   icon: 'LV.9', minDocs: 2800 },
+  { level: 10, name: '数据大师',  icon: 'LV.10', minDocs: 3600 },
+  { level: 11, name: '传奇交易员', icon: 'MAX', minDocs: 5000 },
 ];
-
-const getTickValue = (instrumentCode, instruments) => {
-  const instrument = instruments.find(i => i.code === instrumentCode);
-  if (instrument?.tickValue) return instrument.tickValue;
-  return TICK_VALUES[instrumentCode] || 5;
-};
-
-const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
-  if (ticks === undefined || ticks === null) return 0;
-  const tickValue = getTickValue(instrumentCode, instruments);
-  return ticks * tickValue * Math.abs(quantity || 1);
-};
-
-// 计算单笔交易手续费（双边：开仓+平仓）
-const calculateTradeFee = (trade, instruments) => {
-  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
-  const instrument = instruments?.find(i => 
-    i.code === tradeCode || 
-    i.code?.toUpperCase() === tradeCode?.toUpperCase()
-  );
-  const feeRate = instrument?.feeRate || 0;
-  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-  return feeRate * quantity * 2;
-};
-
-// 计算单笔交易净盈亏（扣除手续费）
-const getNetPnL = (trade, instruments) => {
-  return (trade.pnl || 0) - calculateTradeFee(trade, instruments);
-};
 
 const QuickFilterTags = ({ quickFilter, setQuickFilter }) => {
   const filters = [
@@ -140,6 +111,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   const [chartPeriod, setChartPeriod] = useState('all');
   const [quickFilter, setQuickFilter] = useState(null);
   const [traderName, setTraderName] = useState('');
+  const [knowledgeCount, setKnowledgeCount] = useState(0); // 知识库文档数
   const [quote, setQuote] = useState('');
 
   // 交易金句库
@@ -177,10 +149,12 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fetchedTrades, instrumentList] = await Promise.all([
+      const [fetchedTrades, instrumentList, knowledgeData] = await Promise.all([
         StorageService.getAllTrades(),
         StorageService.getInstruments(),
+        apiRequest('/knowledge').catch(() => ({ total: 0 })),
       ]);
+      setKnowledgeCount(knowledgeData?.total || 0);
 
       setInstruments(instrumentList);
       setAllTrades(fetchedTrades); // 保存全部交易数据
@@ -225,24 +199,30 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
 
       setTrades(filteredTrades);
       
-      // 使用净盈亏（扣除手续费）计算统计
-      const s = {
-        totalTrades: filteredTrades.length,
-        totalPnL: filteredTrades.reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
-        winRate: filteredTrades.length > 0 ? (filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).length / filteredTrades.length) * 100 : 0,
-        avgTrade: filteredTrades.length > 0 ? filteredTrades.reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0) / filteredTrades.length : 0,
-        profitFactor: filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).length > 0 ? 
-          Math.abs(filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0) / filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0)) : 
-          filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).length > 0 ? Infinity : 0,
-        maxMAE: filteredTrades.length > 0 ? Math.max(...filteredTrades.map(t => {
+      // 单次遍历计算所有统计（避免重复 filter/reduce 6+ 次）
+      let totalPnL = 0, totalProfit = 0, totalLoss = 0, winCount = 0, maxMAE = 0;
+      for (const t of filteredTrades) {
+        const net = getNetPnL(t, instrumentList);
+        totalPnL += net;
+        if (net > 0) { totalProfit += net; winCount++; }
+        else if (net < 0) { totalLoss += net; }
           const mae = t.mae ?? t.jigsawData?.mae;
-          if (mae === undefined || mae === null) return 0;
-          return Math.abs(ticksToUSD(mae, t.instrumentCode, t.openQuantity, instrumentList));
-        })) : 0,
-        totalProfit: filteredTrades.filter(t => getNetPnL(t, instrumentList) > 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
-        totalLoss: filteredTrades.filter(t => getNetPnL(t, instrumentList) < 0).reduce((sum, t) => sum + getNetPnL(t, instrumentList), 0),
-      };
-      setStats(s);
+        if (mae !== undefined && mae !== null) {
+          const maeUSD = Math.abs(ticksToUSD(mae, t.instrumentCode, t.openQuantity, instrumentList));
+          if (maeUSD > maxMAE) maxMAE = maeUSD;
+        }
+      }
+      const n = filteredTrades.length;
+      setStats({
+        totalTrades: n,
+        totalPnL,
+        winRate: n > 0 ? (winCount / n) * 100 : 0,
+        avgTrade: n > 0 ? totalPnL / n : 0,
+        profitFactor: totalLoss < 0 ? Math.abs(totalProfit / totalLoss) : (totalProfit > 0 ? Infinity : 0),
+        maxMAE,
+        totalProfit,
+        totalLoss,
+      });
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -251,22 +231,19 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
   };
 
   const currentLevel = useMemo(() => {
-    if (!stats) return TRADER_LEVELS[0];
-    const totalTrades = stats.totalTrades || 0;
     for (let i = TRADER_LEVELS.length - 1; i >= 0; i--) {
-      if (totalTrades >= TRADER_LEVELS[i].minTrades) return TRADER_LEVELS[i];
+      if (knowledgeCount >= TRADER_LEVELS[i].minDocs) return TRADER_LEVELS[i];
     }
     return TRADER_LEVELS[0];
-  }, [stats]);
+  }, [knowledgeCount]);
 
-  const nextLevel = TRADER_LEVELS[currentLevel.level] || null;
+  const nextLevel = TRADER_LEVELS.find(l => l.level === currentLevel.level + 1) || null;
   const progress = useMemo(() => {
-    if (!nextLevel || !stats) return 100;
-    const currentTrades = stats.totalTrades || 0;
-    const startTrades = currentLevel.minTrades;
-    const targetTrades = nextLevel.minTrades;
-    return Math.min(Math.max(((currentTrades - startTrades) / (targetTrades - startTrades)) * 100, 2), 98);
-  }, [currentLevel, nextLevel, stats]);
+    if (!nextLevel) return 100;
+    const start = currentLevel.minDocs;
+    const target = nextLevel.minDocs;
+    return Math.min(Math.max(((knowledgeCount - start) / (target - start)) * 100, 2), 98);
+  }, [currentLevel, nextLevel, knowledgeCount]);
 
   const clearFilters = () => {
     setSelectedInstrument('ALL');
@@ -282,8 +259,8 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
     return parts.join(' + ');
   };
 
-  // 权益曲线图表（使用净盈亏）
-  const getPnLChartOption = () => {
+  // 权益曲线图表（使用净盈亏）- useMemo 防止每次渲染重算
+  const pnlChartOption = useMemo(() => {
     if (!trades || trades.length === 0) return {};
     const sortedTrades = [...trades].sort((a, b) => new Date(a.openTime) - new Date(b.openTime));
     let cumPnL = 0;
@@ -335,9 +312,9 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
       yAxis: { type: 'value', position: 'right', axisLine: { show: false }, axisLabel: { color: COLORS.textTertiary, fontSize: 10, fontFamily: 'JetBrains Mono', formatter: v => `$${v}` }, splitLine: { lineStyle: { color: COLORS.border, type: 'dashed' } } },
       series: [{ name: '权益曲线', type: 'line', data: data.map(d => d.value), smooth: 0.3, symbol: 'none', lineStyle: { width: 2, color: lineColor }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: lineColor + '30' }, { offset: 1, color: lineColor + '00' }] } }, markPoint: { data: markPoints } }]
     };
-  };
+  }, [trades, instruments]);
 
-  const getSessionChartOption = () => {
+  const sessionChartOption = useMemo(() => {
     if (!trades || trades.length === 0) return {};
     const bySession = {};
     trades.forEach(t => { bySession[t.marketSession || '其他'] = (bySession[t.marketSession || '其他'] || 0) + 1; });
@@ -346,12 +323,11 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
       tooltip: { trigger: 'item', backgroundColor: COLORS.bgSecondary, borderColor: COLORS.border },
       series: [{ type: 'pie', radius: ['55%', '80%'], avoidLabelOverlap: false, itemStyle: { borderRadius: 4, borderColor: COLORS.bgSecondary, borderWidth: 2 }, label: { show: false }, data: Object.entries(bySession).map(([name, val], i) => ({ name, value: val, itemStyle: { color: colors[i % colors.length] } })) }]
     };
-  };
+  }, [trades]);
 
-  const getInstrumentChartOption = () => {
+  const instrumentChartOption = useMemo(() => {
     if (!trades || trades.length === 0) return {};
     const byInstrument = {};
-    // 使用净盈亏（扣除手续费）
     trades.forEach(t => { byInstrument[t.instrumentCode] = (byInstrument[t.instrumentCode] || 0) + getNetPnL(t, instruments); });
     const codes = Object.keys(byInstrument).slice(0, 5);
     return {
@@ -361,7 +337,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
       yAxis: { type: 'category', data: codes, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: 500 } },
       series: [{ type: 'bar', data: codes.map(c => ({ value: Number(byInstrument[c].toFixed(2)), itemStyle: { color: byInstrument[c] >= 0 ? COLORS.profit : COLORS.loss, borderRadius: [0, 2, 2, 0] } })), barWidth: '50%', label: { show: true, position: 'right', color: COLORS.textSecondary, fontSize: 10, fontFamily: 'JetBrains Mono', formatter: p => `${p.value >= 0 ? '+' : ''}$${p.value.toLocaleString()}` } }]
     };
-  };
+  }, [trades, instruments]);
 
   // 计算最近7日趋势数据（使用净盈亏）
   const _trendData = useMemo(() => {
@@ -459,7 +435,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
                 </div>
               )}
               <div className="px-2 py-0.5 bg-[var(--color-brand-bg)] border border-[var(--color-brand)] rounded text-[8px] md:text-[9px] font-bold text-[var(--color-brand)]">
-                {currentLevel.name}
+                {currentLevel.icon} {currentLevel.name}
               </div>
             </div>
             <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] font-light flex items-center gap-2">
@@ -473,7 +449,7 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
             <div className="flex items-center justify-between mb-6">
               <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-[0.2em] font-medium">Career Roadmap</span>
               <span className="text-[10px] text-[var(--color-brand)] font-mono">
-                {nextLevel ? `NEXT: ${nextLevel.name} / 还需 ${(nextLevel.minTrades - (stats?.totalTrades || 0)).toLocaleString()} 笔` : 'MAX LEVEL ACHIEVED'}
+                {nextLevel ? `NEXT: ${nextLevel.icon} ${nextLevel.name} / 还需 ${(nextLevel.minDocs - knowledgeCount).toLocaleString()} 篇知识` : '👑 MAX LEVEL ACHIEVED'}
               </span>
             </div>
             
@@ -481,12 +457,13 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
               <div className="h-[1px] w-full bg-[var(--border-primary)] absolute top-1/2 -translate-y-1/2" />
               <div className="h-[1px] bg-[var(--color-brand)] absolute top-1/2 -translate-y-1/2 transition-all duration-1000 shadow-[0_0_8px_var(--color-brand)]" style={{ width: `${progress}%` }} />
               <div className="relative flex justify-between">
-                {TRADER_LEVELS.map((lv) => {
+                {TRADER_LEVELS.filter(lv => [1,3,5,7,9,11].includes(lv.level)).map((lv) => {
                   const isReached = currentLevel.level >= lv.level;
+                  const isCurrent = currentLevel.level === lv.level;
                   return (
-                    <div key={lv.level} className="relative flex flex-col items-center">
-                      <div className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 z-10 ${isReached ? 'bg-[var(--color-brand)] border-[var(--color-brand)] scale-125 shadow-[0_0_8px_var(--color-brand)]' : 'bg-[var(--bg-primary)] border-[var(--border-primary)]'}`} />
-                      <span className={`absolute -top-5 text-[9px] font-mono transition-colors ${isReached ? 'text-[var(--color-brand)] font-bold' : 'text-[var(--text-tertiary)]'}`}>{lv.icon}</span>
+                    <div key={lv.level} className="relative flex flex-col items-center" title={`${lv.name} (${lv.minDocs}篇)`}>
+                      <div className={`w-2 h-2 rounded-full border transition-all duration-500 z-10 ${isCurrent ? 'bg-[var(--color-brand)] border-[var(--color-brand)] scale-150 shadow-[0_0_10px_var(--color-brand)]' : isReached ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'bg-[var(--bg-primary)] border-[var(--border-primary)]'}`} />
+                      <span className={`absolute -top-6 font-mono text-[9px] transition-colors ${isCurrent ? 'text-[var(--color-brand)] font-bold' : isReached ? 'text-[var(--text-secondary)]' : 'text-[var(--text-tertiary)]'}`}>{lv.icon}</span>
                     </div>
                   );
                 })}
@@ -549,16 +526,16 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
               ))}
             </div>
           </div>
-          <ReactECharts option={getPnLChartOption()} style={{ height: '240px' }} className="md:!h-[320px]" notMerge={true} />
+          <ReactECharts option={pnlChartOption} style={{ height: '240px' }} className="md:!h-[320px]" notMerge={true} />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6">
           <div className="bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
             <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-4 md:mb-6">时段分布</div>
-            <div className="h-[140px] md:h-[180px]"><ReactECharts option={getSessionChartOption()} style={{ height: '100%' }} /></div>
+            <div className="h-[140px] md:h-[180px]"><ReactECharts option={sessionChartOption} style={{ height: '100%' }} /></div>
           </div>
           <div className="bg-[var(--bg-secondary)] p-4 md:p-6 rounded-lg border border-[var(--border-primary)]">
             <div className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] uppercase tracking-widest mb-4 md:mb-6">品种表现</div>
-            <div className="h-[140px] md:h-[180px]"><ReactECharts option={getInstrumentChartOption()} style={{ height: '100%' }} /></div>
+            <div className="h-[140px] md:h-[180px]"><ReactECharts option={instrumentChartOption} style={{ height: '100%' }} /></div>
           </div>
         </div>
       </div>

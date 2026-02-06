@@ -1,6 +1,30 @@
 import { apiRequest } from './api';
 import { getMarketSession } from '../utils/timezone';
 
+// ========== 智能缓存层 ==========
+// 对高频 GET 请求进行内存缓存，避免重复网络请求
+const _cache = new Map();
+const CACHE_TTL = 30_000; // 30秒过期
+
+const cachedRequest = async (key, fetcher) => {
+  const cached = _cache.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data;
+  }
+  const data = await fetcher();
+  _cache.set(key, { data, ts: Date.now() });
+  return data;
+};
+
+// 使指定缓存失效
+const invalidateCache = (...keys) => {
+  if (keys.length === 0) {
+    _cache.clear(); // 清除全部
+  } else {
+    keys.forEach(k => _cache.delete(k));
+  }
+};
+
 // 本地存储 key
 const USER_SETTINGS_KEY = 'tradewhy_user_settings';
 
@@ -63,15 +87,17 @@ export const StorageService = {
 
   // ========== 交易记录 ==========
   async getAllTrades() {
-    return await apiRequest('/trades');
+    return await cachedRequest('trades', () => apiRequest('/trades'));
   },
 
   async saveTrades(trades) {
     await apiRequest('/trades', { method: 'PUT', body: { trades } });
+    invalidateCache('trades');
   },
 
   async addTrades(newTrades) {
     await apiRequest('/trades/bulk', { method: 'POST', body: { trades: newTrades } });
+    invalidateCache('trades');
     return await this.getAllTrades();
   },
 
@@ -82,25 +108,29 @@ export const StorageService = {
 
   async updateTrade(tradeId, updates) {
     await apiRequest(`/trades/${tradeId}`, { method: 'PATCH', body: updates });
+    invalidateCache('trades');
     return await this.getAllTrades();
   },
 
   async deleteTrade(tradeId) {
     await apiRequest(`/trades/${tradeId}`, { method: 'DELETE' });
+    invalidateCache('trades');
     return await this.getAllTrades();
   },
 
   async clearAllTrades() {
     await apiRequest('/trades', { method: 'DELETE' });
+    invalidateCache('trades');
   },
 
   // ========== 品种配置 ==========
   async getInstruments() {
-    return await apiRequest('/instruments');
+    return await cachedRequest('instruments', () => apiRequest('/instruments'));
   },
 
   async saveInstruments(instruments) {
     await apiRequest('/instruments', { method: 'PUT', body: { instruments } });
+    invalidateCache('instruments');
   },
 
   async getInstrumentByCode(code) {
@@ -136,36 +166,44 @@ export const StorageService = {
 
   // ========== 时区批量更新 ==========
   async updateTradesTimezone(oldTimezone, newTimezone, timezoneType) {
-    return await apiRequest('/trades/update-timezone', {
+    const result = await apiRequest('/trades/update-timezone', {
       method: 'POST',
       body: { oldTimezone, newTimezone, timezoneType },
     });
+    invalidateCache('trades');
+    return result;
   },
 
   // ========== 导入记录 ==========
   async getImportHistory() {
-    return await apiRequest('/imports');
+    return await cachedRequest('imports', () => apiRequest('/imports'));
   },
 
   async addImportRecord(record) {
     await apiRequest('/imports', { method: 'POST', body: record });
+    invalidateCache('imports');
   },
 
   // ========== 交易记录本管理 ==========
   async getAllRecords() {
-    return await apiRequest('/records');
+    return await cachedRequest('records', () => apiRequest('/records'));
   },
 
   async createRecord(record) {
-    return await apiRequest('/records', { method: 'POST', body: record });
+    const result = await apiRequest('/records', { method: 'POST', body: record });
+    invalidateCache('records');
+    return result;
   },
 
   async updateRecord(recordId, updates) {
-    return await apiRequest(`/records/${recordId}`, { method: 'PATCH', body: updates });
+    const result = await apiRequest(`/records/${recordId}`, { method: 'PATCH', body: updates });
+    invalidateCache('records');
+    return result;
   },
 
   async deleteRecord(recordId) {
     await apiRequest(`/records/${recordId}`, { method: 'DELETE' });
+    invalidateCache('records', 'trades');
     return await this.getAllRecords();
   },
 
@@ -176,6 +214,7 @@ export const StorageService = {
 
   async refreshRecordStats(recordId) {
     await apiRequest(`/records/${recordId}/refresh-stats`, { method: 'POST' });
+    invalidateCache('records');
   },
 
   async getTradesByRecord(recordId) {
@@ -184,19 +223,24 @@ export const StorageService = {
 
   // ========== 交易策略管理 ==========
   async getAllStrategies() {
-    return await apiRequest('/strategies');
+    return await cachedRequest('strategies', () => apiRequest('/strategies'));
   },
 
   async createStrategy(strategy) {
-    return await apiRequest('/strategies', { method: 'POST', body: strategy });
+    const result = await apiRequest('/strategies', { method: 'POST', body: strategy });
+    invalidateCache('strategies');
+    return result;
   },
 
   async updateStrategy(strategyId, updates) {
-    return await apiRequest(`/strategies/${strategyId}`, { method: 'PATCH', body: updates });
+    const result = await apiRequest(`/strategies/${strategyId}`, { method: 'PATCH', body: updates });
+    invalidateCache('strategies');
+    return result;
   },
 
   async deleteStrategy(strategyId) {
     await apiRequest(`/strategies/${strategyId}`, { method: 'DELETE' });
+    invalidateCache('strategies');
     return await this.getAllStrategies();
   },
 
@@ -206,7 +250,9 @@ export const StorageService = {
   },
 
   async refreshStrategyUsageCounts() {
-    return await apiRequest('/strategies/refresh-usage', { method: 'POST' });
+    const result = await apiRequest('/strategies/refresh-usage', { method: 'POST' });
+    invalidateCache('strategies');
+    return result;
   },
 
   async addStrategyToTrade(tradeId, strategyId) {
@@ -229,7 +275,7 @@ export const StorageService = {
 
   // ========== 复盘记录管理 ==========
   async getAllReviews() {
-    return await apiRequest('/reviews');
+    return await cachedRequest('reviews', () => apiRequest('/reviews'));
   },
 
   async getReviewByDate(date) {
@@ -238,11 +284,14 @@ export const StorageService = {
   },
 
   async saveReview(review) {
-    return await apiRequest('/reviews', { method: 'POST', body: review });
+    const result = await apiRequest('/reviews', { method: 'POST', body: review });
+    invalidateCache('reviews');
+    return result;
   },
 
   async deleteReview(date) {
     await apiRequest(`/reviews/${date}`, { method: 'DELETE' });
+    invalidateCache('reviews');
     return await this.getAllReviews();
   },
 

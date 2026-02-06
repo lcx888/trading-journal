@@ -10,39 +10,9 @@ import {
   FullscreenOutlined,
   FullscreenExitOutlined,
 } from '@ant-design/icons';
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from './Chart';
 import dayjs from 'dayjs';
-
-// 品种 tick 价值映射（美元/tick）
-const TICK_VALUES = {
-  'GC': 10, 'ES': 12.5, 'NQ': 5, 'RTY': 5, 'CL': 10, 'SI': 25, 'YM': 5,
-  'ZB': 31.25, 'ZN': 15.625, '6E': 12.5, 'M2K': 0.5, 'MES': 1.25, 'MNQ': 0.5, 'MGC': 1,
-};
-
-const getTickValue = (instrumentCode, instruments) => {
-  const instrument = instruments?.find(i => i.code === instrumentCode);
-  if (instrument?.tickValue) return instrument.tickValue;
-  return TICK_VALUES[instrumentCode] || 5;
-};
-
-const ticksToUSD = (ticks, instrumentCode, quantity, instruments) => {
-  if (ticks === undefined || ticks === null) return 0;
-  const tickValue = getTickValue(instrumentCode, instruments);
-  return Math.abs(ticks) * tickValue * Math.abs(quantity || 1);
-};
-
-// 计算单笔交易的手续费（双边：开仓+平仓）
-const calculateTradeFee = (trade, instruments) => {
-  const tradeCode = trade.instrumentCode || trade.instrument || trade.symbol;
-  const instrument = instruments?.find(i => 
-    i.code === tradeCode || 
-    i.code?.toUpperCase() === tradeCode?.toUpperCase()
-  );
-  const feeRate = instrument?.feeRate || 0; // 单边手续费（每手）
-  const quantity = Math.abs(trade.openQuantity || trade.quantity || 1);
-  // 一笔完整交易包含开仓和平仓，所以手续费 = 单边费率 × 手数 × 2
-  return feeRate * quantity * 2;
-};
+import { calculateTradeFee, ticksToUSD } from '../utils/tradeCalc';
 
 // 颜色系统 - 与 index.css 中的 CSS 变量保持一致
 const COLORS = {

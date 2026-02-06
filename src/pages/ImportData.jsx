@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { 
   Upload, Button, message, Table, Tag, Row, Col,
   Modal, Progress, Select, Empty
@@ -375,22 +375,22 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
       </div>
             </div>
             
-      <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: 'column', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', flexDirection: 'column', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* 上传区域 */}
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
             borderRadius: 6, 
-            padding: isMobile ? 16 : 24,
+            padding: 24,
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-start', marginBottom: isMobile ? 16 : 20, gap: isMobile ? 12 : 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 0 }}>
                 <div>
-                <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: 600, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>数据导入引擎</div>
-                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: 'var(--text-primary)' }}>导入交易数据</div>
-                <div style={{ fontSize: isMobile ? 11 : 12, color: 'var(--text-secondary)', marginTop: 4 }}>支持 ATAS / Jigsaw RTP 格式</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>数据导入引擎</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>导入交易数据</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>支持 ATAS / Jigsaw RTP 格式</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
                 <div style={{ 
@@ -627,22 +627,22 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
         </div>
 
         {/* 右侧说明栏 - 移动端改为水平排列的卡片 */}
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: isMobile ? 12 : 16, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flexWrap: 'nowrap' }}>
           {/* 操作流程 */}
           <div style={{ 
             background: 'var(--bg-secondary)', 
             border: '1px solid var(--border-primary)', 
             borderRadius: 6, 
-            padding: isMobile ? 14 : 20,
-            flex: isMobile ? '1 1 100%' : 'none'
+            padding: 20,
+            flex: 'none'
           }}>
             <div style={{ 
-              fontSize: isMobile ? 9 : 10, 
+              fontSize: 10, 
               fontWeight: 600, 
               color: 'var(--text-secondary)', 
               textTransform: 'uppercase', 
               letterSpacing: '0.05em', 
-              marginBottom: isMobile ? 12 : 20,
+              marginBottom: 20,
               display: 'flex',
               alignItems: 'center',
               gap: 6
@@ -650,18 +650,18 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
               <InfoCircleOutlined style={{ color: 'var(--color-brand)' }} />
               标准操作流程
             </div>
-            <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'none', flexDirection: 'column', gap: isMobile ? 12 : 20 }}>
+            <div style={{ display: 'flex', gridTemplateColumns: 'none', flexDirection: 'column', gap: 20 }}>
               {[
                 { step: '01', title: '目标账本', desc: '选择目标账本' },
                 { step: '02', title: '导出数据', desc: '从软件导出记录' },
                 { step: '03', title: '自动识别', desc: '系统自动解析' },
                 { step: '04', title: '账本同步', desc: '确认合并数据' }
               ].map(item => (
-                <div key={item.step} style={{ display: 'flex', gap: isMobile ? 8 : 12 }}>
-                  <div style={{ fontSize: isMobile ? 12 : 16, fontWeight: 800, color: 'var(--bg-tertiary)', lineHeight: 1 }}>{item.step}</div>
+                <div key={item.step} style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--bg-tertiary)', lineHeight: 1 }}>{item.step}</div>
                   <div>
-                    <div style={{ fontSize: isMobile ? 11 : 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.title}</div>
-                    <div style={{ fontSize: isMobile ? 9 : 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{item.desc}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{item.desc}</div>
                   </div>
                 </div>
               ))}
@@ -672,18 +672,18 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
           <div style={{ 
             background: 'var(--color-brand)', 
             borderRadius: 6, 
-            padding: isMobile ? 14 : 20,
+            padding: 20,
             position: 'relative',
             overflow: 'hidden',
-            flex: isMobile ? '1 1 100%' : 'none'
+            flex: 'none'
           }}>
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'rgba(24, 26, 32, 0.6)', marginBottom: 8 }}>支持格式</div>
-              <div style={{ fontSize: isMobile ? 11 : 12, fontWeight: 500, color: 'var(--bg-primary)', lineHeight: 1.8 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--bg-primary)', lineHeight: 1.8 }}>
                 <div><strong>ATAS：</strong>Statistics_Realtime.xlsx</div>
                 <div><strong>Jigsaw：</strong>RTP-Positions.xls</div>
               </div>
-              {!isMobile && (
+              {true && (
                 <div style={{ fontSize: 10, color: 'rgba(24, 26, 32, 0.7)', marginTop: 12 }}>
                   Jigsaw 独有：MAE/MFE 分析、成交次数统计
                 </div>
@@ -693,7 +693,7 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
               position: 'absolute', 
               right: -10, 
               bottom: -10, 
-              fontSize: isMobile ? 50 : 80, 
+              fontSize: 80, 
               color: 'rgba(24, 26, 32, 0.1)',
               transform: 'rotate(12deg)'
             }} />

@@ -35,7 +35,8 @@ import {
   CheckOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import * as XLSX from 'xlsx';
+// XLSX 动态导入 - 仅在导出时按需加载 (~400KB)
+const loadXLSX = () => import('xlsx');
 import StorageService from '../services/storage';
 import { processTradesWithMerge } from '../services/tradeMerge';
 import RichEditor from '../components/RichEditor';
@@ -1393,7 +1394,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
     setEditingValue(null);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const data = filteredTrades.map(t => {
       const baseData = {
         '品种': t.instrumentCode,
@@ -1440,6 +1441,7 @@ const TradeList = ({ activeRecordId = 'all' }) => {
       
       return baseData;
     });
+    const XLSX = await loadXLSX();
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '交易记录');

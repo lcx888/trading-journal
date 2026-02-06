@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 订阅定价页面 - 极简主义专业版 (Minimalist Professional)
  * 
  * 设计哲学：
@@ -25,31 +25,31 @@ import { getPlans, getSubscriptionStatus, redeemCode, clearSubscriptionCache } f
 const CompareRow = ({ feature, pain, free, pro, elite, isLast = false, isMobile = false }) => {
   const renderCell = (value) => {
     if (value === true) {
-      return <Check size={isMobile ? 14 : 16} strokeWidth={2.5} style={{ color: '#fff' }} />;
+      return <Check size={16} strokeWidth={2.5} style={{ color: '#fff' }} />;
     }
     if (value === false) {
-      return <X size={isMobile ? 14 : 16} strokeWidth={2} style={{ color: '#333' }} />;
+      return <X size={16} strokeWidth={2} style={{ color: '#333' }} />;
     }
-    return <span style={{ fontSize: isMobile ? '11px' : '13px', color: '#fff' }}>{value}</span>;
+    return <span style={{ fontSize: '13px', color: '#fff' }}>{value}</span>;
   };
 
   return (
     <div style={{ 
       display: 'grid', 
-      gridTemplateColumns: isMobile ? '1fr 60px 60px 60px' : '1fr 100px 100px 100px',
+      gridTemplateColumns: '1fr 100px 100px 100px',
       borderBottom: isLast ? 'none' : '1px solid #1a1a1a',
     }}>
-      <div style={{ padding: isMobile ? '12px' : '16px 20px' }}>
-        <div style={{ fontSize: isMobile ? '12px' : '14px', color: '#fff', marginBottom: '4px' }}>{feature}</div>
-        {!isMobile && <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.4 }}>{pain}</div>}
+      <div style={{ padding: '16px 20px' }}>
+        <div style={{ fontSize: '14px', color: '#fff', marginBottom: '4px' }}>{feature}</div>
+        {true && <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.4 }}>{pain}</div>}
       </div>
-      <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {renderCell(free)}
       </div>
-      <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {renderCell(pro)}
       </div>
-      <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {renderCell(elite)}
       </div>
     </div>
@@ -345,25 +345,25 @@ const Pricing = () => {
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#fff', borderRadius: 4 } }}>
       <div style={styles.page}>
-        <div style={{ ...styles.container, padding: isMobile ? '0 12px' : '0 24px' }}>
-          <header style={{ ...styles.header, padding: isMobile ? '40px 0 30px' : '80px 0 60px' }}>
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-start', gap: isMobile ? 16 : 0 }}>
+        <div style={{ ...styles.container, padding: '0 24px' }}>
+          <header style={{ ...styles.header, padding: '80px 0 60px' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 0 }}>
               <div>
-            <h1 style={{ ...styles.title, fontSize: isMobile ? '24px' : '32px' }}>订阅方案</h1>
-            <p style={{ ...styles.subtitle, fontSize: isMobile ? '13px' : '15px' }}>
+            <h1 style={{ ...styles.title, fontSize: '32px' }}>订阅方案</h1>
+            <p style={{ ...styles.subtitle, fontSize: '15px' }}>
               选择适合您的专业交易工具集。{!isMobile && '所有付费方案均包含完整的 AI 诊断能力。'}
             </p>
               </div>
               <Button 
-                icon={<Gift size={isMobile ? 14 : 16} />} 
+                icon={<Gift size={16} />} 
                 onClick={() => setRedeemModalVisible(true)}
-                size={isMobile ? 'small' : 'middle'}
+                size={'middle'}
                 style={{ 
                   background: 'transparent', 
                   borderColor: THEME.border, 
                   color: THEME.textSecondary,
-                  fontSize: isMobile ? '11px' : '13px',
-                  height: isMobile ? '28px' : '36px'
+                  fontSize: '13px',
+                  height: '36px'
                 }}
               >
                 兑换码
@@ -461,8 +461,8 @@ const Pricing = () => {
           </div>
 
           {/* 功能对比表格 */}
-          <section style={{ marginTop: isMobile ? '40px' : '80px' }}>
-            <h2 style={{ fontSize: isMobile ? '16px' : '20px', fontWeight: 600, marginBottom: isMobile ? '16px' : '32px' }}>功能对比</h2>
+          <section style={{ marginTop: '80px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '32px' }}>功能对比</h2>
             
             <div style={{ 
               border: `1px solid ${THEME.border}`, 
@@ -472,27 +472,27 @@ const Pricing = () => {
               {/* 表头 */}
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: isMobile ? '1fr 60px 60px 60px' : '1fr 100px 100px 100px',
+                gridTemplateColumns: '1fr 100px 100px 100px',
                 background: '#161616',
                 borderBottom: `1px solid ${THEME.border}`,
               }}>
-                <div style={{ padding: isMobile ? '12px' : '16px 20px', fontSize: isMobile ? '10px' : '12px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ padding: '16px 20px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   功能
                 </div>
-                <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', fontSize: isMobile ? '10px' : '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Free
                 </div>
-                <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', fontSize: isMobile ? '10px' : '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Pro
                 </div>
-                <div style={{ padding: isMobile ? '12px 8px' : '16px 12px', fontSize: isMobile ? '10px' : '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ padding: '16px 12px', fontSize: '12px', color: THEME.textMuted, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Elite
                 </div>
               </div>
 
               {/* 分组：数据管理 */}
-              <div style={{ background: '#0d0d0d', padding: isMobile ? '10px 12px' : '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
-                <span style={{ fontSize: isMobile ? '10px' : '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   数据管理
                 </span>
               </div>
@@ -501,30 +501,30 @@ const Pricing = () => {
                 feature="交易账本数量" 
                 pain="多策略、多账户交易者需要分开记录"
                 free="1 个" pro="无限" elite="无限" 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="每月交易笔数" 
                 pain="高频交易者可能每天数十笔"
                 free="50 笔" pro="无限" elite="无限" 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="历史数据保留" 
                 pain="长期复盘需要回溯数月甚至数年"
                 free="7 天" pro="永久" elite="永久" 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="数据导出" 
                 pain="需要备份或用于外部分析"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
 
               {/* 分组：AI 诊断 */}
-              <div style={{ background: '#0d0d0d', padding: isMobile ? '10px 12px' : '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
-                <span style={{ fontSize: isMobile ? '10px' : '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   AI 诊断
                 </span>
               </div>
@@ -533,42 +533,42 @@ const Pricing = () => {
                 feature="AI 交易分析" 
                 pain="靠人工复盘难以发现隐藏的行为模式"
                 free="2 次/月" pro="无限" elite="无限" 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="智能诊断报告" 
                 pain="不知道自己的交易问题出在哪里"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="蒙特卡洛模拟" 
                 pain="无法量化策略的风险敞口"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="最优止损建议" 
                 pain="止损位置凭感觉，缺乏数据支撑"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="期望值计算" 
                 pain="不确定当前策略是否长期有利可图"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="行为标签分析" 
                 pain="冲动交易、过度交易等坏习惯难以察觉"
                 free={false} pro={true} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
 
               {/* 分组：高级功能 */}
-              <div style={{ background: '#0d0d0d', padding: isMobile ? '10px 12px' : '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
-                <span style={{ fontSize: isMobile ? '10px' : '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   高级功能
                 </span>
               </div>
@@ -577,24 +577,24 @@ const Pricing = () => {
                 feature="API 接口访问" 
                 pain="需要将数据接入自己的交易系统"
                 free={false} pro={false} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="定制化报告" 
                 pain="标准报告无法满足特定分析需求"
                 free={false} pro={false} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="新功能抢先体验" 
                 pain="希望第一时间使用最新工具"
                 free={false} pro={false} elite={true} 
-                isMobile={isMobile}
+                isMobile={false}
               />
 
               {/* 分组：服务支持 */}
-              <div style={{ background: '#0d0d0d', padding: isMobile ? '10px 12px' : '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
-                <span style={{ fontSize: isMobile ? '10px' : '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <div style={{ background: '#0d0d0d', padding: '12px 20px', borderBottom: `1px solid ${THEME.border}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: THEME.textSecondary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   服务支持
                 </span>
               </div>
@@ -603,25 +603,25 @@ const Pricing = () => {
                 feature="技术支持" 
                 pain="遇到问题需要及时解决"
                 free="邮件" pro="优先" elite="专属" 
-                isMobile={isMobile}
+                isMobile={false}
               />
               <CompareRow 
                 feature="1对1 策略咨询" 
                 pain="需要专业人士的个性化指导"
                 free={false} pro={false} elite={true} 
                 isLast
-                isMobile={isMobile}
+                isMobile={false}
               />
             </div>
           </section>
 
-          <footer style={{ ...styles.trustArea, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '8px 16px' : '24px' }}>
-            <div style={{ ...styles.trustItem, fontSize: isMobile ? '11px' : '13px' }}><ShieldCheck size={isMobile ? 14 : 16} /> SSL</div>
-            <div style={{ ...styles.trustItem, fontSize: isMobile ? '11px' : '13px' }}><CreditCard size={isMobile ? 14 : 16} /> 安全支付</div>
-            <div style={{ ...styles.trustItem, fontSize: isMobile ? '11px' : '13px' }}><RefreshCw size={isMobile ? 14 : 16} /> 7天退款</div>
-            <div style={{ ...styles.trustItem, fontSize: isMobile ? '11px' : '13px' }}><Headphones size={isMobile ? 14 : 16} /> 支持</div>
-            {!isMobile && <div style={{ flex: 1 }} />}
-            {!isMobile && (
+          <footer style={{ ...styles.trustArea, flexWrap: 'nowrap', gap: '24px' }}>
+            <div style={{ ...styles.trustItem, fontSize: '13px' }}><ShieldCheck size={16} /> SSL</div>
+            <div style={{ ...styles.trustItem, fontSize: '13px' }}><CreditCard size={16} /> 安全支付</div>
+            <div style={{ ...styles.trustItem, fontSize: '13px' }}><RefreshCw size={16} /> 7天退款</div>
+            <div style={{ ...styles.trustItem, fontSize: '13px' }}><Headphones size={16} /> 支持</div>
+            {true && <div style={{ flex: 1 }} />}
+            {true && (
             <a 
               href="mailto:support@tradewhy.ai" 
               style={{ 

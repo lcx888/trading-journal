@@ -15,13 +15,12 @@ import {
   DatabaseOutlined,
   ThunderboltOutlined,
   BellOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   CrownOutlined,
   AlertOutlined,
   LoadingOutlined,
   MenuOutlined,
   CloseOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
@@ -44,12 +43,12 @@ const TradingRecords = lazy(() => import('./pages/TradingRecords'));
 const TradingStrategies = lazy(() => import('./pages/TradingStrategies'));
 const StrategyReview = lazy(() => import('./pages/StrategyReview'));
 const RiskControl = lazy(() => import('./pages/RiskControl'));
+const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
 const Auth = lazy(() => import('./pages/Auth'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Home = lazy(() => import('./pages/Home'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Pricing = lazy(() => import('./pages/Pricing'));
-const MobileApp = lazy(() => import('./mobile/MobileApp'));
 
 import StorageService from './services/storage';
 import { getMe, logout, verifyEmail, confirmEmailChange } from './services/auth';
@@ -96,6 +95,11 @@ const buildMenuItems = (user) => {
       label: '风控测试',
     },
     { 
+      key: 'knowledge', 
+      icon: <BookOutlined />, 
+      label: '知识库',
+    },
+    { 
       key: 'data', 
       icon: <DatabaseOutlined />, 
       label: '数据',
@@ -130,6 +134,7 @@ const getPageTitle = (key) => {
     'trades': '交易明细',
     'ai-analysis': 'AI 交易教练',
     'risk-control': '风控测试',
+    'knowledge': '成长知识库',
     'records': '账本管理',
     'import': '导入数据',
     'strategies': '策略库',
@@ -161,7 +166,6 @@ function App() {
   const [upgradeFeatureKey, setUpgradeFeatureKey] = useState('smartDiagnosis');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [forceFullVersion, setForceFullVersion] = useState(localStorage.getItem('force_full_version') === 'true');
 
   // 监听窗口大小变化
   useEffect(() => {
@@ -336,6 +340,8 @@ function App() {
           return <div key={pageKey} className={pageClass}><AIAnalysis key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} subscription={subscription} onShowUpgrade={goToPricing} /></div>;
         case 'risk-control':
           return <div key={pageKey} className={pageClass}><RiskControl key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
+        case 'knowledge':
+          return <div key={pageKey} className={pageClass}><KnowledgeBase key={refreshKey} /></div>;
         case 'calendar': 
           return <div key={pageKey} className={pageClass}><TradeCalendar key={`${refreshKey}-${activeRecordId}`} activeRecordId={activeRecordId} /></div>;
         case 'import': 
@@ -378,15 +384,6 @@ function App() {
     }
     return [];
   }, [currentPage]);
-
-  // 移动端极简模式
-  if (isMobile && !forceFullVersion) {
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black"><Spin size="large" /></div>}>
-        <MobileApp />
-      </Suspense>
-    );
-  }
 
   if (authLoading) {
     return (

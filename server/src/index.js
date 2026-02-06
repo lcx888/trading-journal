@@ -800,18 +800,25 @@ app.post('/trades/bulk', authRequired, async (req, res) => {
   const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
   if (trades.length === 0) return res.json({ inserted: 0 });
   const data = trades.map(t => normalizeTrade(t, req.user.id));
-  // SQLite 不支持 skipDuplicates，逐条插入并忽略错误
+  // 使用事务批量插入，大幅减少 SQLite 写入开销
   let inserted = 0;
-  for (const trade of data) {
-    try {
-      await prisma.trade.create({ data: trade });
-      inserted++;
-    } catch (e) {
-      // 忽略重复错误
-    }
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < data.length; i += BATCH_SIZE) {
+    const batch = data.slice(i, i + BATCH_SIZE);
+    await prisma.$transaction(
+      batch.map(trade => 
+        prisma.trade.create({ data: trade }).catch(() => null)
+      )
+    ).then(results => {
+      inserted += results.filter(r => r !== null).length;
+    }).catch(() => {
+      // 事务失败时回退到逐条插入
+      batch.forEach(async (trade) => {
+        try { await prisma.trade.create({ data: trade }); inserted++; } catch(e) {}
+      });
+    });
   }
-  const result = { count: inserted };
-  return res.json({ inserted: result.count });
+  return res.json({ inserted });
 });
 
 app.put('/trades', authRequired, async (req, res) => {
@@ -1214,6 +1221,14 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
     if (recordId && recordId !== 'all') {
       where.recordId = recordId;
     }
+    // 日期范围在数据库层面过滤（利用 [userId, openTime] 复合索引）
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const start = new Date(dateRange[0]);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(dateRange[1]);
+      end.setHours(23, 59, 59, 999);
+      where.openTime = { gte: start, lte: end };
+    }
     
     const trades = await prisma.trade.findMany({
       where,
@@ -1221,7 +1236,7 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
     });
     
     // 解析 trade data，包含 Jigsaw 扩展字段
-    const parsedTrades = trades.map(t => {
+    const filteredTrades = trades.map(t => {
       const data = typeof t.data === 'string' ? JSON.parse(t.data) : t.data;
       return { 
         ...data, 
@@ -1229,7 +1244,6 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         pnl: t.pnl, 
         instrumentCode: t.instrumentCode, 
         openTime: t.openTime,
-        // Jigsaw 扩展字段
         mae: t.mae ?? data?.mae ?? data?.jigsawData?.mae,
         mfe: t.mfe ?? data?.mfe ?? data?.jigsawData?.mfe,
         fills: t.fills ?? data?.fills ?? data?.jigsawData?.fills,
@@ -1239,19 +1253,6 @@ app.post('/ai/analyze', authRequired, async (req, res) => {
         source: t.source ?? data?.source,
       };
     });
-    
-    // 日期范围筛选
-    let filteredTrades = parsedTrades;
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      const start = new Date(dateRange[0]);
-      start.setHours(0, 0, 0, 0); // 设置为当天开始
-      const end = new Date(dateRange[1]);
-      end.setHours(23, 59, 59, 999); // 设置为当天结束
-      filteredTrades = parsedTrades.filter(t => {
-        const tradeDate = new Date(t.openTime);
-        return tradeDate >= start && tradeDate <= end;
-      });
-    }
     
     // 如果没有交易数据，返回错误
     if (filteredTrades.length === 0) {
@@ -1562,6 +1563,283 @@ app.post('/ai/daily-summary', authRequired, async (req, res) => {
   } catch (error) {
     console.error('AI 每日总结失败:', error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// AI 复盘知识整理
+app.post('/ai/review-summary', authRequired, async (req, res) => {
+  try {
+    const { reviewData, tradeStats } = req.body || {};
+    if (!reviewData) {
+      return res.status(400).json({ success: false, message: '复盘数据不能为空' });
+    }
+    
+    const dateStr = reviewData.date || '今日';
+    const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, '').trim();
+    
+    const prompt = `你是一位管理百亿资金的对冲基金交易总监，同时是交易心理学专家。
+现在请你根据一位交易员的当日复盘记录和交易数据，撰写一份【交易知识文档】。
+
+这份文档的目的是：成为交易员可以反复翻阅的「个人交易手册」的一页。不是简单的复盘总结，而是从这一天的经历中提炼出可以长期复用的交易智慧。
+
+---
+## 📊 当日交易数据
+${tradeStats ? `| 指标 | 数值 |
+|---|---|
+| 交易笔数 | ${tradeStats.totalTrades || 0} |
+| 净盈亏 | $${tradeStats.totalPnL?.toFixed(2) || '0'} |
+| 胜率 | ${tradeStats.winRate?.toFixed(0) || '0'}% |
+| 盈利笔数 | ${tradeStats.winCount || 0} |
+| 亏损笔数 | ${tradeStats.lossCount || 0} |` : '（无交易数据）'}
+
+## 📝 交易员复盘原始记录
+${reviewData.followedPlan ? `- **计划执行度**：${reviewData.followedPlan === 'yes' ? '完全执行' : reviewData.followedPlan === 'partial' ? '部分执行' : '偏离计划'}` : ''}
+${stripHtml(reviewData.marketCondition) ? `- **市场环境描述**：${stripHtml(reviewData.marketCondition)}` : ''}
+${stripHtml(reviewData.lessonsLearned) ? `- **自述经验教训**：${stripHtml(reviewData.lessonsLearned)}` : ''}
+${stripHtml(reviewData.bestDecision) ? `- **自评最佳决策**：${stripHtml(reviewData.bestDecision)}` : ''}
+${stripHtml(reviewData.worstDecision) ? `- **自评最差决策**：${stripHtml(reviewData.worstDecision)}` : ''}
+${stripHtml(reviewData.improvementPlan) ? `- **自拟改进计划**：${stripHtml(reviewData.improvementPlan)}` : ''}
+
+---
+
+请输出以下格式的 HTML 文档（直接输出 HTML 标签，不要用 markdown 语法）：
+
+<h2>🧠 今日核心认知</h2>
+<blockquote>用一段话（2-3句）深度总结今天最重要的交易认知。不是复述事实，而是提炼出底层原则。这段话要足够精炼，值得被贴在屏幕旁边。</blockquote>
+
+<h2>📈 市场结构分析</h2>
+<p>基于交易员的市场环境描述，补充专业视角：今天市场处于什么结构？（趋势/震荡/转折）这种结构下最优策略是什么？交易员的操作是否匹配这个结构？</p>
+
+<h2>🔍 交易行为诊断</h2>
+<p>像心理医生一样分析交易员今天的行为模式：</p>
+<ul>
+<li><strong>做对了什么</strong>：具体哪个决策体现了专业素养，为什么这个行为值得强化</li>
+<li><strong>问题根因</strong>：最差决策背后的深层原因是什么（情绪？认知偏差？执行力？）</li>
+<li><strong>行为模式</strong>：是否存在反复出现的模式？与之前复盘中描述的问题是否一致？</li>
+</ul>
+
+<h2>📐 可复用的交易规则</h2>
+<p>从今天的经历中，提炼出可以写入「个人交易规则手册」的具体条款：</p>
+<ol>
+<li><strong>规则名称</strong>：一句话描述规则。<br/>触发条件 → 执行动作 → 预期效果。</li>
+</ol>
+<p>（提炼 1-3 条，每条必须是 If-Then 格式，足够具体到可以机械执行）</p>
+
+<h2>🎯 下一个交易日行动计划</h2>
+<table>
+<tr><th>优先级</th><th>行动项</th><th>验证标准</th></tr>
+<tr><td>P0</td><td>最重要的一件事</td><td>如何判断做到了</td></tr>
+<tr><td>P1</td><td>第二重要的事</td><td>如何判断做到了</td></tr>
+</table>
+
+<h2>💬 教练寄语</h2>
+<p>以交易教练的身份，给一段 2-3 句的鼓励或警醒。语气直接但有温度，像一位严格但关心你的导师。</p>
+
+---
+
+写作要求：
+1. 这是一份正式的【知识文档】，不是聊天回复。语言专业、结构清晰、有深度
+2. 每个论点必须基于交易员提供的真实数据和记录，不要凭空编造场景
+3. 「可复用的交易规则」是最核心的部分，必须足够具体，能直接写入交易手册
+4. 如果某些复盘字段为空，跳过对应分析，不要编造内容
+5. 整体篇幅 800-1200 字，信息密度要高`;
+
+    const messages = [
+      { role: 'system', content: '你是专业的交易教练，擅长从交易员的复盘中提炼关键知识要点。输出格式为 HTML。注意：你的回复的第一行必须是纯文本标题（不带任何HTML标签），用一句简短的话概括今天最核心的交易场景（如"MNQ突破4500失败后的均值回归"、"开盘假突破识别与反手操作"），然后空一行再输出HTML内容。' },
+      { role: 'user', content: prompt }
+    ];
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, message: 'AI 服务未配置' });
+    }
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages,
+        temperature: 0.7,
+        max_tokens: 2048,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`AI API 错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || '';
+    
+    // 分离第一行标题和后续 HTML 正文
+    const lines = raw.split('\n');
+    let aiTitle = '';
+    let content = raw;
+    
+    // 第一行如果不是 HTML 标签开头，就作为标题
+    const firstLine = lines[0]?.trim() || '';
+    if (firstLine && !firstLine.startsWith('<')) {
+      aiTitle = firstLine.replace(/^#+\s*/, '').replace(/[*_#`]/g, '').trim();
+      content = lines.slice(1).join('\n').trim();
+    }
+    
+    return res.json({ success: true, summary: content, title: aiTitle });
+  } catch (error) {
+    console.error('AI 复盘整理失败:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ========== Knowledge Base ==========
+// 获取知识库列表
+app.get('/knowledge', authRequired, async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let where = { userId: req.user.id };
+    if (category && category !== 'all') where.category = category;
+    
+    const entries = await prisma.knowledgeEntry.findMany({
+      where,
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true, title: true, summary: true, category: true, tags: true, sourceDate: true, sourceType: true, isPinned: true, createdAt: true, updatedAt: true },
+    });
+
+    let result = entries;
+    if (search) {
+      const kw = search.toLowerCase();
+      result = entries.filter(e => 
+        e.title.toLowerCase().includes(kw) || 
+        (e.summary || '').toLowerCase().includes(kw) ||
+        (e.tags || '').toLowerCase().includes(kw)
+      );
+    }
+
+    // 获取分类统计
+    const allEntries = await prisma.knowledgeEntry.findMany({
+      where: { userId: req.user.id },
+      select: { category: true },
+    });
+    const categories = {};
+    allEntries.forEach(e => { categories[e.category] = (categories[e.category] || 0) + 1; });
+
+    return res.json({ entries: result, categories, total: allEntries.length });
+  } catch (error) {
+    console.error('获取知识库失败:', error);
+    return res.status(500).json({ message: '获取知识库失败' });
+  }
+});
+
+// 获取单条知识详情
+app.get('/knowledge/:id', authRequired, async (req, res) => {
+  try {
+    const entry = await prisma.knowledgeEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry || entry.userId !== req.user.id) {
+      return res.status(404).json({ message: '未找到' });
+    }
+    return res.json(entry);
+  } catch (error) {
+    return res.status(500).json({ message: '获取失败' });
+  }
+});
+
+// 保存知识条目（从复盘自动归档 或 手动创建）
+app.post('/knowledge', authRequired, async (req, res) => {
+  try {
+    const { title, content, sourceDate, sourceType } = req.body;
+    if (!content) return res.status(400).json({ message: '内容不能为空' });
+
+    // AI 自动分类 + 摘要 + 标签
+    let category = '未分类', summary = '', tags = '';
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (apiKey) {
+      try {
+        const plainText = content.replace(/<[^>]*>/g, '').substring(0, 2000);
+        const classifyResponse = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是交易知识分类专家。根据内容返回 JSON 格式：{"category":"分类名","summary":"一句话摘要(30字内)","tags":"标签1,标签2,标签3"}。分类必须是以下交易技术类别之一：突破成功,突破失败,假突破,回调做多,回调做空,趋势跟踪,均值回归,区间震荡,缺口交易,动量交易,反转信号,供需区域,关键位测试,开盘策略,尾盘策略,止损管理,仓位管理,情绪控制,过度交易,其他。tags 应该包含具体的品种名、时段、关键价位等细节标签。' },
+              { role: 'user', content: plainText }
+            ],
+            temperature: 0.3,
+            max_tokens: 200,
+          }),
+        });
+        if (classifyResponse.ok) {
+          const data = await classifyResponse.json();
+          const text = data.choices?.[0]?.message?.content || '';
+          // 提取 JSON
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            category = parsed.category || '未分类';
+            summary = parsed.summary || '';
+            tags = parsed.tags || '';
+          }
+        }
+      } catch (aiErr) {
+        console.error('AI 分类失败，使用默认分类:', aiErr.message);
+      }
+    }
+
+    const autoTitle = title || `${sourceDate || new Date().toISOString().split('T')[0]} 交易知识`;
+    
+    const entry = await prisma.knowledgeEntry.create({
+      data: {
+        userId: req.user.id,
+        title: autoTitle,
+        content,
+        summary,
+        category,
+        tags,
+        sourceDate: sourceDate || null,
+        sourceType: sourceType || 'review',
+      },
+    });
+
+    return res.json({ success: true, entry });
+  } catch (error) {
+    console.error('保存知识条目失败:', error);
+    return res.status(500).json({ message: '保存失败' });
+  }
+});
+
+// 更新知识条目
+app.patch('/knowledge/:id', authRequired, async (req, res) => {
+  try {
+    const entry = await prisma.knowledgeEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry || entry.userId !== req.user.id) {
+      return res.status(404).json({ message: '未找到' });
+    }
+    const updated = await prisma.knowledgeEntry.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    return res.json(updated);
+  } catch (error) {
+    return res.status(500).json({ message: '更新失败' });
+  }
+});
+
+// 删除知识条目
+app.delete('/knowledge/:id', authRequired, async (req, res) => {
+  try {
+    const entry = await prisma.knowledgeEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry || entry.userId !== req.user.id) {
+      return res.status(404).json({ message: '未找到' });
+    }
+    await prisma.knowledgeEntry.delete({ where: { id: req.params.id } });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ message: '删除失败' });
   }
 });
 

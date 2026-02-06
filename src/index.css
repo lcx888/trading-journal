@@ -1278,8 +1278,7 @@ html {
 
 /* 主内容区最小宽度保护 */
 .main-content,
-[class*="max-w-[1600px]"],
-[class*="max-w-[1400px]"] {
+[class*="max-w-"] {
   min-width: 320px;
 }
 
@@ -1339,9 +1338,7 @@ html {
   }
   
   /* 所有固定宽度容器改为自适应 */
-  .max-w-\\[1600px\\],
-  .max-w-\\[1400px\\],
-  .max-w-\\[1200px\\] {
+  [class*="max-w-"] {
     max-width: 100% !important;
     width: 100% !important;
   }
@@ -1349,7 +1346,6 @@ html {
   /* 图片和视频自适应 */
   img, video, iframe, embed, object {
     max-width: 100% !important;
-    height: auto !important;
   }
   
   /* 表格容器水平滚动 */

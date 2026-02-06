@@ -35,6 +35,7 @@ model User {
   imports       ImportRecord[]
   reviews       Review[]
   aiAnalyses    AIAnalysis[]
+  knowledgeEntries KnowledgeEntry[]
   subscription  Subscription?
   redemptions   RedemptionRecord[]
 }
@@ -216,6 +217,7 @@ model Trade {
   record Record? @relation(fields: [recordId], references: [id])
 
   @@index([userId])
+  @@index([userId, openTime])  // 复合索引：加速按用户+时间的排序和范围查询
   @@index([recordId])
   @@index([instrumentCode])
   @@index([source])
@@ -302,5 +304,26 @@ model AIAnalysis {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([createdAt])
+}
+
+model KnowledgeEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String                    // 标题
+  content     String                    // HTML 内容
+  summary     String?                   // 摘要（AI 生成）
+  category    String   @default("未分类") // AI 分类
+  tags        String?                   // 标签（逗号分隔）
+  sourceDate  String?                   // 来源日期（复盘日期）
+  sourceType  String   @default("review") // 来源：review / manual
+  isPinned    Boolean  @default(false)  // 置顶
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, category])
   @@index([createdAt])
 }

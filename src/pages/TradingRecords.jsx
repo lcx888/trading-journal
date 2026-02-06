@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Table, Button, Modal, Form, Input, Tag, Space, Popconfirm,
   message, Row, Col
@@ -317,13 +317,13 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: isMobile ? '10px 12px' : '12px 16px',
+        padding: '12px 16px',
         background: 'var(--bg-secondary)',
         border: '1px solid var(--border-primary)',
         borderRadius: 6
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-          {!isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {true && (
             <div style={{ 
               width: 32, 
               height: 32, 
@@ -336,9 +336,9 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
               <BookOutlined style={{ color: 'var(--color-brand)' }} />
             </div>
           )}
-          <span style={{ fontWeight: 600, fontSize: isMobile ? 13 : 14, color: 'var(--text-primary)' }}>账本管理</span>
+          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>账本管理</span>
           <span style={{ 
-            fontSize: isMobile ? 9 : 10, 
+            fontSize: 10, 
             color: 'var(--text-tertiary)', 
             background: 'var(--bg-tertiary)', 
             padding: '2px 8px', 
@@ -351,18 +351,18 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
           type="primary" 
           icon={<PlusOutlined />} 
           onClick={handleCreate}
-          size={isMobile ? 'small' : 'middle'}
+          size={'middle'}
           style={{ 
             background: 'var(--color-brand)', 
             borderColor: 'var(--color-brand)', 
             color: 'var(--bg-primary)', 
             fontWeight: 600, 
-            fontSize: isMobile ? 11 : 12,
+            fontSize: 12,
             borderRadius: 4,
-            height: isMobile ? 28 : 32
+            height: 32
           }}
         >
-          {isMobile ? '新建' : '新建账本'}
+          {'新建账本'}
         </Button>
       </div>
 
@@ -467,7 +467,7 @@ const TradingRecords = ({ onNavigateToImport, subscription, onShowUpgrade }) => 
         onCancel={() => setModalVisible(false)}
         okText="确认保存"
         cancelText="取消"
-        width={isMobile ? '100vw' : 460}
+        width={460}
         style={isMobile ? { top: 20, maxWidth: '100vw' } : undefined}
         destroyOnClose
         okButtonProps={{

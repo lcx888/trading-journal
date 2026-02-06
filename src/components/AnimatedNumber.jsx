@@ -1,15 +1,8 @@
-import { useSpring, animated } from '@react-spring/web';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * 数字滚动动画组件
- * @param {number} value - 目标数值
- * @param {string} prefix - 前缀（如 $ 或 +）
- * @param {string} suffix - 后缀（如 % 或 USD）
- * @param {number} decimals - 小数位数
- * @param {number} duration - 动画时长（毫秒）
- * @param {boolean} colorByValue - 是否根据正负值变色
- * @param {string} className - 额外样式类
+ * 数字滚动动画组件（纯 JS 实现，无第三方依赖）
+ * 替代 @react-spring/web，节省 ~60KB
  */
 const AnimatedNumber = ({ 
   value = 0, 
@@ -20,38 +13,57 @@ const AnimatedNumber = ({
   colorByValue = false,
   className = ''
 }) => {
-  const prevValue = useRef(0);
-  
-  useEffect(() => {
-    prevValue.current = value;
-  }, [value]);
+  const [display, setDisplay] = useState(value);
+  const prevValue = useRef(value);
+  const rafRef = useRef(null);
 
-  const { number } = useSpring({
-    from: { number: prevValue.current },
-    number: value,
-    config: { duration },
-  });
-
-  const getColorClass = () => {
-    if (!colorByValue) return '';
-    return value >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]';
-  };
-
-  const formatNumber = (n) => {
+  const formatNumber = useCallback((n) => {
     const formatted = Math.abs(n).toFixed(decimals);
     const parts = formatted.split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return parts.join('.');
-  };
+  }, [decimals]);
+
+  useEffect(() => {
+    const from = prevValue.current;
+    const to = value;
+    const diff = to - from;
+    if (diff === 0) return;
+
+    const startTime = performance.now();
+
+    const animate = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = from + diff * eased;
+      setDisplay(current);
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        setDisplay(to);
+        prevValue.current = to;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [value, duration]);
+
+  const colorClass = colorByValue
+    ? (value >= 0 ? 'text-[var(--color-profit)]' : 'text-[var(--color-loss)]')
+    : '';
+
+  const sign = colorByValue ? (value >= 0 ? '+' : '-') : prefix;
 
   return (
-    <animated.span className={`${getColorClass()} ${className}`}>
-      {number.to(n => {
-        const sign = colorByValue && value >= 0 ? '+' : (value < 0 ? '-' : '');
-        const displayPrefix = colorByValue ? sign : prefix;
-        return `${displayPrefix}${prefix && !colorByValue ? '' : ''}${formatNumber(n)}${suffix}`;
-      })}
-    </animated.span>
+    <span className={`${colorClass} ${className}`}>
+      {sign}{formatNumber(display)}{suffix}
+    </span>
   );
 };
 

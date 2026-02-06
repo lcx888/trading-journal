@@ -351,8 +351,6 @@ const RichEditor = ({
         editor={editor}
         style={{
           minHeight,
-          maxHeight,
-          overflowY: 'auto',
         }}
       />
       <style>{`
