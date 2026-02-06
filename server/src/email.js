@@ -1,8 +1,14 @@
 // 邮件发送服务
-import { Resend } from 'resend';
-
-// 初始化 Resend 客户端
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// 兼容 Node 16：Resend v6+ 需要全局 Headers，低版本 Node 没有则降级为测试模式
+let resend = null;
+try {
+  if (process.env.RESEND_API_KEY) {
+    const { Resend } = await import('resend');
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+} catch (e) {
+  console.warn('⚠️ Resend 初始化失败（Node 版本过低），邮件将使用测试模式:', e.message);
+}
 
 // 发送邮件
 export async function sendEmail({ to, subject, html }) {
