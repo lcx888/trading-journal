@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>TradeWhy.AI - 专业交易复盘</title>
+<meta name="description" content="机构级 AI 交易复盘与行为诊断平台">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Helvetica Neue',sans-serif;background:#0a0a0c;color:#fff;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+
+/* 背景 */
+.bg-glow{position:fixed;top:-15%;right:-25%;width:70%;height:50%;background:radial-gradient(circle,rgba(201,162,39,.12),transparent 70%);pointer-events:none;z-index:0}
+.bg-glow2{position:fixed;bottom:-15%;left:-25%;width:70%;height:50%;background:radial-gradient(circle,rgba(201,162,39,.06),transparent 70%);pointer-events:none;z-index:0}
+
+/* 导航 */
+.nav{position:relative;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:20px 24px}
+.logo{height:22px}
+.nav-btn{font-size:12px;font-weight:700;color:#c9a227;border:1px solid #c9a227;padding:6px 14px;border-radius:6px;background:0 0;cursor:pointer;transition:.2s}
+.nav-btn:active{background:#c9a227;color:#0a0a0c}
+
+/* 主内容 */
+.main{position:relative;z-index:10;padding:0 24px;display:flex;flex-direction:column;min-height:calc(100vh - 200px);min-height:calc(100dvh - 200px);justify-content:center}
+
+/* 标签 */
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:#1a1a1f;border:1px solid #252528;border-radius:20px;width:fit-content;margin-bottom:28px;animation:fadeIn .6s ease}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:#c9a227;animation:pulse 2s infinite}
+.badge-text{font-size:10px;color:#c9a227;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+
+/* 标题 */
+.title{font-size:30px;font-weight:800;line-height:1.25;margin-bottom:16px;letter-spacing:-.5px;animation:fadeUp .6s ease .1s both}
+.title span{color:#c9a227}
+
+/* 描述 */
+.desc{font-size:14px;color:#888;line-height:1.7;margin-bottom:32px;animation:fadeUp .6s ease .2s both}
+.desc b{color:#fff;font-weight:500}
+
+/* 提示卡片 */
+.tip-card{background:#111114;border:1px solid #1a1a1f;border-radius:14px;padding:20px;margin-bottom:32px;display:flex;gap:14px;align-items:flex-start;animation:fadeUp .6s ease .3s both}
+.tip-icon{width:36px;height:36px;border-radius:10px;background:#1a1a1f;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tip-icon svg{width:18px;height:18px;color:#c9a227}
+.tip-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.tip-desc{font-size:12px;color:#666;line-height:1.6}
+
+/* 功能列表 */
+.features{animation:fadeUp .6s ease .4s both}
+.features-label{font-size:10px;color:#555;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.feat{display:flex;align-items:center;gap:14px;padding:14px;border-radius:10px;background:#0d0d10;border:1px solid #1a1a1f;margin-bottom:10px}
+.feat-icon{width:36px;height:36px;border-radius:8px;background:#1a1a1f;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.feat-icon svg{width:18px;height:18px;color:#c9a227}
+.feat-name{font-size:13px;font-weight:600}
+.feat-desc{font-size:11px;color:#666;margin-top:2px}
+
+/* 底部 */
+.footer{position:relative;z-index:10;padding:20px 24px;background:#0d0d10;border-top:1px solid #1a1a1f;margin-top:auto}
+.btn-copy{width:100%;padding:14px;border-radius:10px;background:#c9a227;color:#0a0a0c;font-size:14px;font-weight:700;border:0;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-copy:active{transform:scale(.98);opacity:.9}
+.btn-copy.copied{background:#0ecb81}
+.btn-doc{width:100%;padding:12px;border-radius:10px;background:0 0;color:#666;font-size:13px;font-weight:500;border:0;cursor:pointer;text-align:center;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-doc:active{color:#fff}
+
+/* 动画 */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a1a1f;border:1px solid #252528;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;transition:.3s;opacity:0;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="bg-glow2"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast">✅ 链接已复制，请在电脑浏览器打开</div>
+
+<!-- 导航 -->
+<nav class="nav">
+  <svg class="logo" viewBox="0 0 630 141" xmlns="http://www.w3.org/2000/svg"><g fill="#F0B90B" transform="translate(0,141) scale(0.1,-0.1)"><path d="M320 1035 l0 -95 365 0 365 0 0 95 0 95 -365 0 -365 0 0 -95z"/><path d="M565 750 l-150 -150 150 -150 c82 -82 152 -150 155 -150 3 0 5 135 5 300 0 165 -2 300 -5 300 -3 0 -72 -68 -155 -150z"/></g><g fill="#fff" transform="translate(0,141) scale(0.1,-0.1)"><path d="M1330 899 c-14 -6 -42 -26 -62 -47 l-38 -36 0 42 0 42 -65 0 -65 0 0 -275 0 -275 69 0 69 0 1 177 c1 189 5 206 55 238 13 8 50 19 82 23 l59 7 3 58 3 57 -43 -1 c-24 0 -54 -5 -68 -10z"/><path d="M1585 892 c-22 -11 -50 -30 -62 -43 -22 -24 -53 -88 -53 -109 0 -6 25 -10 58 -10 54 0 58 2 68 28 13 34 67 62 119 62 50 0 95 -44 95 -93 l0 -34 -92 -12 c-144 -19 -176 -29 -224 -76 -42 -39 -44 -45 -44 -97 0 -69 28 -114 90 -145 81 -42 180 -26 248 39 25 25 32 28 32 15 0 -10 11 -29 25 -42 20 -21 34 -25 80 -25 l55 0 0 44 c0 35 -4 45 -20 49 -19 5 -20 14 -20 144 -1 201 -13 245 -84 297 -40 30 -213 35 -271 8z m225 -321 c0 -44 -33 -99 -70 -118 -40 -20 -113 -16 -138 7 -27 26 -29 80 -4 103 22 20 104 40 190 46 19 1 22 -4 22 -38z"/><path d="M2440 985 l0 -145 -43 31 c-50 35 -119 48 -191 37 -128 -19 -223 -175 -198 -324 13 -80 37 -129 84 -175 86 -84 229 -91 313 -17 l35 30 0 -36 0 -36 65 0 65 0 0 390 0 390 -65 0 -65 0 0 -145z m-110 -185 c20 -5 51 -26 70 -45 32 -33 35 -41 38 -109 5 -93 -19 -146 -78 -176 -49 -25 -83 -25 -137 -1 -70 32 -101 106 -83 201 12 63 34 94 85 120 45 23 56 24 105 10z"/><path d="M2851 909 c-56 -11 -124 -51 -154 -92 -52 -68 -61 -98 -61 -187 0 -73 4 -93 27 -137 97 -187 369 -207 478 -35 42 66 39 72 -29 72 -51 0 -60 -3 -71 -23 -20 -38 -67 -60 -129 -59 -77 1 -134 46 -148 120 l-6 32 211 0 211 0 0 50 c0 104 -66 209 -154 245 -44 18 -123 24 -175 14z m101 -99 c40 -11 98 -72 98 -102 0 -16 -13 -18 -145 -18 l-145 0 11 28 c14 36 47 72 84 88 37 16 50 17 97 4z"/><path d="M3183 888 c3 -13 41 -138 85 -278 l80 -255 64 -3 65 -3 42 153 c23 84 48 171 55 192 l12 39 54 -192 54 -192 65 3 65 3 12 40 c7 22 44 141 83 265 39 124 71 228 71 233 0 4 -28 7 -63 7 l-63 0 -43 -155 c-23 -85 -48 -171 -55 -191 l-12 -37 -38 139 c-20 76 -44 163 -52 192 l-15 52 -59 0 -59 0 -25 -82 c-14 -46 -37 -126 -51 -178 -15 -52 -29 -102 -32 -110 -5 -14 -18 31 -82 275 l-26 100 -69 3 c-67 3 -68 2 -63 -20z"/><path d="M4040 740 l0 -390 63 0 62 0 2 148 c1 81 2 167 3 191 0 82 97 142 173 106 58 -27 62 -41 65 -252 l4 -193 59 0 59 0 0 215 c0 192 -2 220 -19 253 -27 52 -53 73 -112 88 -81 21 -194 -12 -213 -63 -3 -7 -11 -13 -17 -13 -8 0 -10 42 -8 150 l4 150 -62 0 -63 0 0 -390z"/><path d="M4909 731 c-34 -97 -66 -187 -71 -200 -8 -21 -17 -1 -63 130 -29 85 -60 172 -68 194 l-14 40 -73 3 c-56 2 -71 0 -67 -10 39 -91 100 -243 148 -368 55 -141 59 -158 50 -191 -6 -20 -22 -48 -35 -62 -21 -22 -34 -27 -76 -27 l-50 0 0 -55 0 -55 61 0 c73 0 119 20 158 67 32 39 59 103 181 418 44 116 87 225 96 244 8 18 14 35 12 36 -2 1 -31 5 -64 8 l-62 5 -63 -177z"/><path d="M5080 487 c-38 -19 -57 -59 -42 -91 26 -58 89 -70 132 -24 55 60 -17 153 -90 115z"/><path d="M5382 889 c-50 -25 -91 -74 -102 -124 l-8 -35 57 0 c52 1 57 3 76 33 27 43 61 59 114 54 53 -6 88 -38 93 -87 3 -38 11 -35 -156 -59 -137 -19 -196 -70 -196 -169 0 -63 30 -109 90 -139 77 -40 195 -21 245 39 l25 29 9 -24 c15 -38 50 -57 103 -57 l48 0 0 44 c0 35 -4 45 -20 49 -19 5 -20 14 -20 149 -1 209 -15 252 -100 296 -62 31 -195 32 -258 1z m232 -321 c-14 -91 -55 -128 -140 -128 -75 0 -115 52 -84 109 15 29 106 56 203 60 27 1 27 0 21 -41z"/><path d="M5890 1123 c-74 -27 -80 -117 -10 -142 55 -19 100 12 100 69 0 50 -47 88 -90 73z"/><path d="M5848 625 l3 -275 59 0 60 0 0 275 0 275 -62 0 -63 0 3 -275z"/></g></svg>
+  <a href="/" class="nav-btn">桌面版</a>
+</nav>
+
+<!-- 主内容 -->
+<main class="main">
+  <div class="badge">
+    <div class="badge-dot"></div>
+    <span class="badge-text">移动端预览</span>
+  </div>
+
+  <h1 class="title">专业交易复盘<br><span>从桌面端开始</span></h1>
+
+  <p class="desc">
+    TradeWhy.AI 提供机构级数据分析与 AI 诊断。为了呈现复杂图表与深度数据，请使用 <b>电脑浏览器</b> 访问以获得完整体验。
+  </p>
+
+  <!-- 提示 -->
+  <div class="tip-card">
+    <div class="tip-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div>
+      <div class="tip-title">为什么需要桌面端？</div>
+      <div class="tip-desc">量化引擎需要宽屏展示 K 线、资金曲线与多维归因分析图表，手机屏幕无法承载高密度数据可视化。</div>
+    </div>
+  </div>
+
+  <!-- 功能 -->
+  <div class="features">
+    <div class="features-label">桌面端核心功能</div>
+    <div class="feat">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      </div>
+      <div>
+        <div class="feat-name">AI 行为诊断</div>
+        <div class="feat-desc">识别报复性交易与情绪失控</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div>
+        <div class="feat-name">深度复盘分析</div>
+        <div class="feat-desc">MAE/MFE 效率分析与策略归因</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <div>
+        <div class="feat-name">策略进化系统</div>
+        <div class="feat-desc">基于数学期望优化交易系统</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 底部 -->
+<div class="footer">
+  <button class="btn-copy" id="copyBtn" onclick="copyLink()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    复制链接到电脑打开
+  </button>
+  <button class="btn-doc" onclick="location.href='/'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+    在手机上继续访问完整版
+  </button>
+</div>
+
+<script>
+function copyLink(){
+  var u=location.origin;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(u).then(showToast).catch(fallback);
+  }else{fallback()}
+  function fallback(){
+    var t=document.createElement('textarea');
+    t.value=u;t.style.position='fixed';t.style.opacity='0';
+    document.body.appendChild(t);t.select();
+    try{document.execCommand('copy');showToast()}catch(e){alert('请手动复制: '+u)}
+    document.body.removeChild(t);
+  }
+  function showToast(){
+    var b=document.getElementById('copyBtn');
+    b.classList.add('copied');b.innerHTML='✅ 已复制';
+    var d=document.getElementById('toast');
+    d.classList.add('show');
+    setTimeout(function(){d.classList.remove('show')},2500);
+    setTimeout(function(){b.classList.remove('copied');b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> 复制链接到电脑打开'},3000);
+  }
+}
+</script>
+</body>
+</html>
