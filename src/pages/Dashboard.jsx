@@ -307,9 +307,9 @@ const Dashboard = ({ activeRecordId = 'all', onNavigateToImport, onNavigate }) =
             </div>`;
         },
       },
-      grid: { left: '0', right: '60', bottom: '30', top: '20', containLabel: true },
+      grid: { left: '0', right: '80', bottom: '30', top: '20', containLabel: true },
       xAxis: { type: 'category', data: data.map(d => d.date), axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.textTertiary, fontSize: 10, fontFamily: 'JetBrains Mono' }, axisTick: { show: false } },
-      yAxis: { type: 'value', position: 'right', axisLine: { show: false }, axisLabel: { color: COLORS.textTertiary, fontSize: 10, fontFamily: 'JetBrains Mono', formatter: v => `$${v}` }, splitLine: { lineStyle: { color: COLORS.border, type: 'dashed' } } },
+      yAxis: { type: 'value', position: 'right', axisLine: { show: false }, axisLabel: { color: COLORS.textTertiary, fontSize: 10, fontFamily: 'JetBrains Mono', formatter: v => { if (v === 0) return '$0'; if (Math.abs(v) >= 1000) return `$${(v/1000).toFixed(1)}k`; return `$${v}`; } }, splitLine: { lineStyle: { color: COLORS.border, type: 'dashed' } } },
       series: [{ name: '权益曲线', type: 'line', data: data.map(d => d.value), smooth: 0.3, symbol: 'none', lineStyle: { width: 2, color: lineColor }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: lineColor + '30' }, { offset: 1, color: lineColor + '00' }] } }, markPoint: { data: markPoints } }]
     };
   }, [trades, instruments]);
