@@ -13,13 +13,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // React 核心 (~141KB)
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+          // React 核心 + 相关依赖（必须在同一个 chunk）
+          if (
+            id.includes('node_modules/react-dom') || 
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-is') ||
+            id.includes('node_modules/scheduler') ||
+            id.includes('node_modules/use-sync-external-store')
+          ) {
             return 'vendor-react';
           }
-          // Ant Design 核心 + 全部内部依赖 - 单独分包
+          // Ant Design 全部依赖 - 单独分包
           if (
             id.includes('node_modules/antd') || 
+            id.includes('node_modules/@ant-design/') ||
             id.includes('node_modules/rc-') ||
             id.includes('node_modules/@rc-component') ||
             id.includes('node_modules/@babel/runtime') ||
@@ -33,41 +40,34 @@ export default defineConfig({
             id.includes('node_modules/compute-scroll-into-view') ||
             id.includes('node_modules/throttle-debounce') ||
             id.includes('node_modules/json2mq') ||
-            id.includes('node_modules/toggle-selection')
+            id.includes('node_modules/toggle-selection') ||
+            id.includes('node_modules/stylis')
           ) {
             return 'vendor-antd';
           }
-          // Ant Design 图标 - 单独分包（按需加载）
-          if (id.includes('node_modules/@ant-design/icons')) {
-            return 'vendor-antd-icons';
-          }
-          // ECharts - 单独分包（仅在 Dashboard/AI/RiskControl 使用）
+          // ECharts - 单独分包
           if (id.includes('node_modules/echarts') || id.includes('node_modules/zrender') || id.includes('node_modules/echarts-for-react')) {
             return 'vendor-echarts';
           }
-          // TipTap 富文本编辑器 - 单独分包（仅在复盘页使用）
+          // TipTap 富文本编辑器 - 单独分包
           if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) {
             return 'vendor-tiptap';
           }
-          // XLSX - 单独分包（仅在导入数据页使用）
+          // XLSX - 单独分包
           if (id.includes('node_modules/xlsx') || id.includes('node_modules/cfb') || id.includes('node_modules/codepage')) {
             return 'vendor-xlsx';
           }
-          // react-markdown（仅 AI 分析页使用）
+          // react-markdown
           if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark') || id.includes('node_modules/rehype') || id.includes('node_modules/unified') || id.includes('node_modules/mdast') || id.includes('node_modules/micromark') || id.includes('node_modules/hast')) {
             return 'vendor-markdown';
           }
-          // lucide-react（仅 AI 分析 + Pricing 使用）
+          // lucide-react
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-lucide';
           }
-          // dayjs - 轻量工具
+          // dayjs
           if (id.includes('node_modules/dayjs')) {
             return 'vendor-dayjs';
-          }
-          // 其他第三方依赖
-          if (id.includes('node_modules/')) {
-            return 'vendor-misc';
           }
         },
       },
