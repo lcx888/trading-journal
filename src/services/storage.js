@@ -96,9 +96,9 @@ export const StorageService = {
   },
 
   async addTrades(newTrades) {
-    await apiRequest('/trades/bulk', { method: 'POST', body: { trades: newTrades } });
+    const result = await apiRequest('/trades/bulk', { method: 'POST', body: { trades: newTrades } });
     invalidateCache('trades');
-    return await this.getAllTrades();
+    return result?.inserted || newTrades.length;
   },
 
   async getTradesByInstrument(instrumentCode) {

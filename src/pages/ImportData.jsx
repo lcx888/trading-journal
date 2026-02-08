@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Upload, Button, message, Table, Tag, Row, Col,
   Modal, Progress, Select, Empty
@@ -147,9 +147,19 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
         recordId: currentRecordId,
         source: parsedData?.fileType || fileType || 'atas',
       }));
-      const timer = setInterval(() => setImportProgress(p => Math.min(p + 15, 95)), 150);
-      await StorageService.addTrades(tradesToImport);
+      // 分批上传进度
+      const totalCount = tradesToImport.length;
+      const BATCH_SIZE = 50;
+      let uploaded = 0;
+      for (let i = 0; i < totalCount; i += BATCH_SIZE) {
+        const batch = tradesToImport.slice(i, i + BATCH_SIZE);
+        await StorageService.addTrades(batch);
+        uploaded += batch.length;
+        setImportProgress(Math.min(Math.round(uploaded / totalCount * 90), 90));
+      }
+      setImportProgress(92);
       await StorageService.refreshRecordStats(currentRecordId);
+      setImportProgress(96);
       await StorageService.addImportRecord({
         filename: parsedData.filename,
         importDate: new Date(),
@@ -159,7 +169,6 @@ const ImportData = ({ onImportSuccess, selectedRecordId, onNavigateToRecords, on
         recordName: getCurrentRecord()?.name,
         fileType: parsedData?.fileType || fileType || 'atas',
       });
-      clearInterval(timer);
       setImportProgress(100);
       message.success('数据同步成功');
       setTimeout(() => {
