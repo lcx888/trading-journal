@@ -798,28 +798,25 @@ app.get('/trades', authRequired, async (req, res) => {
 });
 
 app.post('/trades/bulk', authRequired, async (req, res) => {
-  const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
-  if (trades.length === 0) return res.json({ inserted: 0 });
-  const data = trades.map(t => normalizeTrade(t, req.user.id));
-  // 使用事务批量插入，大幅减少 SQLite 写入开销
-  let inserted = 0;
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < data.length; i += BATCH_SIZE) {
-    const batch = data.slice(i, i + BATCH_SIZE);
-    await prisma.$transaction(
-      batch.map(trade => 
-        prisma.trade.create({ data: trade }).catch(() => null)
-      )
-    ).then(results => {
-      inserted += results.filter(r => r !== null).length;
-    }).catch(() => {
-      // 事务失败时回退到逐条插入
-      batch.forEach(async (trade) => {
-        try { await prisma.trade.create({ data: trade }); inserted++; } catch(e) {}
-      });
-    });
+  try {
+    const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
+    if (trades.length === 0) return res.json({ inserted: 0 });
+    const data = trades.map(t => normalizeTrade(t, req.user.id));
+    let inserted = 0;
+    // 逐条插入，跳过重复记录，确保稳定性
+    for (const trade of data) {
+      try {
+        await prisma.trade.create({ data: trade });
+        inserted++;
+      } catch (e) {
+        // 忽略重复记录错误，继续下一条
+      }
+    }
+    return res.json({ inserted });
+  } catch (error) {
+    console.error('批量插入失败:', error);
+    return res.status(500).json({ message: '导入失败', error: error.message });
   }
-  return res.json({ inserted });
 });
 
 app.put('/trades', authRequired, async (req, res) => {
