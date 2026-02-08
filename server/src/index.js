@@ -797,11 +797,18 @@ app.post('/records/:id/refresh-stats', authRequired, async (req, res) => {
 app.get('/trades', authRequired, async (req, res) => {
   try {
     const { recordId } = req.query;
+    const startTime = Date.now();
     const trades = await prisma.trade.findMany({
       where: { userId: req.user.id, ...(recordId ? { recordId: String(recordId) } : {}) },
       orderBy: { openTime: 'desc' },
     });
-    return res.json(trades.map(mapTrade));
+    const dbTime = Date.now() - startTime;
+    const result = trades.map(mapTrade);
+    const totalTime = Date.now() - startTime;
+    if (totalTime > 3000) {
+      console.warn(`⚠️ GET /trades 慢查询: ${trades.length} 条记录, DB=${dbTime}ms, 总耗时=${totalTime}ms, userId=${req.user.id}`);
+    }
+    return res.json(result);
   } catch (error) {
     console.error('获取交易列表失败:', error);
     return res.status(500).json({ message: '获取交易列表失败', error: error.message });
@@ -814,14 +821,22 @@ app.post('/trades/bulk', authRequired, async (req, res) => {
     if (trades.length === 0) return res.json({ inserted: 0 });
     const data = trades.map(t => normalizeTrade(t, req.user.id));
     let inserted = 0;
-    // 逐条插入，跳过重复记录，确保稳定性
-    for (const trade of data) {
-      try {
-        await prisma.trade.create({ data: trade });
-        inserted++;
-      } catch (e) {
-        // 忽略重复记录错误，继续下一条
-      }
+    // 使用 createMany + skipDuplicates 批量插入（比逐条 await 快 10-50x）
+    // SQLite 不支持 createMany skipDuplicates，改用分批事务
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+      const batch = data.slice(i, i + BATCH_SIZE);
+      // 在事务内逐条插入，但整批共享一个事务（减少 SQLite 磁盘 IO）
+      await prisma.$transaction(async (tx) => {
+        for (const trade of batch) {
+          try {
+            await tx.trade.create({ data: trade });
+            inserted++;
+          } catch (e) {
+            // 忽略重复记录错误，继续下一条
+          }
+        }
+      });
     }
     return res.json({ inserted });
   } catch (error) {
@@ -834,10 +849,17 @@ app.put('/trades', authRequired, async (req, res) => {
   const trades = Array.isArray(req.body?.trades) ? req.body.trades : [];
   await prisma.trade.deleteMany({ where: { userId: req.user.id } });
   if (trades.length > 0) {
-    for (const t of trades) {
-      try {
-        await prisma.trade.create({ data: normalizeTrade(t, req.user.id) });
-      } catch (e) { /* 忽略 */ }
+    const BATCH_SIZE = 50;
+    const data = trades.map(t => normalizeTrade(t, req.user.id));
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+      const batch = data.slice(i, i + BATCH_SIZE);
+      await prisma.$transaction(async (tx) => {
+        for (const trade of batch) {
+          try {
+            await tx.trade.create({ data: trade });
+          } catch (e) { /* 忽略 */ }
+        }
+      });
     }
   }
   return res.json({ success: true });
