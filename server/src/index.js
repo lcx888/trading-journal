@@ -153,7 +153,12 @@ const normalizeTrade = (trade, userId) => ({
 });
 
 const mapTrade = (row) => {
-  const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+  let data;
+  try {
+    data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+  } catch (e) {
+    data = {};
+  }
   return {
     ...data,
     id: row.id,
@@ -789,12 +794,17 @@ app.post('/records/:id/refresh-stats', authRequired, async (req, res) => {
 
 // ========== Trades ==========
 app.get('/trades', authRequired, async (req, res) => {
-  const { recordId } = req.query;
-  const trades = await prisma.trade.findMany({
-    where: { userId: req.user.id, ...(recordId ? { recordId: String(recordId) } : {}) },
-    orderBy: { openTime: 'desc' },
-  });
-  return res.json(trades.map(mapTrade));
+  try {
+    const { recordId } = req.query;
+    const trades = await prisma.trade.findMany({
+      where: { userId: req.user.id, ...(recordId ? { recordId: String(recordId) } : {}) },
+      orderBy: { openTime: 'desc' },
+    });
+    return res.json(trades.map(mapTrade));
+  } catch (error) {
+    console.error('获取交易列表失败:', error);
+    return res.status(500).json({ message: '获取交易列表失败', error: error.message });
+  }
 });
 
 app.post('/trades/bulk', authRequired, async (req, res) => {
