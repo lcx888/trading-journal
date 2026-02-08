@@ -169,10 +169,11 @@ const mapTrade = (row) => {
     source: row.source || 'atas',
     account: row.account,
     // 优先使用数据库列的值，如果为 null 则回退到 data JSON 中的值
-    mae: row.mae ?? data?.mae ?? data?.jigsawData?.mae ?? null,
-    mfe: row.mfe ?? data?.mfe ?? data?.jigsawData?.mfe ?? null,
+    // BigInt 需要转 Number 才能 JSON 序列化
+    mae: row.mae != null ? Number(row.mae) : (data?.mae ?? data?.jigsawData?.mae ?? null),
+    mfe: row.mfe != null ? Number(row.mfe) : (data?.mfe ?? data?.jigsawData?.mfe ?? null),
     fills: row.fills ?? data?.fills ?? data?.jigsawData?.fills ?? null,
-    holdingSeconds: row.holdingSeconds,
+    holdingSeconds: row.holdingSeconds != null ? Number(row.holdingSeconds) : null,
   };
 };
 

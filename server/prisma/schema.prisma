@@ -206,10 +206,10 @@ model Trade {
   data           String
   source         String?   @default("atas")  // atas, jigsaw
   account        String?                     // 交易账户
-  mae            Int?                        // Maximum Adverse Excursion (Jigsaw)
-  mfe            Int?                        // Maximum Favorable Excursion (Jigsaw)
+  mae            BigInt?                     // Maximum Adverse Excursion (Jigsaw)
+  mfe            BigInt?                     // Maximum Favorable Excursion (Jigsaw)
   fills          Int?                        // 成交次数 (Jigsaw)
-  holdingSeconds Int?                        // 持仓时间（秒）
+  holdingSeconds BigInt?                     // 持仓时间（秒）
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
