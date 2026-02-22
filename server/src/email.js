@@ -1,39 +1,14 @@
 // 邮件发送服务
-// 兼容 Node 16：Resend v6+ 需要全局 Headers/Request/Response，低版本需要 polyfill
-if (typeof globalThis.Headers === 'undefined') {
-  try {
-    const undici = await import('undici');
-    globalThis.Headers = undici.Headers;
-    globalThis.Request = undici.Request;
-    globalThis.Response = undici.Response;
-  } catch {
-    try {
-      const nodeFetch = await import('node-fetch');
-      globalThis.Headers = nodeFetch.Headers;
-      globalThis.Request = nodeFetch.Request;
-      globalThis.Response = nodeFetch.Response;
-    } catch {
-      // polyfill 都不可用，后面会降级为测试模式
-    }
-  }
-}
+// 直接用 node-fetch 调用 Resend REST API，兼容 Node 16+
+import fetch from 'node-fetch';
 
-let resend = null;
-try {
-  if (process.env.RESEND_API_KEY) {
-    const { Resend } = await import('resend');
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-} catch (e) {
-  console.warn('⚠️ Resend 初始化失败，邮件将使用测试模式:', e.message);
-}
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 // 发送邮件
 export async function sendEmail({ to, subject, html }) {
   const from = process.env.EMAIL_FROM || 'TradeWhy.AI <onboarding@resend.dev>';
   
-  // 如果没有配置 Resend，使用测试模式
-  if (!resend) {
+  if (!RESEND_API_KEY) {
     console.log('========== 邮件（测试模式）==========');
     console.log('收件人:', to);
     console.log('主题:', subject);
@@ -44,16 +19,20 @@ export async function sendEmail({ to, subject, html }) {
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from,
-      to: [to],
-      subject,
-      html,
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({ from, to: [to], subject, html }),
     });
 
-    if (error) {
-      console.error('发送邮件失败:', error);
-      return { success: false, error: error.message };
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error('发送邮件失败:', data);
+      return { success: false, error: data.message || '邮件发送失败' };
     }
 
     console.log('✅ 邮件发送成功:', data?.id);
