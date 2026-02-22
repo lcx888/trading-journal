@@ -1,5 +1,23 @@
 // 邮件发送服务
-// 兼容 Node 16：Resend v6+ 需要全局 Headers，低版本 Node 没有则降级为测试模式
+// 兼容 Node 16：Resend v6+ 需要全局 Headers/Request/Response，低版本需要 polyfill
+if (typeof globalThis.Headers === 'undefined') {
+  try {
+    const undici = await import('undici');
+    globalThis.Headers = undici.Headers;
+    globalThis.Request = undici.Request;
+    globalThis.Response = undici.Response;
+  } catch {
+    try {
+      const nodeFetch = await import('node-fetch');
+      globalThis.Headers = nodeFetch.Headers;
+      globalThis.Request = nodeFetch.Request;
+      globalThis.Response = nodeFetch.Response;
+    } catch {
+      // polyfill 都不可用，后面会降级为测试模式
+    }
+  }
+}
+
 let resend = null;
 try {
   if (process.env.RESEND_API_KEY) {
@@ -7,7 +25,7 @@ try {
     resend = new Resend(process.env.RESEND_API_KEY);
   }
 } catch (e) {
-  console.warn('⚠️ Resend 初始化失败（Node 版本过低），邮件将使用测试模式:', e.message);
+  console.warn('⚠️ Resend 初始化失败，邮件将使用测试模式:', e.message);
 }
 
 // 发送邮件

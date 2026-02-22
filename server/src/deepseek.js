@@ -54,16 +54,24 @@ const getTickValue = (instrumentCode) => TICK_VALUES[instrumentCode] || 5;
 // 将 ticks 转换为美元
 const ticksToUSD = (ticks, instrumentCode, quantity) => {
   if (ticks === undefined || ticks === null) return null;
-  return ticks * getTickValue(instrumentCode) * Math.abs(quantity || 1);
+  return Number(ticks) * getTickValue(instrumentCode) * Math.abs(quantity || 1);
 };
 
 /**
  * 准备交易数据摘要（支持 Jigsaw 扩展字段）
  */
-function prepareTradesSummary(trades) {
-  if (!trades || trades.length === 0) {
+function prepareTradesSummary(rawTrades) {
+  if (!rawTrades || rawTrades.length === 0) {
     return { summary: { totalTrades: 0 }, bySession: [], byInstrument: [], direction: {}, recentTrades: [], worstTrades: [], bestTrades: [], jigsawAnalysis: null };
   }
+
+  // BigInt 字段转 Number，避免混合运算报错
+  const trades = rawTrades.map(t => ({
+    ...t,
+    mae: t.mae != null ? Number(t.mae) : null,
+    mfe: t.mfe != null ? Number(t.mfe) : null,
+    holdingSeconds: t.holdingSeconds != null ? Number(t.holdingSeconds) : null,
+  }));
 
   const totalTrades = trades.length;
   const winningTrades = trades.filter(t => (t.pnl || 0) > 0);
