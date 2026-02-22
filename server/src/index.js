@@ -263,14 +263,16 @@ app.post('/auth/send-code', async (req, res) => {
     const result = await sendRegistrationCodeEmail(normalizedEmail, code);
     
     if (result.testMode) {
-      // 测试模式下返回验证码（仅开发环境）
       console.log(`[测试模式] 验证码: ${code}`);
+      return res.json({ message: '验证码已发送（测试模式，请查看控制台）', testMode: true });
     }
 
-    return res.json({ 
-      message: '验证码已发送，请查收邮件',
-      testMode: result.testMode || false,
-    });
+    if (result.success === false) {
+      console.error('邮件发送失败，验证码:', code, '错误:', result.error);
+      return res.status(500).json({ message: '验证码邮件发送失败，请稍后重试' });
+    }
+
+    return res.json({ message: '验证码已发送，请查收邮件' });
   } catch (error) {
     console.error('发送验证码失败:', error);
     return res.status(500).json({ message: '发送验证码失败，请稍后重试' });
